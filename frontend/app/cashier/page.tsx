@@ -1,23 +1,23 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { PosClient } from "./pos-client";
-import type { PosProduct } from "./types";
+import { redirect } from "next/navigation"
+import { auth } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { PosClient } from "./pos-client"
+import type { PosProduct } from "./types"
 
-export const instant = false;
+export const instant = false
 
 export default async function CashierPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+  const session = await auth()
+  if (!session?.user) redirect("/login")
 
   // Kasir must be tied to an outlet; owner may use any (first) outlet.
-  const outletId = session.user.outletId;
-  if (!outletId && session.user.role !== "OWNER") redirect("/");
+  const outletId = session.user.outletId
+  if (!outletId && session.user.role !== "OWNER") redirect("/")
 
   const outlet = outletId
     ? await prisma.outlet.findUnique({ where: { id: outletId } })
-    : await prisma.outlet.findFirst();
-  if (!outlet) redirect("/");
+    : await prisma.outlet.findFirst()
+  if (!outlet) redirect("/")
 
   const rows = await prisma.product.findMany({
     where: { outletId: outlet.id, isActive: true },
@@ -32,7 +32,7 @@ export default async function CashierPage() {
       minStock: true,
       category: { select: { name: true } },
     },
-  });
+  })
 
   // Decimal values are serialized as strings before crossing the
   // server/client boundary.
@@ -45,13 +45,13 @@ export default async function CashierPage() {
     unit: row.unit,
     minStock: row.minStock,
     categoryName: row.category?.name ?? null,
-  }));
+  }))
 
   return (
     <PosClient
-      cashierName={session.user.name}
+      cashierName={session.user.name ?? "Kasir"}
       outletName={outlet.name}
       products={products}
     />
-  );
+  )
 }
