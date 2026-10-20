@@ -1,0 +1,209 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import type { CheckoutResult, PaymentMethodValue } from "./types";
+
+// All money math runs in integer "sen" (1 Rp = 100 sen) to avoid floating
+// point drift, then converts back to a Decimal string for Prisma.
+const toSen = (rupiah: number) => Math.round(rupiah * 100);
+const toDecimalString = (sen: number) => (sen / 100).toFixed(2);
+
+const PAYMENT_METHODS: PaymentMethodValue[] = ["CASH", "QRIS", "DEBIT"];
+
+// Thrown inside the transaction for user-facing validation failures.
+class CheckoutError extends Error {}
+
+export async function createTransaction(input: {
+  items: { productId: string; quantity: number }[];
+  paymentMethod: PaymentMethodValue;
+  paidAmount: number;
+  discount?: number;
+}): Promise<CheckoutResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return { ok: false, error: "Sesi sudah berakhir. Silakan login ulang." };
+  }
+  const sessionUser = session.user;
+
+  const { items, paymentMethod } = input;
+
+  if (!PAYMENT_METHODS.includes(paymentMethod)) {
+    return { ok: false, error: "Metode pembayaran tidak valid." };
+  }
+  if (!Array.isArray(items) || items.length === 0) {
+    return { ok: false, error: "Keranjang masih kosong." };
+  }
+  for (const line of items) {
+    if (!Number.isInteger(line.quantity) || line.quantity < 1) {
+      return { ok: false, error: "Jumlah item tidak valid." };
+    }
+  }
+  if (
+    !Number.isFinite(input.paidAmount) ||
+    !Number.isFinite(input.discount ?? 0)
+  ) {
+    return { ok: false, error: "Nilai pembayaran tidak valid." };
+  }
+
+  const discountSen = toSen(Math.max(0, input.discount ?? 0));
+  const paidSen = toSen(Math.max(0, input.paidAmount ?? 0));
+
+  // Kasir is bound to one outlet; owner falls back to the first outlet.
+  let outletId = sessionUser.outletId;
+  if (!outletId) {
+    if (sessionUser.role !== "OWNER") {
+      return {
+        ok: false,
+        error: "Akun kasir ini tidak terikat ke outlet mana pun.",
+      };
+    }
+    const firstOutlet = await prisma.outlet.findFirst({ select: { id: true } });
+    if (!firstOutlet) {
+      return { ok: false, error: "Belum ada outlet terdaftar." };
+    }
+    outletId = firstOutlet.id;
+  }
+  const effectiveOutletId: string = outletId;
+
+  try {
+    const receipt = await prisma.$transaction(async (tx) => {
+      // Only products belonging to this outlet can be sold.
+      const productIds = items.map((line) => line.productId);
+      const products = await tx.product.findMany({
+        where: {
+          id: { in: productIds },
+          outletId: effectiveOutletId,
+          isActive: true,
+        },
+        select: { id: true, name: true, price: true, stock: true },
+      });
+      const byId = new Map(products.map((p) => [p.id, p]));
+
+      const lines = items.map((line) => {
+        const product = byId.get(line.productId);
+        if (!product) {
+          throw new CheckoutError(
+            "Ada produk yang tidak ditemukan di outlet ini.",
+          );
+        }
+        if (product.stock < line.quantity) {
+          throw new CheckoutError(
+            `Stok ${product.name} tersisa ${product.stock}.`,
+          );
+        }
+        // Trust ONLY the server-side price, never what the browser sent.
+        const priceSen = toSen(Number(product.price));
+        return {
+          product,
+          quantity: line.quantity,
+          priceSen,
+          subtotalSen: priceSen * line.quantity,
+        };
+      });
+
+      const subtotalSen = lines.reduce(
+        (sum, line) => sum + line.subtotalSen,
+        0,
+      );
+      if (discountSen > subtotalSen) {
+        throw new CheckoutError("Diskon tidak boleh melebihi subtotal.");
+      }
+      const totalSen = subtotalSen - discountSen;
+
+      // Non-cash methods are charged the exact amount.
+      const effectivePaidSen = paymentMethod === "CASH" ? paidSen : totalSen;
+      if (effectivePaidSen < totalSen) {
+        throw new CheckoutError("Uang yang dibayar kurang dari total belanja.");
+      }
+      const changeSen = effectivePaidSen - totalSen;
+
+      // Receipt code, e.g. TRX-20261021-0001. The unique constraint on
+      // code guards against the rare same-second collision.
+      const now = new Date();
+      const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+      const startOfDay = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+      );
+      const todayCount = await tx.transaction.count({
+        where: { outletId: effectiveOutletId, createdAt: { gte: startOfDay } },
+      });
+      const code = `TRX-${ymd}-${String(todayCount + 1).padStart(4, "0")}`;
+
+      const created = await tx.transaction.create({
+        data: {
+          code,
+          outletId: effectiveOutletId,
+          cashierId: sessionUser.id,
+          paymentMethod,
+          status: "COMPLETED",
+          subtotal: toDecimalString(subtotalSen),
+          discount: toDecimalString(discountSen),
+          total: toDecimalString(totalSen),
+          paidAmount: toDecimalString(effectivePaidSen),
+          changeAmount: toDecimalString(changeSen),
+          items: {
+            create: lines.map((line) => ({
+              productId: line.product.id,
+              quantity: line.quantity,
+              priceAtSale: toDecimalString(line.priceSen),
+              subtotal: toDecimalString(line.subtotalSen),
+            })),
+          },
+        },
+      });
+
+      // Conditional decrement: the WHERE clause re-checks stock so a
+      // concurrent sale can never oversell. count === 0 means the guard
+      // failed and the whole transaction rolls back.
+      for (const line of lines) {
+        const res = await tx.product.updateMany({
+          where: {
+            id: line.product.id,
+            outletId: effectiveOutletId,
+            isActive: true,
+            stock: { gte: line.quantity },
+          },
+          data: { stock: { decrement: line.quantity } },
+        });
+        if (res.count === 0) {
+          throw new CheckoutError(
+            `Stok ${line.product.name} baru saja berubah. Silakan coba lagi.`,
+          );
+        }
+      }
+
+      return {
+        code: created.code,
+        createdAt: created.createdAt.toISOString(),
+        paymentMethod,
+        subtotal: subtotalSen / 100,
+        discount: discountSen / 100,
+        total: totalSen / 100,
+        paidAmount: effectivePaidSen / 100,
+        changeAmount: changeSen / 100,
+        items: lines.map((line) => ({
+          name: line.product.name,
+          quantity: line.quantity,
+          priceAtSale: line.priceSen / 100,
+          subtotal: line.subtotalSen / 100,
+        })),
+      };
+    });
+
+    revalidatePath("/cashier");
+    return { ok: true, receipt };
+  } catch (error) {
+    if (error instanceof CheckoutError) {
+      return { ok: false, error: error.message };
+    }
+    console.error("createTransaction failed:", error);
+    return {
+      ok: false,
+      error: "Gagal menyimpan transaksi. Silakan coba lagi.",
+    };
+  }
+}
