@@ -1,0 +1,11 @@
+# Python caches and virtualenv — never ship them into the image
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local secrets — injected via compose environment instead
+.env
+
+# Trained model artifacts (rebuilt by retraining, not baked into images)
+*.joblib

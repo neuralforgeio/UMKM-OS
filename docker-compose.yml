@@ -1,0 +1,91 @@
+# =====================================================================
+# UMKM OS — Docker orchestration, MIRRORED TO MATCH THIS LAPTOP
+# ---------------------------------------------------------------------
+# Parity with the native setup on this machine:
+#   - native PostgreSQL 18.6  <->  postgres:18-alpine container
+#   - same credentials: umkm / umkmindo45 / database umkmos
+#   - native owns host port 5432, so the container maps to host 5433
+#
+# DAILY DEVELOPMENT still uses the NATIVE PostgreSQL on localhost:5432
+# (backend/.env and Prisma point there). This stack is the CONTAINERIZED
+# channel — full-architecture demo (portfolio) and containerized dev.
+#
+# Commands:
+#   docker compose up -d db    -> PostgreSQL container only
+#   docker compose up -d       -> db + backend containers
+#
+# All credentials come from the root .env file (see .env.example).
+# =====================================================================
+
+services:
+  # -------------------------------------------------------------------
+  # PostgreSQL 18 — same major version as the native 18.6 installation
+  # (pin "postgres:18.6-alpine" for byte-exact parity if desired)
+  # -------------------------------------------------------------------
+  db:
+    image: postgres:18-alpine
+    container_name: umkm-os-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    ports:
+      # host 5433 -> container 5432 (native Postgres owns host 5432)
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------------
+  # FastAPI ML service — forecasting + RAG (read-only DB access)
+  # -------------------------------------------------------------------
+  backend:
+    build: ./backend
+    container_name: umkm-os-backend
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"                     # auto-reload while developing
+      HOST: 0.0.0.0                     # required inside a container
+      PORT: 8000
+      # Inside the compose network the database host is the service name "db"
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app                  # live code editing
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # -------------------------------------------------------------------
+  # Next.js frontend — enabled in the deployment session.
+  # During development it runs on the host with `npm run dev`.
+  # -------------------------------------------------------------------
+  # frontend:
+  #   build: ./frontend
+  #   container_name: umkm-os-frontend
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  #     NEXT_PUBLIC_API_URL: http://localhost:8000
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+
+volumes:
+  pgdata:
