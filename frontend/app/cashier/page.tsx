@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 
+export const instant = false
+
 export default async function CashierPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");

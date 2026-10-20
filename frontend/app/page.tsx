@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export const instant = false
+
 export default async function HomePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
