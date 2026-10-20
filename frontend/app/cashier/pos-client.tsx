@@ -7,6 +7,8 @@ import { createTransaction } from "./actions";
 import type { PaymentMethodValue, PosProduct, Receipt } from "./types";
 import { formatRupiah, formatThousands } from "@/lib/format";
 
+const PAGE_SIZE = 16;
+
 const PAYMENT_LABELS: Record<PaymentMethodValue, string> = {
   CASH: "Tunai",
   QRIS: "QRIS",
@@ -73,36 +75,36 @@ function ProductCard({
       type="button"
       disabled={soldOut}
       onClick={() => onSetQty(qty + 1)}
-      className={`relative flex flex-col rounded-xl border p-3 text-left transition active:scale-[0.98] ${
+      className={`relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border p-2.5 text-left transition active:scale-[0.98] lg:p-3 ${
         soldOut
           ? "cursor-not-allowed border-slate-200 opacity-55"
           : "border-slate-200 bg-white hover:border-blue-400 hover:shadow-sm"
       }`}
     >
       {qty > 0 && (
-        <span className="absolute -right-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-bold text-white shadow">
+        <span className="absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white shadow">
           {qty}
         </span>
       )}
-      <span className="line-clamp-2 min-h-10 text-sm font-semibold leading-snug text-slate-900">
+      <span className="line-clamp-2 pr-6 text-[13px] font-semibold leading-snug text-slate-900 lg:text-sm">
         {product.name}
       </span>
-      <span className="mt-0.5 truncate text-[11px] text-slate-400">
+      <span className="mt-0.5 truncate text-[10px] text-slate-400">
         {product.sku}
       </span>
-      <span className="mt-2 text-sm font-bold text-blue-600">
+      <span className="mt-1.5 text-[13px] font-bold text-blue-600 lg:text-sm">
         {displayRp(priceSen(product))}
       </span>
-      <div className="mt-2 flex items-center justify-between gap-2">
+      <div className="mt-auto flex items-center justify-between gap-1 pt-2">
         {product.categoryName ? (
-          <span className="truncate rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+          <span className="truncate rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
             {product.categoryName}
           </span>
         ) : (
           <span />
         )}
         <span
-          className={`shrink-0 text-[11px] font-medium ${
+          className={`shrink-0 text-[10px] font-semibold ${
             soldOut
               ? "text-red-500"
               : lowStock
@@ -162,8 +164,11 @@ function CartPanel({
     (paymentMethod !== "CASH" || paidSen >= totalSen);
 
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+    // Vertical layout, top to bottom, all FIXED except the item list:
+    //   header  →  scrollable item list  →  totals  →  payment
+    //   →  cash input  →  pay button. Only the list ever scrolls.
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
           Keranjang <span className="text-slate-300">·</span> {itemCount} item
         </h2>
@@ -202,7 +207,7 @@ function CartPanel({
       </div>
 
       {lines.length === 0 ? (
-        <div className="px-4 py-10 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
           <p className="text-sm text-slate-400">Keranjang masih kosong.</p>
           <p className="mt-1 text-xs text-slate-400">
             Klik produk untuk menambahkan.
@@ -210,7 +215,8 @@ function CartPanel({
         </div>
       ) : (
         <>
-          <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto px-4">
+          {/* The ONLY scrollable part of the panel: the item list. */}
+          <ul className="min-h-0 flex-1 divide-y divide-slate-100 overflow-y-auto px-4">
             {lines.map(({ product, qty }) => (
               <li key={product.id} className="flex items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">
@@ -250,7 +256,8 @@ function CartPanel({
             ))}
           </ul>
 
-          <div className="space-y-3 border-t border-slate-100 px-4 py-3">
+          {/* Everything from here down is pinned — never scrolls. */}
+          <div className="shrink-0 space-y-3 border-t border-slate-100 px-4 py-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-500">Subtotal</span>
               <span className="font-medium tabular-nums text-slate-900">
@@ -258,7 +265,7 @@ function CartPanel({
               </span>
             </div>
             <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="text-slate-500">Diskon</span>
+              <span className="shrink-0 text-slate-500">Diskon</span>
               <div className="w-40">
                 <MoneyInput
                   valueSen={discountSen}
@@ -282,7 +289,7 @@ function CartPanel({
             </div>
           </div>
 
-          <div className="border-t border-slate-100 px-4 py-3">
+          <div className="shrink-0 border-t border-slate-100 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Metode Pembayaran
             </p>
@@ -305,7 +312,7 @@ function CartPanel({
           </div>
 
           {paymentMethod === "CASH" && (
-            <div className="space-y-2 border-t border-slate-100 px-4 py-3">
+            <div className="shrink-0 space-y-2 border-t border-slate-100 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Uang Dibayar
               </p>
@@ -346,12 +353,14 @@ function CartPanel({
           )}
 
           {error && (
-            <div className="mx-4 mt-1 rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">
-              {error}
+            <div className="shrink-0 px-4 pb-2">
+              <div className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">
+                {error}
+              </div>
             </div>
           )}
 
-          <div className="p-4">
+          <div className="shrink-0 border-t border-slate-100 p-4">
             <button
               type="button"
               onClick={onPay}
@@ -360,9 +369,7 @@ function CartPanel({
             >
               {pending
                 ? "Menyimpan transaksi..."
-                : itemCount > 0
-                  ? `Bayar ${displayRp(totalSen)}`
-                  : "Bayar"}
+                : `Bayar ${displayRp(totalSen)}`}
             </button>
           </div>
         </>
@@ -496,6 +503,7 @@ export function PosClient({
   const router = useRouter();
   const [cart, setCart] = useState<Record<string, number>>({});
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethodValue>("CASH");
   const [paidSen, setPaidSen] = useState(0);
@@ -518,6 +526,14 @@ export function PosClient({
         p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q),
     );
   }, [products, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paged = filtered.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+  const placeholderCount = filtered.length > 0 ? PAGE_SIZE - paged.length : 0;
 
   const cartLines = useMemo(() => {
     const lines: CartLineView[] = [];
@@ -583,6 +599,7 @@ export function PosClient({
   const resetAll = () => {
     setCart({});
     setQuery("");
+    setPage(1);
     setPaymentMethod("CASH");
     setPaidSen(0);
     setDiscountSen(0);
@@ -627,8 +644,10 @@ export function PosClient({
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-100">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+    // Application shell: the viewport is locked (h-dvh + overflow-hidden),
+    // so panels never push the page into scrolling. Only inner lists scroll.
+    <div className="flex h-dvh flex-col overflow-hidden bg-slate-100">
+      <header className="shrink-0 border-b border-slate-200 bg-white">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white">
@@ -652,13 +671,13 @@ export function PosClient({
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-7xl flex-1 items-start gap-6 px-4 py-6 lg:grid-cols-[minmax(0,1fr)_400px]">
-        <section className="min-w-0 rounded-2xl bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto flex w-full max-w-7xl min-h-0 flex-1 flex-col gap-4 p-4 lg:grid lg:grid-cols-[minmax(0,1fr)_380px]">
+        <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-sm">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-100 p-3">
             <h2 className="shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-500">
               Produk <span className="text-slate-300">·</span> {filtered.length}
             </h2>
-            <div className="relative sm:w-72">
+            <div className="relative min-w-40 flex-1">
               <svg
                 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
                 viewBox="0 0 24 24"
@@ -674,23 +693,72 @@ export function PosClient({
               <input
                 type="search"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPage(1);
+                }}
                 placeholder="Cari nama produk atau SKU..."
                 className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
+            {totalPages > 1 && (
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  aria-label="Halaman sebelumnya"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ‹
+                </button>
+                {totalPages <= 5 ? (
+                  Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setPage(n)}
+                        className={`h-8 w-8 rounded-lg text-xs font-bold tabular-nums transition ${
+                          n === currentPage
+                            ? "bg-blue-600 text-white shadow-sm"
+                            : "border border-slate-300 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ),
+                  )
+                ) : (
+                  <span className="px-2 text-xs font-bold tabular-nums text-slate-600">
+                    {currentPage} / {totalPages}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  aria-label="Halaman berikutnya"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ›
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="p-4">
+          <div className="min-h-0 flex-1 overflow-y-auto p-3 lg:overflow-hidden">
             {filtered.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 p-10 text-center">
+              <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 p-10 text-center">
                 <p className="text-sm text-slate-400">
                   Tidak ada produk yang cocok.
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-                {filtered.map((product) => (
+              // Desktop: fixed 4x4 grid (16 boxes) stretched to the panel;
+              // mobile: 2-3 columns with internal scrolling.
+              <div className="grid grid-cols-2 content-start gap-2.5 sm:grid-cols-3 lg:h-full lg:grid-cols-4 lg:grid-rows-4 lg:gap-3">
+                {paged.map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}
@@ -698,26 +766,33 @@ export function PosClient({
                     onSetQty={(nextQty) => setQty(product.id, nextQty)}
                   />
                 ))}
+                {Array.from({ length: placeholderCount }).map((_, i) => (
+                  <div
+                    key={`slot-${i}`}
+                    aria-hidden="true"
+                    className="hidden rounded-xl border border-dashed border-slate-200 lg:block"
+                  />
+                ))}
               </div>
             )}
           </div>
         </section>
 
-        <aside className="hidden lg:block">
-          <div className="sticky top-24 rounded-2xl bg-white shadow-sm">
+        <aside className="hidden min-h-0 lg:block">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-sm">
             <CartPanel {...panelProps} />
           </div>
         </aside>
       </div>
 
       {itemCount === 0 ? (
-        <div className="sticky bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-center backdrop-blur lg:hidden">
+        <div className="shrink-0 border-t border-slate-200 bg-white px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-center lg:hidden">
           <p className="text-sm text-slate-400">
             Pilih produk untuk mulai transaksi
           </p>
         </div>
       ) : (
-        <div className="sticky bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+        <div className="shrink-0 border-t border-slate-200 bg-white px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
@@ -757,7 +832,10 @@ export function PosClient({
             onClick={() => setSheetOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute inset-x-0 bottom-0 max-h-[88dvh] overflow-y-auto rounded-t-3xl bg-white shadow-2xl">
+          <div className="absolute inset-x-0 bottom-0 flex h-[88dvh] flex-col rounded-t-3xl bg-white shadow-2xl">
+            <div className="flex shrink-0 justify-center pb-1 pt-2.5">
+              <div className="h-1.5 w-10 rounded-full bg-slate-300" />
+            </div>
             <CartPanel {...panelProps} onClose={() => setSheetOpen(false)} />
           </div>
         </div>
