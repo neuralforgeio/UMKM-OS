@@ -7,11 +7,35 @@
 FROM node:24-bookworm-slim AS deps
 WORKDIR /app
 # npm ci reproduces the exact dependency tree from the lockfile.
-# Retry flags ride out flaky connections to the npm registry
-# (ECONNRESET mid-download); audit/funding calls are skipped because
-# they only add extra network chatter during the build.
+#
+# Flaky-network armor (ECONNRESET kept aborting mid-stream downloads):
+# 1. The BuildKit cache mount keeps npm's tarball cache alive ACROSS
+#    builds — a failed attempt no longer wastes its downloads; every
+#    retry resumes from cached packages and converges to success.
+# 2. A shell-level retry loop restarts the whole `npm ci` when npm's
+#    own per-request retries give up (a mid-stream ECONNRESET kills
+#    the entire run; flags alone cannot recover from that).
+# 3. Fewer concurrent sockets and a longer fetch timeout are gentler
+#    on unstable links than npm's defaults (15 parallel sockets).
 COPY package.json package-lock.json ./
-RUN npm ci --fetch-retries=5 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=120000 --no-audit --no-fund
+RUN --mount=type=cache,target=/root/.npm \
+    set -e; \
+    ok=0; \
+    for i in 1 2 3 4 5; do \
+      if npm ci --fetch-retries=5 \
+                --fetch-retry-mintimeout=20000 \
+                --fetch-retry-maxtimeout=300000 \
+                --fetch-timeout=600000 \
+                --maxsockets=6 \
+                --no-audit --no-fund; then \
+        ok=1; \
+        break; \
+      fi; \
+      echo ">>> npm ci failed (attempt $i/5) - sleeping 15s, retrying with warm cache"; \
+      sleep 15; \
+    done; \
+    [ "$ok" = "1" ]
+
 FROM node:24-bookworm-slim AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
