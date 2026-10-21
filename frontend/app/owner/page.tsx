@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PackagePlus } from "lucide-react";
 import ForecastSection from "@/components/forecast/forecast-section";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
