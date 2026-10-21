@@ -42,6 +42,17 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
+    # Only active with "docker compose watch": saving any backend file
+    # rebuilds and restarts this service automatically. Inert during
+    # normal compose up, so the demo flow is untouched.
+    develop:
+      watch:
+        - action: rebuild
+          path: ./backend
+          ignore:
+            - .venv
+            - __pycache__
+            - .pytest_cache
 
   frontend:
     build: ./frontend
@@ -59,6 +70,15 @@ services:
       backend:
         condition: service_started
     restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./frontend
+          ignore:
+            - node_modules
+            - .next
+            - .env
+            - .env.local
 
 volumes:
   pgdata:
