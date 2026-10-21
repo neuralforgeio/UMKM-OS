@@ -86,7 +86,7 @@ function ProductCard({
           {qty}
         </span>
       )}
-      <span className="line-clamp-2 pr-6 text-[13px] font-semibold leading-snug text-slate-900 lg:text-sm">
+      <span className="line-clamp-3 pr-6 text-[13px] font-semibold leading-snug text-slate-900 lg:text-sm">
         {product.name}
       </span>
       <span className="mt-0.5 truncate text-[10px] text-slate-400">
@@ -165,8 +165,8 @@ function CartPanel({
 
   return (
     // Vertical layout, top to bottom, all FIXED except the item list:
-    //   header  →  scrollable item list  →  totals  →  payment
-    //   →  cash input  →  pay button. Only the list ever scrolls.
+    //   header  ->  scrollable item list  ->  totals  ->  payment
+    //   ->  cash input  ->  pay button. Only the list ever scrolls.
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -220,7 +220,7 @@ function CartPanel({
             {lines.map(({ product, qty }) => (
               <li key={product.id} className="flex items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">
+                  <p className="line-clamp-2 text-sm font-medium text-slate-900">
                     {product.name}
                   </p>
                   <p className="text-xs text-slate-400">
@@ -256,7 +256,7 @@ function CartPanel({
             ))}
           </ul>
 
-          {/* Everything from here down is pinned — never scrolls. */}
+          {/* Everything from here down is pinned - never scrolls. */}
           <div className="shrink-0 space-y-3 border-t border-slate-100 px-4 py-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-500">Subtotal</span>
@@ -747,7 +747,7 @@ export function PosClient({
             )}
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-3 lg:overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
             {filtered.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 p-10 text-center">
                 <p className="text-sm text-slate-400">
@@ -755,9 +755,12 @@ export function PosClient({
                 </p>
               </div>
             ) : (
-              // Desktop: fixed 4x4 grid (16 boxes) stretched to the panel;
-              // mobile: 2-3 columns with internal scrolling.
-              <div className="grid grid-cols-2 content-start gap-2.5 sm:grid-cols-3 lg:h-full lg:grid-cols-4 lg:grid-rows-4 lg:gap-3">
+              // Desktop: 4x4 grid stretched to the panel, but every row
+              // keeps its content as the minimum height (minmax(auto,1fr))
+              // so a three-line product name is never clipped on short
+              // viewports - the area simply scrolls instead. Mobile: 2-3
+              // columns with internal scrolling as before.
+              <div className="grid grid-cols-2 content-start gap-2.5 sm:grid-cols-3 lg:h-full lg:grid-cols-4 lg:[grid-template-rows:repeat(4,minmax(auto,1fr))] lg:gap-3">
                 {paged.map((product) => (
                   <ProductCard
                     key={product.id}
