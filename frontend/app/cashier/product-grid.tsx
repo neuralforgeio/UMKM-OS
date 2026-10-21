@@ -1,9 +1,16 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Package, Search, X } from "lucide-react";
 import type { PosProduct } from "./types";
-import { categoryChipClass, displayRp, priceSen } from "./ui";
+import {
+  categoryAvatarClass,
+  categoryChipClass,
+  displayRp,
+  initialsOf,
+  priceSen,
+} from "./ui";
 
 const PAGE_SIZE = 16;
 
@@ -28,7 +35,7 @@ function ProductCard({
   return (
     // No fixed height, no overflow-hidden, no min-h-0 here: the card
     // grows with its content and the grid row grows with the card, so
-    // a three-line product name can never be clipped again.
+    // a long product name can never be clipped again.
     <button
       type="button"
       disabled={soldOut}
@@ -42,12 +49,28 @@ function ProductCard({
       }`}
     >
       {qty > 0 && (
-        <span className="absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white shadow">
+        <span className="absolute right-1.5 top-1.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white shadow">
           {qty}
         </span>
       )}
+      <span className="mb-2 block aspect-square w-full overflow-hidden rounded-lg bg-slate-100">
+        {product.thumbImageId ? (
+          <img
+            src={`/api/images/${product.thumbImageId}`}
+            alt={product.name}
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <span
+            className={`flex h-full w-full items-center justify-center text-xl font-bold text-white/90 ${categoryAvatarClass(product.categoryName)}`}
+          >
+            {initialsOf(product.name)}
+          </span>
+        )}
+      </span>
       <span
-        className={`line-clamp-3 text-[13px] font-semibold leading-snug text-slate-900 lg:text-sm ${
+        className={`line-clamp-2 text-[13px] font-semibold leading-snug text-slate-900 lg:text-sm ${
           qty > 0 ? "pr-6" : "pr-1"
         }`}
       >

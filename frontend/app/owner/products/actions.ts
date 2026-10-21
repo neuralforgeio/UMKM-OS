@@ -227,3 +227,237 @@ export async function toggleProductActive(
     return { ok: false, error: "Gagal mengubah status produk." };
   }
 }
+
+// Photo limits: the editor already caps dimensions and quality, these
+// guards stop anything oversized from ever reaching the database.
+const MAX_IMAGES_PER_PRODUCT = 6;
+const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+export type ImageActionResult =
+  | { ok: true; imageCount?: number }
+  | { ok: false; error: string };
+
+// Adds one edited photo. The FIRST photo of a product automatically
+// becomes the thumbnail (isThumb invariant).
+export async function addProductImage(
+  productId: string,
+  file: File,
+): Promise<ImageActionResult> {
+  try {
+    const outletId = await requireOwnerOutletId();
+
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { outletId: true },
+    });
+    if (!product || product.outletId !== outletId) {
+      throw new ProductActionError("Produk tidak ditemukan di outlet ini.");
+    }
+    if (!file || typeof file.arrayBuffer !== "function") {
+      throw new ProductActionError("Berkas foto tidak valid.");
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      throw new ProductActionError("Foto terlalu besar (maks. 3 MB).");
+    }
+    if (file.type && !ALLOWED_IMAGE_TYPES.has(file.type)) {
+      throw new ProductActionError("Format foto harus JPG, PNG, atau WebP.");
+    }
+
+    const existingImages = await prisma.productImage.findMany({
+      where: { productId },
+      select: { sortOrder: true },
+      orderBy: { sortOrder: "asc" },
+    });
+    if (existingImages.length >= MAX_IMAGES_PER_PRODUCT) {
+      throw new ProductActionError(
+        `Maksimal ${MAX_IMAGES_PER_PRODUCT} foto per produk.`,
+      );
+    }
+
+    // Buffer (Node Uint8Array) is what Prisma's Bytes column expects.
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (bytes.byteLength === 0) {
+      throw new ProductActionError("Berkas foto kosong.");
+    }
+
+    // The mimeType is normalized to the detected type; the editor always
+    // exports JPEG, uploads straight from the gallery keep their type.
+    const mimeType =
+      file.type && ALLOWED_IMAGE_TYPES.has(file.type) ? file.type : "image/jpeg";
+
+    await prisma.productImage.create({
+      data: {
+        productId,
+        data: bytes,
+        mimeType,
+        sortOrder: existingImages.length,
+        isThumb: existingImages.length === 0,
+      },
+    });
+
+    revalidatePath("/owner/products");
+    revalidatePath("/cashier");
+    return { ok: true, imageCount: existingImages.length + 1 };
+  } catch (error) {
+    if (error instanceof ProductActionError) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: false, error: "Gagal menambah foto. Coba lagi." };
+  }
+}
+
+// Deletes one photo. If it was the thumbnail, the first remaining photo
+// is promoted so the invariant (one thumbnail when any photo exists)
+// always holds.
+export async function deleteProductImage(
+  imageId: string,
+): Promise<ImageActionResult> {
+  try {
+    const outletId = await requireOwnerOutletId();
+
+    const image = await prisma.productImage.findUnique({
+      where: { id: imageId },
+      select: { productId: true, isThumb: true },
+    });
+    if (!image) {
+      throw new ProductActionError("Foto tidak ditemukan.");
+    }
+    const product = await prisma.product.findUnique({
+      where: { id: image.productId },
+      select: { outletId: true },
+    });
+    if (!product || product.outletId !== outletId) {
+      throw new ProductActionError("Produk tidak ditemukan di outlet ini.");
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.productImage.delete({ where: { id: imageId } });
+      if (image.isThumb) {
+        const next = await tx.productImage.findFirst({
+          where: { productId: image.productId },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          select: { id: true },
+        });
+        if (next) {
+          await tx.productImage.update({
+            where: { id: next.id },
+            data: { isThumb: true },
+          });
+        }
+      }
+    });
+
+    revalidatePath("/owner/products");
+    revalidatePath("/cashier");
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof ProductActionError) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: false, error: "Gagal menghapus foto." };
+  }
+}
+
+// Promotes one photo to be the product thumbnail.
+export async function setProductThumbnail(
+  imageId: string,
+): Promise<ImageActionResult> {
+  try {
+    const outletId = await requireOwnerOutletId();
+
+    const image = await prisma.productImage.findUnique({
+      where: { id: imageId },
+      select: { productId: true },
+    });
+    if (!image) {
+      throw new ProductActionError("Foto tidak ditemukan.");
+    }
+    const product = await prisma.product.findUnique({
+      where: { id: image.productId },
+      select: { outletId: true },
+    });
+    if (!product || product.outletId !== outletId) {
+      throw new ProductActionError("Produk tidak ditemukan di outlet ini.");
+    }
+
+    await prisma.$transaction([
+      prisma.productImage.updateMany({
+        where: { productId: image.productId },
+        data: { isThumb: false },
+      }),
+      prisma.productImage.update({
+        where: { id: imageId },
+        data: { isThumb: true },
+      }),
+    ]);
+
+    revalidatePath("/owner/products");
+    revalidatePath("/cashier");
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof ProductActionError) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: false, error: "Gagal mengubah thumbnail." };
+  }
+}
+
+// Moves one photo one slot left/right, then renumbers the whole list so
+// sortOrder stays gapless (0..n-1) regardless of deletion history.
+export async function moveProductImage(
+  imageId: string,
+  direction: "left" | "right",
+): Promise<ImageActionResult> {
+  try {
+    const outletId = await requireOwnerOutletId();
+
+    const image = await prisma.productImage.findUnique({
+      where: { id: imageId },
+      select: { productId: true },
+    });
+    if (!image) {
+      throw new ProductActionError("Foto tidak ditemukan.");
+    }
+    const product = await prisma.product.findUnique({
+      where: { id: image.productId },
+      select: { outletId: true },
+    });
+    if (!product || product.outletId !== outletId) {
+      throw new ProductActionError("Produk tidak ditemukan di outlet ini.");
+    }
+
+    const list = await prisma.productImage.findMany({
+      where: { productId: image.productId },
+      select: { id: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+    const index = list.findIndex((item) => item.id === imageId);
+    const target = direction === "left" ? index - 1 : index + 1;
+    if (index === -1 || target < 0 || target >= list.length) {
+      return { ok: true }; // Already at the edge — nothing to do.
+    }
+    [list[index], list[target]] = [list[target], list[index]];
+
+    await prisma.$transaction(
+      list.map((item, i) =>
+        prisma.productImage.update({
+          where: { id: item.id },
+          data: { sortOrder: i },
+        }),
+      ),
+    );
+
+    revalidatePath("/owner/products");
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof ProductActionError) {
+      return { ok: false, error: error.message };
+    }
+    return { ok: false, error: "Gagal mengubah urutan foto." };
+  }
+}

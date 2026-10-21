@@ -1,9 +1,20 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  ArrowRight,
+  BarChart3,
+  Boxes,
+  Calculator,
+  LogOut,
+  Store,
+  TriangleAlert,
+} from "lucide-react";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { formatRupiah } from "@/lib/format";
+import { LiveClock } from "@/components/live-clock";
 
-export const instant = false
+export const instant = false;
 
 export default async function HomePage() {
   const session = await auth();
@@ -13,61 +24,223 @@ export default async function HomePage() {
     ? await prisma.outlet.findUnique({ where: { id: session.user.outletId } })
     : await prisma.outlet.findFirst();
 
+  const isOwner = session.user.role === "OWNER";
+  const displayName = session.user.name ?? "Pengguna";
+
+  // Owner briefing: a tiny live snapshot so the launcher page already
+  // answers "how is the warung doing today" without opening reports.
+  let stats: {
+    omzetToday: number;
+    trxToday: number;
+    itemsToday: number;
+    lowStock: number;
+  } | null = null;
+
+  if (isOwner && outlet) {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const completedToday = {
+      outletId: outlet.id,
+      status: "COMPLETED" as const,
+      createdAt: { gte: startOfToday },
+    };
+    const [todayAgg, itemsAgg, lowStockCount] = await Promise.all([
+      prisma.transaction.aggregate({
+        where: completedToday,
+        _sum: { total: true },
+        _count: true,
+      }),
+      prisma.transactionItem.aggregate({
+        where: { transaction: completedToday },
+        _sum: { quantity: true },
+      }),
+      prisma.product.count({
+        where: {
+          outletId: outlet.id,
+          isActive: true,
+          stock: { lte: prisma.product.fields.minStock },
+        },
+      }),
+    ]);
+    stats = {
+      omzetToday: todayAgg._sum.total
+        ? parseFloat(todayAgg._sum.total.toString())
+        : 0,
+      trxToday: todayAgg._count,
+      itemsToday: itemsAgg._sum.quantity ?? 0,
+      lowStock: lowStockCount,
+    };
+  }
+
   const menu = [
-    { href: "/cashier", title: "Kasir", desc: "Buka transaksi penjualan" },
-    ...(session.user.role === "OWNER"
+    {
+      href: "/cashier",
+      title: "Kasir",
+      desc: "Buka transaksi penjualan",
+      icon: Calculator,
+      iconClass: "bg-blue-600 text-white",
+    },
+    ...(isOwner
       ? [
           {
             href: "/owner",
-            title: "Owner",
-            desc: "Laporan dan pengaturan warung",
+            title: "Laporan Owner",
+            desc: "Omzet, peramalan, dan restok",
+            icon: BarChart3,
+            iconClass: "bg-indigo-600 text-white",
+          },
+          {
+            href: "/owner/products",
+            title: "Kelola Produk",
+            desc: "Produk, harga, stok, dan foto",
+            icon: Boxes,
+            iconClass: "bg-violet-600 text-white",
           },
         ]
       : []),
   ];
 
+  const statCards = stats
+    ? [
+        { label: "Omzet Hari Ini", value: formatRupiah(stats.omzetToday) },
+        { label: "Transaksi", value: String(stats.trxToday) },
+        { label: "Item Terjual", value: String(stats.itemsToday) },
+        {
+          label: "Stok Menipis",
+          value: String(stats.lowStock),
+          warn: stats.lowStock > 0,
+        },
+      ]
+    : [];
+
   return (
-    <main className="flex min-h-screen flex-col bg-slate-50 px-4 py-10">
-      <div className="mx-auto w-full max-w-2xl space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Selamat datang, {session.user.name}
-            </h1>
-            <p className="text-sm text-slate-500">
-              {outlet?.name ?? "Warung"} · peran {session.user.role}
-            </p>
+    <div className="min-h-dvh bg-slate-100">
+      <div className="mx-auto flex min-h-dvh w-full max-w-4xl flex-col px-4 py-5 sm:py-8">
+        <header className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm">
+              <Store className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold leading-tight text-slate-900">
+                UMKM OS
+              </p>
+              <p className="truncate text-xs text-slate-500">
+                {outlet?.name ?? "Warung"}
+              </p>
+            </div>
           </div>
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/login" });
-            }}
-          >
-            <button
-              type="submit"
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          <div className="flex shrink-0 items-center gap-2">
+            <span
+              className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                isOwner
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-emerald-100 text-emerald-700"
+              }`}
             >
-              Keluar
-            </button>
-          </form>
+              {isOwner ? "PEMILIK" : "KASIR"}
+            </span>
+            <form
+              action={async () => {
+                "use server";
+                await signOut({ redirectTo: "/login" });
+              }}
+            >
+              <button
+                type="submit"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Keluar</span>
+              </button>
+            </form>
+          </div>
         </header>
 
-        <nav className="grid gap-4 sm:grid-cols-2">
+        <section className="relative mt-5 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-6 text-white sm:p-9">
+          <div
+            aria-hidden="true"
+            className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/10 blur-2xl"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute -bottom-32 -left-20 h-72 w-72 rounded-full bg-indigo-400/20 blur-3xl"
+          />
+          <div className="relative">
+            <LiveClock />
+            <h1 className="mt-4 text-2xl font-bold leading-tight sm:text-4xl">
+              Selamat datang, {displayName}
+            </h1>
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-blue-100 sm:text-base">
+              Kasir, laporan, stok, dan foto produk warung — semuanya siap
+              dipakai dalam satu tempat.
+            </p>
+          </div>
+        </section>
+
+        {statCards.length > 0 && (
+          <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {statCards.map((card) => (
+              <div
+                key={card.label}
+                className="rounded-2xl bg-white p-4 shadow-sm"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  {card.label}
+                </p>
+                <p
+                  className={`mt-1.5 truncate text-lg font-bold tabular-nums sm:text-xl ${
+                    card.warn ? "text-amber-600" : "text-slate-900"
+                  }`}
+                >
+                  {card.value}
+                </p>
+                {card.warn && (
+                  <p className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-amber-600">
+                    <TriangleAlert className="h-3 w-3" />
+                    perlu restok
+                  </p>
+                )}
+              </div>
+            ))}
+          </section>
+        )}
+
+        <nav className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {menu.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-2xl bg-white p-6 shadow-sm transition hover:shadow-md"
+              className="group flex items-center gap-4 rounded-2xl bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
-              <p className="text-lg font-semibold text-slate-900">
-                {item.title}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">{item.desc}</p>
+              <div
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${item.iconClass}`}
+              >
+                <item.icon className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-bold text-slate-900">
+                  {item.title}
+                </p>
+                <p className="mt-0.5 truncate text-sm text-slate-500">
+                  {item.desc}
+                </p>
+              </div>
+              <ArrowRight className="h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-1 group-hover:text-blue-600" />
             </Link>
           ))}
         </nav>
+
+        {!isOwner && (
+          <p className="mt-3 rounded-2xl bg-white px-4 py-3 text-center text-xs text-slate-400 shadow-sm">
+            Laporan dan pengaturan warung hanya bisa dibuka oleh pemilik.
+          </p>
+        )}
+
+        <p className="mt-auto pt-6 text-center text-xs text-slate-400">
+          UMKM OS · demo warung digital — kasir, laporan, dan peramalan
+        </p>
       </div>
-    </main>
+    </div>
   );
 }

@@ -7,6 +7,8 @@ export type PosProduct = {
   unit: string;
   minStock: number;
   categoryName: string | null;
+  // Chosen product photo (thumbnail); null keeps the initials tile.
+  thumbImageId: string | null;
 };
 
 export type CartLine = {

@@ -31,6 +31,17 @@ export default async function CashierPage() {
       unit: true,
       minStock: true,
       category: { select: { name: true } },
+      // One image is enough for the card: the thumbnail wins, else the
+      // first photo by manager order.
+      images: {
+        orderBy: [
+          { isThumb: "desc" },
+          { sortOrder: "asc" },
+          { createdAt: "asc" },
+        ],
+        take: 1,
+        select: { id: true },
+      },
     },
   })
 
@@ -45,6 +56,7 @@ export default async function CashierPage() {
     unit: row.unit,
     minStock: row.minStock,
     categoryName: row.category?.name ?? null,
+    thumbImageId: row.images[0]?.id ?? null,
   }))
 
   return (

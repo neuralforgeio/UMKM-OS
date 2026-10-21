@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
@@ -8,6 +9,7 @@ import {
   ArchiveRestore,
   ArrowLeft,
   Boxes,
+  Camera,
   Loader2,
   Package,
   PackagePlus,
@@ -22,6 +24,7 @@ import {
   initialsOf,
 } from "../../cashier/ui";
 import { toggleProductActive } from "./actions";
+import { ImageManagerModal } from "./image-manager-modal";
 import { ProductFormModal } from "./product-form-modal";
 import type { CategoryOption, ProductRow } from "./types";
 
@@ -60,16 +63,40 @@ function StockBadge({ product }: { product: ProductRow }) {
   );
 }
 
+// Product identity tile: the chosen photo when one exists, otherwise
+// the colored category initials — the same fallback language as the POS.
+function ProductAvatar({ product }: { product: ProductRow }) {
+  if (product.thumbImageId) {
+    return (
+      <img
+        src={`/api/images/${product.thumbImageId}`}
+        alt=""
+        loading="lazy"
+        className="h-10 w-10 shrink-0 rounded-lg object-cover"
+      />
+    );
+  }
+  return (
+    <div
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white ${categoryAvatarClass(product.categoryName)}`}
+    >
+      {initialsOf(product.name)}
+    </div>
+  );
+}
+
 function ProductRowItem({
   product,
   toggling,
   onEdit,
   onToggle,
+  onManagePhotos,
 }: {
   product: ProductRow;
   toggling: boolean;
   onEdit: () => void;
   onToggle: () => void;
+  onManagePhotos: () => void;
 }) {
   return (
     // Mobile: a two-column mini-grid that stacks identity, meta pairs and
@@ -80,11 +107,7 @@ function ProductRowItem({
       }`}
     >
       <div className="col-span-2 flex min-w-0 items-center gap-2.5 lg:col-span-1">
-        <div
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white ${categoryAvatarClass(product.categoryName)}`}
-        >
-          {initialsOf(product.name)}
-        </div>
+        <ProductAvatar product={product} />
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-900">
             {product.name}
@@ -144,6 +167,24 @@ function ProductRowItem({
       <div className="flex items-center justify-end gap-1">
         <button
           type="button"
+          onClick={onManagePhotos}
+          aria-label={`Foto ${product.name}`}
+          title="Kelola foto produk"
+          className={`relative flex h-8 w-8 items-center justify-center rounded-lg border transition hover:bg-slate-50 ${
+            product.images.length > 0
+              ? "border-blue-300 text-blue-600"
+              : "border-slate-300 text-slate-600"
+          }`}
+        >
+          <Camera className="h-3.5 w-3.5" />
+          {product.images.length > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-0.5 text-[9px] font-bold text-white shadow">
+              {product.images.length}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
           onClick={onEdit}
           aria-label={`Ubah ${product.name}`}
           className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-50"
@@ -194,6 +235,9 @@ export function ProductsClient({
   const [editing, setEditing] = useState<ProductRow | null | undefined>(
     undefined,
   );
+  // Product whose photo manager modal is open (kept as an id and
+  // re-resolved from the fresh list so uploads show up immediately).
+  const [managingId, setManagingId] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -230,6 +274,13 @@ export function ProductsClient({
 
   const hasFilters =
     query.trim() !== "" || categoryId !== null || status !== "ALL";
+
+  // Resolve the managed product from the live list: router.refresh()
+  // after each mutation re-renders the page, so uploads appear here
+  // without closing the modal.
+  const managing = managingId
+    ? products.find((product) => product.id === managingId)
+    : undefined;
 
   const resetFilters = () => {
     setQuery("");
@@ -433,6 +484,7 @@ export function ProductsClient({
                     toggling={togglingId === product.id}
                     onEdit={() => setEditing(product)}
                     onToggle={() => handleToggle(product)}
+                    onManagePhotos={() => setManagingId(product.id)}
                   />
                 ))}
               </ul>
@@ -446,6 +498,13 @@ export function ProductsClient({
           product={editing}
           categories={categories}
           onClose={() => setEditing(undefined)}
+        />
+      )}
+
+      {managing && (
+        <ImageManagerModal
+          product={managing}
+          onClose={() => setManagingId(null)}
         />
       )}
     </div>

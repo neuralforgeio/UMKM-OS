@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Boxes, ChevronLeft, Loader2, X } from "lucide-react";
+import { formatThousands } from "@/lib/format";
 import { saveProduct } from "./actions";
 import type { CategoryOption, ProductRow } from "./types";
 
@@ -21,8 +22,14 @@ const LABEL_CLASS =
 const INPUT_CLASS =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
-// Rp text field: right-aligned tabular digits with a fixed "Rp" prefix,
-// the same money-entry language as the cashier panel.
+// Live grouping for numeric fields: the stored string stays raw digits
+// ("4000"), only the presentation gains Indonesian thousand dots.
+const grouped = (value: string) =>
+  value ? formatThousands(parseInt(value, 10)) : "";
+
+// Rp text field: right-aligned tabular digits with a fixed "Rp" prefix
+// and live thousand separators — "4.000" while typing, the same money
+// language as the cashier panel.
 function RpInput({
   id,
   value,
@@ -44,7 +51,7 @@ function RpInput({
         type="text"
         inputMode="numeric"
         autoComplete="off"
-        value={value}
+        value={grouped(value)}
         placeholder={placeholder ?? "0"}
         onChange={(event) => onChange(digits(event.target.value, 10))}
         className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-10 pr-3 text-right text-sm font-semibold tabular-nums text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
@@ -71,7 +78,7 @@ function QtyInput({
       type="text"
       inputMode="numeric"
       autoComplete="off"
-      value={value}
+      value={grouped(value)}
       placeholder="0"
       onChange={(event) => onChange(digits(event.target.value, max))}
       className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-right text-sm font-semibold tabular-nums text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
@@ -335,7 +342,7 @@ export function ProductFormModal({
                   id="product-price"
                   value={price}
                   onChange={setPrice}
-                  placeholder="68000"
+                  placeholder="68.000"
                 />
               </div>
               <div>
@@ -346,7 +353,7 @@ export function ProductFormModal({
                   id="product-cost"
                   value={cost}
                   onChange={setCost}
-                  placeholder="55000"
+                  placeholder="55.000"
                 />
               </div>
             </div>

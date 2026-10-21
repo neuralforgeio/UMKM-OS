@@ -41,6 +41,11 @@ export default async function OwnerProductsPage() {
         unit: true,
         isActive: true,
         category: { select: { id: true, name: true } },
+        // Photos in manager order (sortOrder, then upload time).
+        images: {
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          select: { id: true, isThumb: true },
+        },
       },
     }),
     prisma.category.findMany({
@@ -68,20 +73,29 @@ export default async function OwnerProductsPage() {
 
   // Decimals become plain numbers at the boundary. Warung prices are
   // whole Rupiah, so rounding is a no-op safety net.
-  const rows: ProductRow[] = products.map((product) => ({
-    id: product.id,
-    name: product.name,
-    sku: product.sku,
-    categoryId: product.category?.id ?? null,
-    categoryName: product.category?.name ?? null,
-    priceRupiah: Math.round(Number(product.price)),
-    costRupiah: Math.round(Number(product.cost)),
-    stock: product.stock,
-    minStock: product.minStock,
-    unit: product.unit,
-    isActive: product.isActive,
-    soldLast30Days: soldByProduct.get(product.id) ?? 0,
-  }));
+  const rows: ProductRow[] = products.map((product) => {
+    const thumb = product.images.find((image) => image.isThumb);
+    return {
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      categoryId: product.category?.id ?? null,
+      categoryName: product.category?.name ?? null,
+      priceRupiah: Math.round(Number(product.price)),
+      costRupiah: Math.round(Number(product.cost)),
+      stock: product.stock,
+      minStock: product.minStock,
+      unit: product.unit,
+      isActive: product.isActive,
+      soldLast30Days: soldByProduct.get(product.id) ?? 0,
+      images: product.images.map((image) => ({
+        id: image.id,
+        isThumb: image.isThumb,
+      })),
+      // Chosen thumbnail, else the first photo by manager order.
+      thumbImageId: (thumb ?? product.images[0])?.id ?? null,
+    };
+  });
 
   const categoryOptions: CategoryOption[] = categories.map((category) => ({
     id: category.id,

@@ -114,9 +114,36 @@ model Product {
   updatedAt  DateTime  @updatedAt
 
   transactionItems TransactionItem[]
+  images          ProductImage[]
 
   @@index([outletId])
   @@index([categoryId])
+}
+
+/// Product photo uploaded through the owner image editor. Stored as
+/// bytes so images live transactionally with the product (single
+/// writer, multi-outlet ready) and survive container rebuilds in the
+/// Docker demo stack. Served by /api/images/[id] with immutable
+/// caching — ids never change content, a new upload is a new row.
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /// Edited JPEG bytes (already cropped/rotated by the client editor).
+  data      Bytes
+  mimeType  String   @default("image/jpeg")
+  /// Pixel dimensions of the stored image (for UI hints and audits).
+  width     Int?
+  height    Int?
+  /// Position among the product's photos; the manager can reorder.
+  sortOrder Int      @default(0)
+  /// Chosen thumbnail. Invariant: exactly one image of a product with
+  /// at least one image is the thumbnail; the first photo is the
+  /// default until the owner picks another.
+  isThumb   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([productId])
 }
 
 /// One sales receipt — created atomically together with its items.
