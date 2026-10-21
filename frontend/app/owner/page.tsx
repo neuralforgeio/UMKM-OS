@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import ForecastSection from "@/components/forecast/forecast-section";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatRupiah } from "@/lib/format";
@@ -636,6 +637,8 @@ export default async function OwnerPage() {
             </div>
           </section>
         </div>
+
+        <ForecastSection />
 
         <div className="grid gap-6 lg:grid-cols-2">
           <section className="rounded-2xl bg-white p-5 shadow-sm">
