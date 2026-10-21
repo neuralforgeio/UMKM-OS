@@ -61,8 +61,9 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Database (REQUIRED — no default value on purpose).
     # The ML service has READ-ONLY access; the schema is owned by Prisma
-    # on the frontend side. Expected format:
-    #   postgresql+psycopg://USER:PASSWORD@HOST:PORT/DBNAME
+    # on the frontend side. Expected format (async driver — core/database.py
+    # builds an ASYNC engine):
+    #   postgresql+psycopg_async://USER:PASSWORD@HOST:PORT/DBNAME
     # ------------------------------------------------------------------
     DATABASE_URL: str
 
