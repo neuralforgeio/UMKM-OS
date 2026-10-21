@@ -4,13 +4,14 @@
 # Stage 2 "builder": compile with `next build` (emits .next/standalone).
 # Stage 3 "runner": minimal runtime — no devDeps, no source, no .env;
 # every runtime value arrives as a container environment variable.
-
 FROM node:24-bookworm-slim AS deps
 WORKDIR /app
 # npm ci reproduces the exact dependency tree from the lockfile.
+# Retry flags ride out flaky connections to the npm registry
+# (ECONNRESET mid-download); audit/funding calls are skipped because
+# they only add extra network chatter during the build.
 COPY package.json package-lock.json ./
-RUN npm ci
-
+RUN npm ci --fetch-retries=5 --fetch-retry-mintimeout=10000 --fetch-retry-maxtimeout=120000 --no-audit --no-fund
 FROM node:24-bookworm-slim AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -27,13 +28,12 @@ ARG AUTH_SECRET=build-time-placeholder
 ENV DATABASE_URL=${DATABASE_URL}
 ENV AUTH_SECRET=${AUTH_SECRET}
 RUN npm run build
-
 FROM node:24-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
-    NEXT_TELEMETRY_DISABLED=1 \
-    PORT=3000 \
-    HOSTNAME=0.0.0.0
+NEXT_TELEMETRY_DISABLED=1 \
+PORT=3000 \
+HOSTNAME=0.0.0.0
 # Standalone bundle: minimal server.js + the traced node_modules subset.
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
