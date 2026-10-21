@@ -14,13 +14,37 @@ export type CartLine = {
   quantity: number;
 };
 
+// Cart line joined with its product, used by the client UI only.
+export type CartLineView = {
+  product: PosProduct;
+  qty: number;
+};
+
 export type PaymentMethodValue = "CASH" | "QRIS" | "DEBIT";
+
+// Discount entry: a flat Rupiah amount or a percentage of the subtotal.
+// The browser only ever sends this (mode, value) pair - the server
+// recomputes the final amount itself, so a tampered total never lands.
+export type DiscountMode = "RP" | "PERCENT";
+
+export type DiscountInput = {
+  mode: DiscountMode;
+  value: number; // Rupiah when mode is RP, whole percent (0-100) when PERCENT
+};
+
+// Editor state for the discount control. Both slots are kept so
+// switching modes never loses what the kasir already typed.
+export type DiscountState = {
+  mode: DiscountMode;
+  rpValueSen: number;
+  percent: number;
+};
 
 export type CheckoutInput = {
   items: CartLine[];
   paymentMethod: PaymentMethodValue;
   paidAmount: number;
-  discount?: number;
+  discount?: DiscountInput;
 };
 
 export type ReceiptItem = {

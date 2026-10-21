@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import type { CheckoutResult, PaymentMethodValue } from "./types";
+import type {
+  CheckoutResult,
+  DiscountInput,
+  PaymentMethodValue,
+} from "./types";
 
 // All money math runs in integer "sen" (1 Rp = 100 sen) to avoid floating
 // point drift, then converts back to a Decimal string for Prisma.
@@ -11,15 +15,39 @@ const toSen = (rupiah: number) => Math.round(rupiah * 100);
 const toDecimalString = (sen: number) => (sen / 100).toFixed(2);
 
 const PAYMENT_METHODS: PaymentMethodValue[] = ["CASH", "QRIS", "DEBIT"];
+const DISCOUNT_MODES: DiscountInput["mode"][] = ["RP", "PERCENT"];
 
 // Thrown inside the transaction for user-facing validation failures.
 class CheckoutError extends Error {}
+
+// Turns the (mode, value) discount pair into a flat sen amount, derived
+// ONLY from the server-side subtotal. Never trust a client-computed
+// discount total: the browser sends mode + value, nothing else.
+function resolveDiscountSen(
+  discount: DiscountInput | undefined,
+  subtotalSen: number,
+): number {
+  if (!discount) return 0;
+  if (!DISCOUNT_MODES.includes(discount.mode)) {
+    throw new CheckoutError("Mode diskon tidak valid.");
+  }
+  if (!Number.isFinite(discount.value) || discount.value < 0) {
+    throw new CheckoutError("Nilai diskon tidak valid.");
+  }
+  if (discount.mode === "PERCENT") {
+    if (discount.value > 100) {
+      throw new CheckoutError("Diskon tidak boleh melebihi 100%.");
+    }
+    return Math.round((subtotalSen * discount.value) / 100);
+  }
+  return toSen(discount.value);
+}
 
 export async function createTransaction(input: {
   items: { productId: string; quantity: number }[];
   paymentMethod: PaymentMethodValue;
   paidAmount: number;
-  discount?: number;
+  discount?: DiscountInput;
 }): Promise<CheckoutResult> {
   const session = await auth();
   if (!session?.user) {
@@ -40,14 +68,10 @@ export async function createTransaction(input: {
       return { ok: false, error: "Jumlah item tidak valid." };
     }
   }
-  if (
-    !Number.isFinite(input.paidAmount) ||
-    !Number.isFinite(input.discount ?? 0)
-  ) {
+  if (!Number.isFinite(input.paidAmount)) {
     return { ok: false, error: "Nilai pembayaran tidak valid." };
   }
 
-  const discountSen = toSen(Math.max(0, input.discount ?? 0));
   const paidSen = toSen(Math.max(0, input.paidAmount ?? 0));
 
   // Kasir is bound to one outlet; owner falls back to the first outlet.
@@ -107,6 +131,9 @@ export async function createTransaction(input: {
         (sum, line) => sum + line.subtotalSen,
         0,
       );
+
+      // Discount is resolved here, from the server-side subtotal.
+      const discountSen = resolveDiscountSen(input.discount, subtotalSen);
       if (discountSen > subtotalSen) {
         throw new CheckoutError("Diskon tidak boleh melebihi subtotal.");
       }
