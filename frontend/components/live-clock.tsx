@@ -1,63 +1,57 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
-// Browser-local clock for the home hero, via useSyncExternalStore —
-// the React-recommended way to read a mutable external value (the
-// clock) without hydration mismatches: the server snapshot is null,
-// the client re-renders on every subscription tick.
-function subscribe(onChange: () => void) {
-  const timer = setInterval(onChange, 1000);
-  return () => clearInterval(timer);
-}
+// Formatters are static config, build them once at module level.
+const timeFmt = new Intl.DateTimeFormat("id-ID", {
+  timeZone: "Asia/Jakarta",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
 
-export function LiveClock() {
-  const now = useSyncExternalStore(
-    subscribe,
-    () => new Date(),
-    () => null,
-  );
+const dateFmt = new Intl.DateTimeFormat("id-ID", {
+  timeZone: "Asia/Jakarta",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 
-  const greeting = now
-    ? now.getHours() < 11
-      ? "Selamat pagi"
-      : now.getHours() < 15
-        ? "Selamat siang"
-        : now.getHours() < 19
-          ? "Selamat sore"
-          : "Selamat malam"
-    : "Selamat datang";
+type LiveClockProps = {
+  className?: string;
+  timeClassName?: string;
+  dateClassName?: string;
+};
 
-  const date = now
-    ? now.toLocaleDateString("id-ID", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    : "";
+// Ticking clock for the home hero. Null state keeps the server HTML and the
+// first client render identical, so there is no hydration mismatch.
+export function LiveClock({
+  className = "",
+  timeClassName = "text-3xl font-bold tabular-nums tracking-tight",
+  dateClassName = "text-sm opacity-70",
+}: LiveClockProps) {
+  const [now, setNow] = useState<Date | null>(null);
 
-  const time = now
-    ? now.toLocaleTimeString("id-ID", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
+  useEffect(() => {
+    // Sync once on mount, then tick every second.
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+    // Empty deps on purpose: depending on `now` here would re-run this
+    // effect on every tick and loop forever (React error #185).
+  }, []);
+
+  const time = now ? timeFmt.format(now) : "--.--.--";
+  const date = now ? `${dateFmt.format(now)} WIB` : "\u00A0";
 
   return (
-    <span
-      suppressHydrationWarning
-      className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full bg-white/15 px-3.5 py-1.5 text-xs font-semibold text-blue-50 backdrop-blur-sm"
-    >
-      <span>{greeting}</span>
-      {now && (
-        <>
-          <span className="hidden text-blue-200 sm:inline">·</span>
-          <span className="hidden sm:inline">{date}</span>
-          <span className="text-blue-200">·</span>
-          <span className="tabular-nums">{time}</span>
-        </>
-      )}
-    </span>
+    <div className={className}>
+      <div className={timeClassName}>{time}</div>
+      <div className={dateClassName}>{date}</div>
+    </div>
   );
 }
+
+export default LiveClock;
