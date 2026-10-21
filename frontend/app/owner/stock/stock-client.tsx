@@ -38,6 +38,7 @@ export type StockMovementRow = {
   unitCostRupiah: number | null;
   note: string | null;
   userName: string | null;
+  transactionCode: string | null;
   timeLabel: string;
 };
 
@@ -127,7 +128,8 @@ export function StockClient({
       return (
         row.productName.toLowerCase().includes(q) ||
         row.sku.toLowerCase().includes(q) ||
-        (row.note ?? "").toLowerCase().includes(q)
+        (row.note ?? "").toLowerCase().includes(q) ||
+        (row.transactionCode ?? "").toLowerCase().includes(q)
       );
     });
   }, [rows, query, typeFilter]);
@@ -156,7 +158,7 @@ export function StockClient({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cari produk, SKU, atau catatan..."
+            placeholder="Cari produk, SKU, struk, atau catatan..."
             className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
           />
         </div>
@@ -311,6 +313,11 @@ export function StockClient({
                           >
                             {meta.label}
                           </span>
+                          {row.transactionCode && (
+                            <p className="mt-1 font-mono text-[11px] text-slate-400">
+                              {row.transactionCode}
+                            </p>
+                          )}
                         </td>
                         <td
                           className={`whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums ${quantityColor(row)}`}
@@ -350,11 +357,18 @@ export function StockClient({
                         </p>
                         <p className="text-xs text-slate-400">{row.sku}</p>
                       </div>
-                      <span
-                        className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.badge}`}
-                      >
-                        {meta.label}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span
+                          className={`inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.badge}`}
+                        >
+                          {meta.label}
+                        </span>
+                        {row.transactionCode && (
+                          <span className="shrink-0 font-mono text-[11px] text-slate-400">
+                            {row.transactionCode}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="mt-2 flex items-center justify-between text-sm">
                       <span

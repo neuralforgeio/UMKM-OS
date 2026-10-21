@@ -56,6 +56,7 @@ export default async function OwnerStockPage() {
       include: {
         product: { select: { name: true, sku: true, unit: true } },
         user: { select: { name: true } },
+        transaction: { select: { code: true } },
       },
     }),
     prisma.product.aggregate({
@@ -92,6 +93,7 @@ export default async function OwnerStockPage() {
       : null,
     note: movement.note,
     userName: movement.user?.name ?? null,
+    transactionCode: movement.transaction?.code ?? null,
     timeLabel: timeFmt.format(movement.createdAt),
   }));
 

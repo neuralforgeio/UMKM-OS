@@ -54,9 +54,7 @@ export async function createTransaction(input: {
     return { ok: false, error: "Sesi sudah berakhir. Silakan login ulang." };
   }
   const sessionUser = session.user;
-
   const { items, paymentMethod } = input;
-
   if (!PAYMENT_METHODS.includes(paymentMethod)) {
     return { ok: false, error: "Metode pembayaran tidak valid." };
   }
@@ -71,9 +69,7 @@ export async function createTransaction(input: {
   if (!Number.isFinite(input.paidAmount)) {
     return { ok: false, error: "Nilai pembayaran tidak valid." };
   }
-
   const paidSen = toSen(Math.max(0, input.paidAmount ?? 0));
-
   // Kasir is bound to one outlet; owner falls back to the first outlet.
   let outletId = sessionUser.outletId;
   if (!outletId) {
@@ -90,7 +86,6 @@ export async function createTransaction(input: {
     outletId = firstOutlet.id;
   }
   const effectiveOutletId: string = outletId;
-
   try {
     const receipt = await prisma.$transaction(async (tx) => {
       // Only products belonging to this outlet can be sold.
@@ -104,7 +99,6 @@ export async function createTransaction(input: {
         select: { id: true, name: true, price: true, stock: true },
       });
       const byId = new Map(products.map((p) => [p.id, p]));
-
       const lines = items.map((line) => {
         const product = byId.get(line.productId);
         if (!product) {
@@ -126,26 +120,22 @@ export async function createTransaction(input: {
           subtotalSen: priceSen * line.quantity,
         };
       });
-
       const subtotalSen = lines.reduce(
         (sum, line) => sum + line.subtotalSen,
         0,
       );
-
       // Discount is resolved here, from the server-side subtotal.
       const discountSen = resolveDiscountSen(input.discount, subtotalSen);
       if (discountSen > subtotalSen) {
         throw new CheckoutError("Diskon tidak boleh melebihi subtotal.");
       }
       const totalSen = subtotalSen - discountSen;
-
       // Non-cash methods are charged the exact amount.
       const effectivePaidSen = paymentMethod === "CASH" ? paidSen : totalSen;
       if (effectivePaidSen < totalSen) {
         throw new CheckoutError("Uang yang dibayar kurang dari total belanja.");
       }
       const changeSen = effectivePaidSen - totalSen;
-
       // Receipt code, e.g. TRX-20261021-0001. The unique constraint on
       // code guards against the rare same-second collision.
       const now = new Date();
@@ -159,7 +149,6 @@ export async function createTransaction(input: {
         where: { outletId: effectiveOutletId, createdAt: { gte: startOfDay } },
       });
       const code = `TRX-${ymd}-${String(todayCount + 1).padStart(4, "0")}`;
-
       const created = await tx.transaction.create({
         data: {
           code,
@@ -182,7 +171,6 @@ export async function createTransaction(input: {
           },
         },
       });
-
       // Conditional decrement: the WHERE clause re-checks stock so a
       // concurrent sale can never oversell. count === 0 means the guard
       // failed and the whole transaction rolls back.
@@ -202,7 +190,19 @@ export async function createTransaction(input: {
           );
         }
       }
-
+      // Blueprint: the receipt writes its SALE movements inside the same
+      // database transaction, so the stock ledger and the receipts can
+      // never disagree. Quantities are stored positive; the SALE type
+      // carries the direction, and unitCost stays null on sales.
+      await tx.stockMovement.createMany({
+        data: lines.map((line) => ({
+          productId: line.product.id,
+          type: "SALE" as const,
+          quantity: line.quantity,
+          userId: sessionUser.id,
+          transactionId: created.id,
+        })),
+      });
       return {
         code: created.code,
         createdAt: created.createdAt.toISOString(),
@@ -220,8 +220,10 @@ export async function createTransaction(input: {
         })),
       };
     });
-
     revalidatePath("/cashier");
+    revalidatePath("/owner");
+    revalidatePath("/owner/products");
+    revalidatePath("/owner/stock");
     return { ok: true, receipt };
   } catch (error) {
     if (error instanceof CheckoutError) {
