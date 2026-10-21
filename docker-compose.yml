@@ -16,10 +16,25 @@ services:
       retries: 12
     restart: unless-stopped
 
+  # One-shot job: applies migrations and seeds demo data inside the
+  # docker network. Reuses the cached builder stage of the frontend
+  # image, so a plain "docker compose up" needs no host Node at all.
+  migrate:
+    build:
+      context: ./frontend
+      target: builder
+    command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts"
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-umkmos}"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   backend:
     build: ./backend
     environment:
-      DEBUG: "true"
+      DEBUG: "false"
       DATABASE_URL: "postgresql+psycopg_async://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-umkmos}"
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -39,6 +54,8 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       backend:
         condition: service_started
     restart: unless-stopped
