@@ -451,14 +451,6 @@ export default async function OwnerPage() {
     };
   });
 
-  const initials = outlet.name
-    .split(/\s+/)
-    .map((word) => word[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
   return (
     <div className="flex min-h-dvh flex-col bg-slate-100">
       <header className="shrink-0 border-b border-slate-200 bg-white">
@@ -476,12 +468,22 @@ export default async function OwnerPage() {
               </p>
             </div>
           </div>
-          <Link
-            href="/"
-            className="shrink-0 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-          >
-            Beranda
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href="/owner/products"
+              className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              <PackagePlus className="h-4 w-4" />
+              <span className="hidden sm:inline">Kelola Produk</span>
+              <span className="sm:hidden">Produk</span>
+            </Link>
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Beranda
+            </Link>
+          </div>
         </div>
       </header>
 
