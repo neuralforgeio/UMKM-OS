@@ -9,7 +9,6 @@ import {
   ArchiveRestore,
   ArrowLeft,
   Boxes,
-  Camera,
   Loader2,
   Package,
   PackagePlus,
@@ -24,7 +23,6 @@ import {
   initialsOf,
 } from "../../cashier/ui";
 import { toggleProductActive } from "./actions";
-import { ImageManagerModal } from "./image-manager-modal";
 import { ProductFormModal } from "./product-form-modal";
 import type { CategoryOption, ProductRow } from "./types";
 
@@ -90,13 +88,11 @@ function ProductRowItem({
   toggling,
   onEdit,
   onToggle,
-  onManagePhotos,
 }: {
   product: ProductRow;
   toggling: boolean;
   onEdit: () => void;
   onToggle: () => void;
-  onManagePhotos: () => void;
 }) {
   return (
     // Mobile: a two-column mini-grid that stacks identity, meta pairs and
@@ -167,24 +163,6 @@ function ProductRowItem({
       <div className="flex items-center justify-end gap-1">
         <button
           type="button"
-          onClick={onManagePhotos}
-          aria-label={`Foto ${product.name}`}
-          title="Kelola foto produk"
-          className={`relative flex h-8 w-8 items-center justify-center rounded-lg border transition hover:bg-slate-50 ${
-            product.images.length > 0
-              ? "border-blue-300 text-blue-600"
-              : "border-slate-300 text-slate-600"
-          }`}
-        >
-          <Camera className="h-3.5 w-3.5" />
-          {product.images.length > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-0.5 text-[9px] font-bold text-white shadow">
-              {product.images.length}
-            </span>
-          )}
-        </button>
-        <button
-          type="button"
           onClick={onEdit}
           aria-label={`Ubah ${product.name}`}
           className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-50"
@@ -231,13 +209,13 @@ export function ProductsClient({
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusFilter>("ALL");
-  // undefined = closed, null = create, a row = edit that product.
-  const [editing, setEditing] = useState<ProductRow | null | undefined>(
+  // undefined = closed, null = create, an id = edit that product. Only
+  // the id is stored (not the row object): the modal product is
+  // re-resolved from the live list below, so photo uploads inside the
+  // modal repaint it instantly after router.refresh().
+  const [editingId, setEditingId] = useState<string | null | undefined>(
     undefined,
   );
-  // Product whose photo manager modal is open (kept as an id and
-  // re-resolved from the fresh list so uploads show up immediately).
-  const [managingId, setManagingId] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -275,12 +253,16 @@ export function ProductsClient({
   const hasFilters =
     query.trim() !== "" || categoryId !== null || status !== "ALL";
 
-  // Resolve the managed product from the live list: router.refresh()
-  // after each mutation re-renders the page, so uploads appear here
-  // without closing the modal.
-  const managing = managingId
-    ? products.find((product) => product.id === managingId)
-    : undefined;
+  // Resolve the edited row from the live products list on every render:
+  // the form modal uploads photos then calls router.refresh(), so this
+  // finds the UPDATED row and the still-open modal shows the new photos
+  // without being closed and reopened.
+  const editingProduct =
+    editingId === undefined
+      ? undefined
+      : editingId === null
+        ? null
+        : (products.find((product) => product.id === editingId) ?? null);
 
   const resetFilters = () => {
     setQuery("");
@@ -319,7 +301,7 @@ export function ProductsClient({
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={() => setEditing(null)}
+              onClick={() => setEditingId(null)}
               className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
             >
               <PackagePlus className="h-4 w-4" />
@@ -482,9 +464,8 @@ export function ProductsClient({
                     key={product.id}
                     product={product}
                     toggling={togglingId === product.id}
-                    onEdit={() => setEditing(product)}
+                    onEdit={() => setEditingId(product.id)}
                     onToggle={() => handleToggle(product)}
-                    onManagePhotos={() => setManagingId(product.id)}
                   />
                 ))}
               </ul>
@@ -493,18 +474,11 @@ export function ProductsClient({
         </section>
       </main>
 
-      {editing !== undefined && (
+      {editingProduct !== undefined && (
         <ProductFormModal
-          product={editing}
+          product={editingProduct}
           categories={categories}
-          onClose={() => setEditing(undefined)}
-        />
-      )}
-
-      {managing && (
-        <ImageManagerModal
-          product={managing}
-          onClose={() => setManagingId(null)}
+          onClose={() => setEditingId(undefined)}
         />
       )}
     </div>

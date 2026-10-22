@@ -66,6 +66,11 @@ export type Receipt = {
   paidAmount: number;
   changeAmount: number;
   items: ReceiptItem[];
+  // Receipt QR as an inline SVG string, generated server-side by the
+  // checkout action (QRCode.toString type "svg"). Empty string = QR
+  // generation failed; the receipt itself is still valid and renders
+  // without the QR block.
+  qrSvg: string;
 };
 
 export type CheckoutResult =
@@ -80,4 +85,4 @@ export type OutletInfo = {
   address: string | null;
   phone: string | null;
   logoUrl: string | null;
-}
+};

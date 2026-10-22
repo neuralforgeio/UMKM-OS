@@ -1,5 +1,7 @@
 "use server";
 
+import QRCode from "qrcode";
+import { formatThousands } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -86,6 +88,14 @@ export async function createTransaction(input: {
     outletId = firstOutlet.id;
   }
   const effectiveOutletId: string = outletId;
+  // Outlet name goes into the scannable QR payload on the receipt.
+  const outletName =
+    (
+      await prisma.outlet.findUnique({
+        where: { id: effectiveOutletId },
+        select: { name: true },
+      })
+    )?.name ?? "Warung";
   try {
     const receipt = await prisma.$transaction(async (tx) => {
       // Only products belonging to this outlet can be sold.
@@ -220,11 +230,45 @@ export async function createTransaction(input: {
         })),
       };
     });
+
+    // Scannable receipt QR: a plain-text summary payload, so ANY scanner
+    // app (kamera HP, Google Lens, dsb.) shows the receipt details the
+    // moment it decodes. Generated best-effort AFTER the commit: the
+    // transaction is already saved at this point, so a QR failure must
+    // never be reported as a failed checkout — the receipt still renders,
+    // just without the QR block (qrSvg stays "").
+    let qrSvg = "";
+    try {
+      const itemCount = receipt.items.reduce(
+        (sum, item) => sum + item.quantity,
+        0,
+      );
+      const timeWib = new Intl.DateTimeFormat("id-ID", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "Asia/Jakarta",
+      }).format(new Date(receipt.createdAt));
+      const payload = [
+        outletName,
+        receipt.code,
+        `${timeWib} WIB`,
+        `${itemCount} item - Total Rp ${formatThousands(receipt.total)}`,
+        `Bayar Rp ${formatThousands(receipt.paidAmount)} - Kembali Rp ${formatThousands(receipt.changeAmount)}`,
+      ].join("\n");
+      qrSvg = await QRCode.toString(payload, {
+        type: "svg",
+        errorCorrectionLevel: "M",
+        width: 128,
+      });
+    } catch (error) {
+      console.error("Receipt QR generation failed:", error);
+    }
+
     revalidatePath("/cashier");
     revalidatePath("/owner");
     revalidatePath("/owner/products");
     revalidatePath("/owner/stock");
-    return { ok: true, receipt };
+    return { ok: true, receipt: { ...receipt, qrSvg } };
   } catch (error) {
     if (error instanceof CheckoutError) {
       return { ok: false, error: error.message };

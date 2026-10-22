@@ -25,12 +25,19 @@ const dateFmt = new Intl.DateTimeFormat("id-ID", {
 
 // Screen + print rules for the receipt paper. Everything else on the
 // page hides through Tailwind's print:hidden, so ONLY #struk-paper
-// prints (the old version leaked the "Kembali ke beranda" link onto
-// the paper — fixed here). The 48mm width fits the print head of
-// common 58mm thermal printers and centers neatly on A4. This
-// stylesheet is unlayered, which means it wins over Tailwind
-// utilities without needing !important.
+// prints. The 48mm width fits the print head of common 58mm thermal
+// printers and centers neatly on A4. This stylesheet is unlayered,
+// which means it wins over Tailwind utilities without !important.
 const RECEIPT_CSS = `
+/* Solid cash-register rules — long clean black lines, no dashes. */
+.receipt-rule {
+  border-top: 1px solid #000;
+  margin: 7px 0;
+}
+.receipt-rule-strong {
+  border-top: 2px solid #000;
+  margin: 7px 0 4px;
+}
 /* Screen only: perforated bottom edge of the paper. */
 .receipt-tear {
   height: 10px;
@@ -38,6 +45,12 @@ const RECEIPT_CSS = `
   background-size: 10px 10px;
   background-position: bottom;
   background-repeat: repeat-x;
+}
+/* The QR svg always fills its wrapper (84px on screen, 19mm on paper). */
+#struk-paper svg {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 @media print {
   @page { margin: 2mm; }
@@ -54,8 +67,8 @@ const RECEIPT_CSS = `
   #struk-paper * {
     color: #000;
   }
-  /* The UMKM logo keeps its original colors on paper (choose "Color"
-     in the print dialog); monochrome thermal printers dither it. */
+  /* The UMKM logo keeps its original colors on paper; thermal mono
+     printers dither it automatically. */
   #struk-paper img {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -63,11 +76,11 @@ const RECEIPT_CSS = `
 }
 `;
 
-function Divider() {
+function Rule({ strong = false }: { strong?: boolean }) {
   return (
     <div
       role="presentation"
-      className="my-2.5 border-t border-dashed border-neutral-400"
+      className={strong ? "receipt-rule-strong" : "receipt-rule"}
     />
   );
 }
@@ -85,25 +98,28 @@ export function ReceiptView({
 
   return (
     <div className="min-h-dvh bg-slate-100 print:bg-white">
-      <div className="mx-auto w-full max-w-5xl px-4 py-8 lg:py-12">
-        <div className="grid items-start gap-8 lg:grid-cols-[1fr_340px] print:block">
+      <div className="mx-auto w-full max-w-5xl px-4 py-8 lg:py-10">
+        {/* Success header spans the full width ABOVE the grid, so the
+            summary card and the receipt paper both start at exactly
+            the same height — perfectly level side by side. */}
+        <div className="flex items-center gap-4 print:hidden">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100">
+            <Check className="h-7 w-7 text-emerald-600" strokeWidth={2.5} />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Transaksi Berhasil
+            </h1>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Struk siap dicetak — periksa sekali lagi sebelum menutup halaman
+              ini.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 grid items-start gap-8 lg:grid-cols-[1fr_340px] print:mt-0 print:block">
           {/* Summary + actions — never printed. */}
           <section className="space-y-6 print:hidden">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100">
-                <Check className="h-7 w-7 text-emerald-600" strokeWidth={2.5} />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                  Transaksi Berhasil
-                </h1>
-                <p className="mt-0.5 text-sm text-slate-500">
-                  Struk siap dicetak — periksa sekali lagi sebelum menutup
-                  halaman ini.
-                </p>
-              </div>
-            </div>
-
             <dl className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex items-center justify-between gap-4 px-5 py-3.5">
                 <dt className="text-sm text-slate-500">Kode struk</dt>
@@ -241,17 +257,17 @@ export function ReceiptView({
                   </div>
                 )}
 
-                <Divider />
+                <Rule />
                 <div className="flex justify-between text-[10px]">
-                  <span>No</span>
+                  <span>No.</span>
                   <span className="break-all">{receipt.code}</span>
                 </div>
                 <div className="mt-0.5 flex justify-between text-[10px]">
-                  <span>Tgl</span>
+                  <span>Tgl.</span>
                   <span>{createdAt} WIB</span>
                 </div>
 
-                <Divider />
+                <Rule />
                 <div className="space-y-2">
                   {receipt.items.map((item) => (
                     <div key={item.name}>
@@ -270,7 +286,7 @@ export function ReceiptView({
                   ))}
                 </div>
 
-                <Divider />
+                <Rule />
                 <div className="space-y-1 text-[10px]">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
@@ -286,12 +302,18 @@ export function ReceiptView({
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between pt-0.5 text-[12px] font-bold">
-                    <span>Total</span>
-                    <span className="tabular-nums">
-                      {formatRupiah(receipt.total)}
-                    </span>
-                  </div>
+                </div>
+
+                <Rule strong />
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wide">
+                    Total
+                  </span>
+                  <span className="text-[13px] font-extrabold tabular-nums">
+                    {formatRupiah(receipt.total)}
+                  </span>
+                </div>
+                <div className="mt-1 space-y-0.5 text-[10px]">
                   <div className="flex justify-between">
                     <span>
                       Dibayar ({PAYMENT_LABELS[receipt.paymentMethod]})
@@ -308,7 +330,19 @@ export function ReceiptView({
                   </div>
                 </div>
 
-                <Divider />
+                <Rule />
+                {receipt.qrSvg && (
+                  <div className="flex flex-col items-center">
+                    {/* Server-rendered QR: plain-text receipt summary,
+                        readable by any scanner app. */}
+                    <div
+                      className="w-[84px] print:w-[19mm]"
+                      dangerouslySetInnerHTML={{ __html: receipt.qrSvg }}
+                    />
+                    <p className="mt-1 text-[9px]">Scan untuk cek struk</p>
+                  </div>
+                )}
+                <Rule />
                 <p className="text-center text-[10px]">
                   Terima kasih atas kunjungan Anda
                 </p>

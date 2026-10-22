@@ -28,7 +28,9 @@ export type SaveProductInput = {
   minStock: number;
 };
 
-export type ProductActionResult = { ok: true } | { ok: false; error: string };
+export type ProductActionResult =
+  | { ok: true; productId?: string }
+  | { ok: false; error: string };
 
 // Thrown for user-facing validation failures, mirroring the cashier
 // checkout error pattern: the outer catch turns it into a friendly
@@ -139,7 +141,10 @@ export async function saveProduct(
       }
     }
 
-    await prisma.$transaction(async (tx) => {
+    // The transaction hands the saved product id back: create mode in
+    // the form modal queues photos locally, then uploads them one by
+    // one right after saveProduct resolves with this id.
+    const savedProductId = await prisma.$transaction(async (tx) => {
       // Resolve the category first: reuse a matching name (any casing) so
       // the owner never ends up with twin categories like "Snack"/"snack".
       let resolvedCategoryId = categoryId;
@@ -175,16 +180,17 @@ export async function saveProduct(
 
       if (input.id) {
         await tx.product.update({ where: { id: input.id }, data });
-      } else {
-        await tx.product.create({ data });
+        return input.id;
       }
+      const created = await tx.product.create({ data });
+      return created.id;
     });
 
     // The POS grid, the restock list and this page all read products.
     revalidatePath("/owner/products");
     revalidatePath("/owner");
     revalidatePath("/cashier");
-    return { ok: true };
+    return { ok: true, productId: savedProductId };
   } catch (error) {
     if (error instanceof ProductActionError) {
       return { ok: false, error: error.message };
@@ -232,11 +238,7 @@ export async function toggleProductActive(
 // guards stop anything oversized from ever reaching the database.
 const MAX_IMAGES_PER_PRODUCT = 6;
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
-const ALLOWED_IMAGE_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export type ImageActionResult =
   | { ok: true; imageCount?: number }
@@ -288,7 +290,9 @@ export async function addProductImage(
     // The mimeType is normalized to the detected type; the editor always
     // exports JPEG, uploads straight from the gallery keep their type.
     const mimeType =
-      file.type && ALLOWED_IMAGE_TYPES.has(file.type) ? file.type : "image/jpeg";
+      file.type && ALLOWED_IMAGE_TYPES.has(file.type)
+        ? file.type
+        : "image/jpeg";
 
     await prisma.productImage.create({
       data: {
