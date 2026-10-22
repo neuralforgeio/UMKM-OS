@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PackagePlus } from "lucide-react";
+import { PackagePlus, Settings } from "lucide-react";
 import ForecastSection from "@/components/forecast/forecast-section";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -310,6 +310,11 @@ export default async function OwnerPage() {
     : await prisma.outlet.findFirst();
   if (!outlet) redirect("/");
 
+  // Cache-busted logo URL; null keeps the default storefront tile.
+  const logoUrl = outlet.logoMimeType
+    ? `/api/outlet/logo?v=${outlet.logoVersion}`
+    : null;
+
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const sevenDaysAgo = new Date(startOfToday);
@@ -456,9 +461,18 @@ export default async function OwnerPage() {
       <header className="shrink-0 border-b border-slate-200 bg-white">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
-              <StorefrontIcon className="h-5 w-5" />
-            </div>
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={`Logo ${outlet.name}`}
+                className="h-10 w-10 shrink-0 rounded-xl object-contain"
+              />
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
+                <StorefrontIcon className="h-5 w-5" />
+              </div>
+            )}
             <div className="min-w-0">
               <h1 className="truncate text-base font-bold leading-tight text-slate-900">
                 Laporan — {outlet.name}
@@ -469,6 +483,13 @@ export default async function OwnerPage() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href="/owner/settings"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Pengaturan</span>
+            </Link>
             <Link
               href="/owner/products"
               className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"

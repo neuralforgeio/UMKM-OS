@@ -71,3 +71,13 @@ export type Receipt = {
 export type CheckoutResult =
   | { ok: true; receipt: Receipt }
   | { ok: false; error: string };
+
+// Outlet identity for the receipt + POS header. logoUrl is a
+// cache-busted /api/outlet/logo?v=...URL, or null if no logo has
+// been uploaded yet (receipts then center the outlet name)
+export type OutletInfo = {
+  name: string;
+  address: string | null;
+  phone: string | null;
+  logoUrl: string | null;
+}

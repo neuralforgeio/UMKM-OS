@@ -8,6 +8,7 @@ import { createTransaction } from "./actions";
 import type {
   CartLineView,
   DiscountState,
+  OutletInfo,
   PaymentMethodValue,
   PosProduct,
   Receipt as ReceiptType,
@@ -25,11 +26,11 @@ const INITIAL_DISCOUNT: DiscountState = {
 
 export function PosClient({
   cashierName,
-  outletName,
+  outlet,
   products,
 }: {
   cashierName: string;
-  outletName: string;
+  outlet: OutletInfo;
   products: PosProduct[];
 }) {
   const router = useRouter();
@@ -122,7 +123,7 @@ export function PosClient({
     return (
       <ReceiptView
         receipt={receipt}
-        outletName={outletName}
+        outlet={outlet}
         onNewTransaction={resetAll}
       />
     );
@@ -152,12 +153,21 @@ export function PosClient({
       <header className="shrink-0 border-b border-slate-200 bg-white">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
-              <Store className="h-5 w-5" />
-            </div>
+            {outlet.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={outlet.logoUrl}
+                alt={`Logo ${outlet.name}`}
+                className="h-10 w-10 shrink-0 rounded-xl object-contain"
+              />
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
+                <Store className="h-5 w-5" />
+              </div>
+            )}
             <div className="min-w-0">
               <h1 className="truncate text-base font-bold leading-tight text-slate-900">
-                {outletName}
+                {outlet.name}
               </h1>
               <p className="flex items-center gap-1 truncate text-xs text-slate-500">
                 <User className="h-3 w-3 shrink-0 text-slate-400" />

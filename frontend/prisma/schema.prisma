@@ -73,7 +73,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  transactions Transaction[]
+  transactions   Transaction[]
   stockMovements StockMovement[]
 
   @@index([outletId])
@@ -81,13 +81,20 @@ model User {
 
 /// Physical store location — supports the multi-outlet roadmap.
 model Outlet {
-  id        String   @id @default(uuid())
-  name      String
-  address   String?
-  phone     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-
+  id           String        @id @default(uuid())
+  name         String
+  address      String?
+  phone        String?
+  /// Uploaded UMKM logo (PNG/JPEG/WebP bytes). Printed at the top-left
+  /// of the receipt in full color, shown in app headers, and used as
+  /// the browser favicon. Null = receipts print the outlet name
+  /// centered, the classic warung look.
+  logoData     Bytes?
+  logoMimeType String?
+  /// Bumped on every logo change so /api/outlet/logo?v=N cache-busts.
+  logoVersion  Int           @default(0)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
   users        User[]
   products     Product[]
   transactions Transaction[]
@@ -124,8 +131,8 @@ model Product {
   updatedAt  DateTime  @updatedAt
 
   transactionItems TransactionItem[]
-  images          ProductImage[]
-  stockMovements  StockMovement[]
+  images           ProductImage[]
+  stockMovements   StockMovement[]
 
   @@index([outletId])
   @@index([categoryId])
@@ -163,22 +170,22 @@ model ProductImage {
 /// receipt they belong to; IN rows come from the owner restock flow and
 /// carry an optional per-unit cost snapshot for profit reporting.
 model StockMovement {
-  id        String   @id @default(uuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  type      StockMovementType
+  id            String            @id @default(uuid())
+  productId     String
+  product       Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type          StockMovementType
   /// Always a positive number; the type decides the direction.
-  quantity  Int
+  quantity      Int
   /// Purchase cost per unit at restock time (Rp snapshot). Null on sales.
-  unitCost  Decimal? @db.Decimal(12, 2)
-  note      String?
+  unitCost      Decimal?          @db.Decimal(12, 2)
+  note          String?
   /// Who performed the movement. Null for backfilled or system rows.
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
+  userId        String?
+  user          User?             @relation(fields: [userId], references: [id])
   /// Set on SALE rows so the timeline can link back to the receipt.
   transactionId String?
-  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  transaction   Transaction?      @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  createdAt     DateTime          @default(now())
 
   @@index([productId, createdAt])
   @@index([createdAt])
@@ -203,7 +210,7 @@ model Transaction {
   note          String?
   createdAt     DateTime          @default(now())
 
-  items TransactionItem[]
+  items          TransactionItem[]
   stockMovements StockMovement[]
 
   @@index([outletId, createdAt]) // daily reports + ML time-series queries
