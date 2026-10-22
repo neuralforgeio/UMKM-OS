@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PackagePlus, Settings, ShieldCheck } from "lucide-react";
+import { PackagePlus, Settings, ShieldCheck, ReceiptText } from "lucide-react";
 import ForecastSection from "@/components/forecast/forecast-section";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -496,6 +496,14 @@ export default async function OwnerPage() {
             >
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Pengaturan</span>
+            </Link>
+            <Link
+              href="/owner/transactions"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              <ReceiptText className="h-4 w-4" />
+              <span className="hidden sm:inline">Riwayat Transaksi</span>
+              <span className="sm:hidden">Riwayat</span>
             </Link>
             <Link
               href="/owner/products"
