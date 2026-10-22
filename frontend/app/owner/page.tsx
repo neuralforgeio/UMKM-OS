@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PackagePlus, Settings } from "lucide-react";
+import { PackagePlus, Settings, ShieldCheck } from "lucide-react";
 import ForecastSection from "@/components/forecast/forecast-section";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -483,6 +483,13 @@ export default async function OwnerPage() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href="/owner/verify"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              <span className="hidden sm:inline">Verifikasi Struk</span>
+            </Link>
             <Link
               href="/owner/settings"
               className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"

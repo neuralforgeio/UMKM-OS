@@ -180,6 +180,18 @@ export function ReceiptView({
               </div>
             </div>
 
+            <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5 text-xs text-slate-600">
+              <p className="font-bold text-slate-800">
+                Kode verifikasi: {receipt.claimCode}
+              </p>
+              <p className="mt-0.5 leading-relaxed">
+                Kode ini bukti serah terima pesanan. Pembeli tidak perlu
+                memegang struk: kurir selalu bisa membuka kode ini dari aplikasi
+                (menu Serah Terima), dan pembeli cukup scan QR atau tanda tangan
+                di layar kurir saat pesanan tiba.
+              </p>
+            </div>
+
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
@@ -333,15 +345,24 @@ export function ReceiptView({
                 <Rule />
                 {receipt.qrSvg && (
                   <div className="flex flex-col items-center">
-                    {/* Server-rendered QR: plain-text receipt summary,
-                        readable by any scanner app. */}
+                    {/* Server-rendered QR: the PUBLIC verification link
+                        keyed by the handover code — the buyer's phone
+                        opens the confirmation page directly. */}
                     <div
                       className="w-[84px] print:w-[19mm]"
                       dangerouslySetInnerHTML={{ __html: receipt.qrSvg }}
                     />
-                    <p className="mt-1 text-[9px]">Scan untuk cek struk</p>
+                    <p className="mt-1 text-[9px]">
+                      Scan utk verifikasi pesanan
+                    </p>
                   </div>
                 )}
+                <p className="mt-1 text-center text-[9px] tracking-widest">
+                  KODE VERIFIKASI
+                </p>
+                <p className="text-center text-[12px] font-bold tracking-[0.3em]">
+                  {receipt.claimCode}
+                </p>
                 <Rule />
                 <p className="text-center text-[10px]">
                   Terima kasih atas kunjungan Anda

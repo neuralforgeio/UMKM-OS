@@ -66,6 +66,10 @@ export type Receipt = {
   paidAmount: number;
   changeAmount: number;
   items: ReceiptItem[];
+  // 6-digit claim code: the customer's secret handover proof. Printed
+  // on the receipt paper + embedded in the QR payload; confirmed at
+  // /verify/[code] (public form) or through the owner's verify tools.
+  claimCode: string;
   // Receipt QR as an inline SVG string, generated server-side by the
   // checkout action (QRCode.toString type "svg"). Empty string = QR
   // generation failed; the receipt itself is still valid and renders

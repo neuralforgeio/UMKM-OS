@@ -210,6 +210,14 @@ model Transaction {
   note          String?
   createdAt     DateTime          @default(now())
 
+  // Verifikasi serah terima (anti-fraud): kode klaim 6 digit tercetak di
+  // struk — hanya pemegang struk yang bisa memicu konfirmasi publik.
+// Null = struk lama sebelum fitur ini (konfirmasi manual oleh pemilik).
+  claimCode     String?   @unique
+  claimedAt     DateTime?
+  claimNote     String?
+  claimAttempts Int       @default(0)
+
   items          TransactionItem[]
   stockMovements StockMovement[]
 

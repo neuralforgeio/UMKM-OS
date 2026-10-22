@@ -5,6 +5,7 @@ import { formatThousands } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { generateHandoverCode } from "@/lib/handover";
 import type {
   CheckoutResult,
   DiscountInput,
@@ -159,9 +160,24 @@ export async function createTransaction(input: {
         where: { outletId: effectiveOutletId, createdAt: { gte: startOfDay } },
       });
       const code = `TRX-${ymd}-${String(todayCount + 1).padStart(4, "0")}`;
+      // Kode verifikasi serah terima v2: 8 karakter tanpa huruf/angka
+      // ambigu (32^8 ≈ 1,1 triliun kombinasi). Kode ini tercetak di
+      // struk, masuk ke QR, DAN selalu bisa dilihat kurir yang login di
+      // /owner/verify — jadi "lupa kode" tidak lagi mungkin terjadi.
+      // Retried a few times in the rare case the draw collides.
+      let claimCode = generateHandoverCode();
+      for (let i = 0; i < 6; i++) {
+        const taken = await tx.transaction.findUnique({
+          where: { claimCode },
+          select: { id: true },
+        });
+        if (!taken) break;
+        claimCode = generateHandoverCode();
+      }
       const created = await tx.transaction.create({
         data: {
           code,
+          claimCode,
           outletId: effectiveOutletId,
           cashierId: sessionUser.id,
           paymentMethod,
@@ -215,6 +231,7 @@ export async function createTransaction(input: {
       });
       return {
         code: created.code,
+        claimCode,
         createdAt: created.createdAt.toISOString(),
         paymentMethod,
         subtotal: subtotalSen / 100,
@@ -231,12 +248,15 @@ export async function createTransaction(input: {
       };
     });
 
-    // Scannable receipt QR: a plain-text summary payload, so ANY scanner
-    // app (kamera HP, Google Lens, dsb.) shows the receipt details the
-    // moment it decodes. Generated best-effort AFTER the commit: the
+    // Scannable receipt QR, generated best-effort AFTER the commit: the
     // transaction is already saved at this point, so a QR failure must
     // never be reported as a failed checkout — the receipt still renders,
-    // just without the QR block (qrSvg stays "").
+    // just without the QR block (qrSvg stays ""). With NEXT_PUBLIC_APP_URL
+    // set the QR encodes the PUBLIC verification link keyed by the
+    // handover code, so the buyer's phone opens the confirmation page
+    // directly. Without it the payload is a plain-text summary ending
+    // with the code, readable by any scanner app (kamera HP, Google
+    // Lens, dsb.) — the buyer can then open /verify/{kode} manually.
     let qrSvg = "";
     try {
       const itemCount = receipt.items.reduce(
@@ -248,13 +268,16 @@ export async function createTransaction(input: {
         timeStyle: "short",
         timeZone: "Asia/Jakarta",
       }).format(new Date(receipt.createdAt));
-      const payload = [
-        outletName,
-        receipt.code,
-        `${timeWib} WIB`,
-        `${itemCount} item - Total Rp ${formatThousands(receipt.total)}`,
-        `Bayar Rp ${formatThousands(receipt.paidAmount)} - Kembali Rp ${formatThousands(receipt.changeAmount)}`,
-      ].join("\n");
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
+      const payload = appUrl
+        ? `${appUrl}/verify/${receipt.claimCode}`
+        : [
+            `STRUK ${outletName}`,
+            receipt.code,
+            `${timeWib} WIB`,
+            `${itemCount} item - Total Rp ${formatThousands(receipt.total)}`,
+            `Kode verifikasi: ${receipt.claimCode}`,
+          ].join("\n");
       qrSvg = await QRCode.toString(payload, {
         type: "svg",
         errorCorrectionLevel: "M",
@@ -268,6 +291,7 @@ export async function createTransaction(input: {
     revalidatePath("/owner");
     revalidatePath("/owner/products");
     revalidatePath("/owner/stock");
+    revalidatePath("/owner/verify"); // daftar serah terima kurir hari ini
     return { ok: true, receipt: { ...receipt, qrSvg } };
   } catch (error) {
     if (error instanceof CheckoutError) {
