@@ -210,16 +210,26 @@ model Transaction {
   note          String?
   createdAt     DateTime          @default(now())
 
-  // Verifikasi serah terima (anti-fraud): kode klaim 6 digit tercetak di
-  // struk — hanya pemegang struk yang bisa memicu konfirmasi publik.
-// Null = struk lama sebelum fitur ini (konfirmasi manual oleh pemilik).
-  claimCode     String?   @unique
-  claimedAt     DateTime?
-  claimNote     String?
-  claimAttempts Int       @default(0)
+  // Verifikasi serah terima v2 (anti-fraud). Kode 8 karakter tanpa
+  // huruf/angka ambigu tercetak di struk dan masuk ke QR — TAPI kode
+  // ini TIDAK jadi satu-satunya kunci: kurir yang login selalu bisa
+  // melihat semua kode hari ini di /owner/verify, jadi penjual tidak
+  // mungkin "lupa kode klaim". Struk boleh tidak dibawa pembeli;
+  // konfirmasi bisa lewat tanda tangan di layar kurir atau HP pembeli.
+  claimCode           String?   @unique
+  // null = belum ada aktivitas | COURIER_CLAIMED = kurir menandai
+  // "sudah diantar" TANPA tanda tangan pembeli (bukti lemah) |
+  // CONFIRMED = pembeli konfirmasi dengan tanda tangan (bukti kuat) |
+  // DISPUTED = pembeli membantah pernah menerima (sengketa).
+  handoverStatus      String?
+  handoverConfirmedAt DateTime?
+  // User id staf yang mencatat konfirmasi di layar kurir. Null berarti
+  // konfirmasi dilakukan pembeli sendiri dari HP-nya (metode PUBLIC).
+  handoverConfirmedBy String?
 
   items          TransactionItem[]
   stockMovements StockMovement[]
+  handoverEvents HandoverEvent[]
 
   @@index([outletId, createdAt]) // daily reports + ML time-series queries
   @@index([cashierId])
@@ -239,4 +249,34 @@ model TransactionItem {
 
   @@index([transactionId])
   @@index([productId]) // ML: per-product demand aggregation
+}
+
+/// Jejak kejadian serah terima — APPEND-ONLY: baris tidak pernah
+/// di-update atau dihapus, sehingga tidak bisa dimanipulasi pihak mana
+/// pun. Ini yang menang kalau ada sengketa "saya tidak pernah terima".
+/// Backend Python nanti bisa baca tabel ini (read-only) untuk deteksi
+/// pola kurir curang: klaim berlebihan vs konfirmasi pembeli.
+model HandoverEvent {
+  id            String      @id @default(uuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  /// BUYER_CONFIRM = pembeli tanda tangan | COURIER_CLAIM = klaim
+  /// kurir tanpa tanda tangan | BUYER_DISPUTE = pembeli membantah.
+  kind          String
+  /// IN_APP = terjadi di layar kurir (login) | PUBLIC = dari HP pembeli.
+  method        String?
+  /// OWNER | KASIR | BUYER.
+  actorRole     String?
+  /// User id staf (null untuk pembeli).
+  actorId       String?
+  /// Nama pembeli yang diketik saat konfirmasi (opsional).
+  buyerName     String?
+  /// Data URL PNG tanda tangan pembeli (maks ±300KB).
+  signatureData String?
+  note          String?
+  userAgent     String?
+  ip            String?
+  createdAt     DateTime    @default(now())
+
+  @@index([transactionId, createdAt])
 }

@@ -7,7 +7,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatRupiah } from "@/lib/format";
 import { buildVerifyUrl } from "@/lib/handover";
-import { ClaimDeliveredButton, ConfirmInAppForm, CopyButton } from "./client";
+import { ClaimDeliveredButton, ConfirmInAppForm, CopyButton } from "./client"
 
 export const instant = false;
 

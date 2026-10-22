@@ -1,15 +1,18 @@
 -- Handover v2: bukti serah terima anti-fraud.
--- Kolom v1 (claimedAt/claimNote/claimAttempts) tidak dipakai lagi.
--- claimCode dipertahankan sebagai kode verifikasi 8 karakter.
+-- Idempotent: aman walaupun migration v1 (add_claim_verification)
+-- sudah terlanjur applied di database.
 
 ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "claimCode" TEXT;
 ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "handoverStatus" TEXT;
 ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "handoverConfirmedAt" TIMESTAMP(3);
 ALTER TABLE "Transaction" ADD COLUMN IF NOT EXISTS "handoverConfirmedBy" TEXT;
 
+-- Kolom v1 yang sudah tidak dipakai lagi.
 ALTER TABLE "Transaction" DROP COLUMN IF EXISTS "claimedAt";
 ALTER TABLE "Transaction" DROP COLUMN IF EXISTS "claimNote";
 ALTER TABLE "Transaction" DROP COLUMN IF EXISTS "claimAttempts";
+-- Asuransi: residu draft lama (kalau-kalau pernah jalan).
+ALTER TABLE "Transaction" DROP COLUMN IF EXISTS "handoverCode";
 
 CREATE UNIQUE INDEX IF NOT EXISTS "Transaction_claimCode_key"
   ON "Transaction"("claimCode");
