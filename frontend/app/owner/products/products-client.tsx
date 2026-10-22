@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { formatRupiah } from "@/lib/format";
+import { TablePagination } from "@/components/table-pagination";
 import {
   categoryAvatarClass,
   categoryChipClass,
@@ -33,6 +34,9 @@ const STATUS_TABS = [
 ] as const;
 
 type StatusFilter = (typeof STATUS_TABS)[number]["key"];
+
+// Rows per page on the product table (shared paagination footer)
+const PAGE_SIZE = 20;
 
 // One shared grid template for the header row and every product row so
 // the desktop columns stay perfectly aligned.
@@ -237,6 +241,19 @@ export function ProductsClient({
       );
     });
   }, [products, query, categoryId, status]);
+
+  // Pagination: 20 rows per page. Any filter change jumps back to
+  // page 1 so the top of the new result set is always visible.
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    setPage(1);
+  }, [query, categoryId, status]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = filtered.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   const summary = useMemo(() => {
     const active = products.filter((product) => product.isActive);
@@ -463,7 +480,7 @@ export function ProductsClient({
                 <span className="text-right">Aksi</span>
               </div>
               <ul className="divide-y divide-slate-100">
-                {filtered.map((product) => (
+                {pageRows.map((product) => (
                   <ProductRowItem
                     key={product.id}
                     product={product}
@@ -473,6 +490,14 @@ export function ProductsClient({
                   />
                 ))}
               </ul>
+              <TablePagination
+                page={safePage}
+                pageCount={pageCount}
+                pageSize={PAGE_SIZE}
+                total={filtered.length}
+                unit="produk"
+                onPage={setPage}
+              />
             </>
           )}
         </section>

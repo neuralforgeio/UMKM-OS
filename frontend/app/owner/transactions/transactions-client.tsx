@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Calculator,
   ChevronDown,
@@ -16,6 +16,7 @@ import {
 import { formatRupiah } from "@/lib/format";
 import { getTransactionDetail, refundTransaction } from "./actions";
 import type { ProfitSummary, TransactionDetail, TransactionRow } from "./types";
+import { TablePagination } from "@/components/table-pagination";
 
 type Tab = "riwayat" | "laba";
 type MethodFilter = "ALL" | "CASH" | "QRIS" | "DEBIT";
@@ -57,6 +58,9 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "COMPLETED", label: "Selesai" },
   { key: "REFUNDED", label: "Refund" },
 ];
+
+// Rows per page on the history & profit tables (shared footer).
+const PAGE_SIZE = 20;
 
 const formatTime = (iso: string) =>
   new Date(iso).toLocaleString("id-ID", {
@@ -373,6 +377,7 @@ export function TransactionsClient({
   const [refundPending, setRefundPending] = useState(false);
   const [refundError, setRefundError] = useState<string | null>(null);
   const [profitDays, setProfitDays] = useState<7 | 30>(30);
+  const [profitPage, setProfitPage] = useState(1);
 
   const filtered = useMemo(() => {
     const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
@@ -385,6 +390,17 @@ export function TransactionsClient({
       return true;
     });
   }, [rows, days, method, status, query]);
+
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    setPage(1);
+  });
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = filtered.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   const completedOmzet = filtered
     .filter((row) => row.status === "COMPLETED")
@@ -450,6 +466,20 @@ export function TransactionsClient({
   }
 
   const activeSummary = profitDays === 7 ? weekSummary : monthSummary;
+
+  // Pagination for the per-product profit table (same 20 rows rule).
+  useEffect(() => {
+    setProfitPage(1);
+  }, [profitDays]);
+  const profitPageCount = Math.max(
+    1,
+    Math.ceil(activeSummary.rows.length / PAGE_SIZE),
+  );
+  const safeProfitPage = Math.min(profitPage, profitPageCount);
+  const profitPageRows = activeSummary.rows.slice(
+    (safeProfitPage - 1) * PAGE_SIZE,
+    safeProfitPage * PAGE_SIZE,
+  );
 
   return (
     <div className="flex min-h-dvh flex-col bg-slate-100">
@@ -565,7 +595,7 @@ export function TransactionsClient({
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {filtered.map((row) => {
+                  {pageRows.map((row) => {
                     const methodMeta = METHOD_META[row.paymentMethod];
                     const isRefunded = row.status === "REFUNDED";
                     const expanded = expandedId === row.id;
@@ -636,6 +666,14 @@ export function TransactionsClient({
                   })}
                 </div>
               )}
+              <TablePagination
+                page={safePage}
+                pageCount={pageCount}
+                pageSize={PAGE_SIZE}
+                total={filtered.length}
+                unit="transaksi"
+                onPage={setPage}
+              />
             </div>
           </>
         ) : (
@@ -741,7 +779,7 @@ export function TransactionsClient({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {activeSummary.rows.map((row) => (
+                      {profitPageRows.map((row) => (
                         <tr key={row.productId}>
                           <td className="px-4 py-2.5 text-slate-900">
                             {row.name}
@@ -776,6 +814,14 @@ export function TransactionsClient({
                     </tbody>
                   </table>
                 </div>
+                <TablePagination
+                  page={safeProfitPage}
+                  pageCount={profitPageCount}
+                  pageSize={PAGE_SIZE}
+                  total={activeSummary.rows.length}
+                  unit="produk"
+                  onPage={setProfitPage}
+                />
               </div>
             )}
 
