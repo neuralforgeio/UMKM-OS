@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { formatSku, skuPrefixOf } from "@/lib/sku";
 
 // Whole-Rupiah money: the form sends plain integers, so validation only
 // needs integer range checks. Decimal precision is preserved end-to-end
@@ -10,20 +11,26 @@ import { prisma } from "@/lib/prisma";
 const MAX_PRICE_RUPIAH = 1_000_000_000;
 const MAX_STOCK = 1_000_000;
 const MAX_MIN_STOCK = 100_000;
-const SKU_PATTERN = /^[A-Z0-9-]{2,32}$/;
+const MAX_UNIT_LENGTH = 16;
 
 export type SaveProductInput = {
   // Present = update an existing product, absent = create a new one.
   id?: string;
   name: string;
-  sku: string;
+  // SKU is NEVER sent by the client: the server generates it on create
+  // (category prefix + sequence) and never touches it on update, so a
+  // tampered request cannot forge or steal another product's SKU.
   categoryId: string | null;
   // When set, a category with this name is created (or reused, ignoring
   // casing) and linked instead of categoryId.
   newCategoryName: string | null;
+  // Selected EXISTING unit name from the dropdown.
+  unitName: string | null;
+  // When set, a unit with this name is created (or reused, ignoring
+  // casing) and used instead — mirrors the category flow.
+  newUnitName: string | null;
   priceRupiah: number;
   costRupiah: number;
-  unit: string;
   stock: number;
   minStock: number;
 };
@@ -75,19 +82,14 @@ export async function saveProduct(
     const outletId = await requireOwnerOutletId();
 
     const name = (input.name ?? "").trim();
-    const sku = (input.sku ?? "").trim().toUpperCase();
-    const unit = (input.unit ?? "").trim() || "pcs";
     const newCategoryName = (input.newCategoryName ?? "").trim();
     const categoryId = input.categoryId || null;
+    const unitName = (input.unitName ?? "").trim();
+    const newUnitName = (input.newUnitName ?? "").trim();
 
     if (name.length < 1 || name.length > 100) {
       throw new ProductActionError(
         "Nama produk wajib diisi (maks. 100 karakter).",
-      );
-    }
-    if (!SKU_PATTERN.test(sku)) {
-      throw new ProductActionError(
-        "SKU wajib 2-32 karakter: huruf besar, angka, atau tanda hubung.",
       );
     }
     if (!isIntInRange(input.priceRupiah, 1, MAX_PRICE_RUPIAH)) {
@@ -112,6 +114,20 @@ export async function saveProduct(
         "Pilih kategori yang sudah ada ATAU tulis nama kategori baru, tidak keduanya.",
       );
     }
+    if (!newUnitName && !unitName) {
+      throw new ProductActionError("Satuan wajib dipilih.");
+    }
+    if (newUnitName && unitName) {
+      throw new ProductActionError(
+        "Pilih satuan yang sudah ada ATAU tulis satuan baru, tidak keduanya.",
+      );
+    }
+    if (newUnitName.length > MAX_UNIT_LENGTH) {
+      throw new ProductActionError("Nama satuan maksimal 16 karakter.");
+    }
+    if (unitName.length > MAX_UNIT_LENGTH) {
+      throw new ProductActionError("Satuan tidak valid.");
+    }
     if (!newCategoryName && categoryId) {
       const category = await prisma.category.findUnique({
         where: { id: categoryId },
@@ -122,13 +138,27 @@ export async function saveProduct(
       }
     }
 
-    // SKU is globally unique: on update, exclude the product itself.
-    const skuClash = await prisma.product.findFirst({
-      where: { sku, ...(input.id ? { NOT: { id: input.id } } : {}) },
-      select: { id: true },
-    });
-    if (skuClash) {
-      throw new ProductActionError(`SKU ${sku} sudah dipakai produk lain.`);
+    // The unit must be a KNOWN name — from the Unit master table, or a
+    // legacy string still used by existing products. Free text coming
+    // from a tampered request is rejected before it reaches the DB.
+    if (!newUnitName && unitName) {
+      const allUnits = await prisma.unit.findMany({
+        select: { name: true },
+      });
+      const unitKnown = allUnits.some(
+        (unit) => unit.name.toLowerCase() === unitName.toLowerCase(),
+      );
+      if (!unitKnown) {
+        const legacy = await prisma.product.findFirst({
+          where: { unit: unitName },
+          select: { id: true },
+        });
+        if (!legacy) {
+          throw new ProductActionError(
+            "Satuan tidak dikenal — pilih dari daftar atau buat satuan baru.",
+          );
+        }
+      }
     }
 
     if (input.id) {
@@ -148,6 +178,7 @@ export async function saveProduct(
       // Resolve the category first: reuse a matching name (any casing) so
       // the owner never ends up with twin categories like "Snack"/"snack".
       let resolvedCategoryId = categoryId;
+      let resolvedCategoryName: string | null = null;
       if (newCategoryName) {
         const allCategories = await tx.category.findMany({
           select: { id: true, name: true },
@@ -156,25 +187,58 @@ export async function saveProduct(
           (category) =>
             category.name.toLowerCase() === newCategoryName.toLowerCase(),
         );
-        resolvedCategoryId =
-          found?.id ??
-          (
-            await tx.category.create({
-              data: { name: newCategoryName },
-              select: { id: true },
-            })
-          ).id;
+        if (found) {
+          resolvedCategoryId = found.id;
+          resolvedCategoryName = found.name;
+        } else {
+          const createdCategory = await tx.category.create({
+            data: { name: newCategoryName },
+            select: { id: true, name: true },
+          });
+          resolvedCategoryId = createdCategory.id;
+          resolvedCategoryName = createdCategory.name;
+        }
+      } else if (categoryId) {
+        const category = await tx.category.findUnique({
+          where: { id: categoryId },
+          select: { name: true },
+        });
+        resolvedCategoryName = category?.name ?? null;
       }
 
+      // Resolve the unit the same way: reuse a matching name (any
+      // casing) so "Pcs" and "pcs" stay one satuan, or create it.
+      let resolvedUnit: string;
+      if (newUnitName) {
+        const allUnits = await tx.unit.findMany({
+          select: { id: true, name: true },
+        });
+        const found = allUnits.find(
+          (unit) => unit.name.toLowerCase() === newUnitName.toLowerCase(),
+        );
+        resolvedUnit =
+          found?.name ??
+          (
+            await tx.unit.create({
+              data: { name: newUnitName },
+              select: { name: true },
+            })
+          ).name;
+      } else {
+        resolvedUnit = unitName;
+      }
+
+      // Fields written on BOTH create and update. sku is deliberately
+      // absent: on update it is immutable, on create it is generated
+      // below — the client never supplies it.
       const data = {
         name,
-        sku,
         categoryId: resolvedCategoryId,
         price: input.priceRupiah,
         cost: input.costRupiah,
         stock: input.stock,
         minStock: input.minStock,
-        unit,
+        unit: resolvedUnit,
         outletId,
       };
 
@@ -182,7 +246,44 @@ export async function saveProduct(
         await tx.product.update({ where: { id: input.id }, data });
         return input.id;
       }
-      const created = await tx.product.create({ data });
+
+      // Auto SKU: prefix from the category, sequence from the highest
+      // existing number with that prefix. sku is globally unique, so
+      // the scan is global too; a P2002 retry loop absorbs the tiny
+      // race window between two simultaneous creates.
+      const prefix = skuPrefixOf(resolvedCategoryName);
+      const siblings = await tx.product.findMany({
+        where: { sku: { startsWith: `${prefix}-` } },
+        select: { sku: true },
+      });
+      let maxSeq = 0;
+      for (const row of siblings) {
+        const seq = parseInt(row.sku.slice(prefix.length + 1), 10);
+        if (Number.isInteger(seq) && seq > maxSeq) maxSeq = seq;
+      }
+
+      let sku = formatSku(prefix, maxSeq + 1);
+      let created: { id: string } | null = null;
+      for (let attempt = 0; attempt < 6 && !created; attempt++) {
+        try {
+          created = await tx.product.create({
+            data: { ...data, sku },
+            select: { id: true },
+          });
+        } catch (error) {
+          if ((error as { code?: string }).code === "P2002") {
+            const seq = parseInt(sku.slice(prefix.length + 1), 10) + 1;
+            sku = formatSku(prefix, seq);
+            continue;
+          }
+          throw error;
+        }
+      }
+      if (!created) {
+        throw new ProductActionError(
+          "Gagal membuat SKU unik — coba simpan ulang.",
+        );
+      }
       return created.id;
     });
 

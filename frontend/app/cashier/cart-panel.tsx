@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import {
@@ -139,11 +140,20 @@ export function CartPanel({
           <ul className="min-h-0 flex-1 divide-y divide-slate-100 overscroll-contain overflow-y-auto px-4 [scrollbar-width:thin] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar]:w-1.5">
             {lines.map(({ product, qty }) => (
               <li key={product.id} className="flex items-center gap-2.5 py-1.5">
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white ${categoryAvatarClass(product.categoryName)}`}
-                >
-                  {initialsOf(product.name)}
-                </div>
+                {product.thumbImageId ? (
+                  <img
+                    src={`/api/images/${product.thumbImageId}`}
+                    alt={product.name}
+                    loading="lazy"
+                    className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white ${categoryAvatarClass(product.categoryName)}`}
+                  >
+                    {initialsOf(product.name)}
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 text-[13px] font-medium leading-tight text-slate-900">
                     {product.name}

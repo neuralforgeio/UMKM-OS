@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Boxes,
@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { formatThousands } from "@/lib/format";
+import { formatSku, skuPrefixOf } from "@/lib/sku";
 import { ImageEditorModal } from "@/components/image-editor-modal";
 import {
   addProductImage,
@@ -23,12 +24,22 @@ import {
   saveProduct,
   setProductThumbnail,
 } from "./actions";
-import type { CategoryOption, ProductRow } from "./types";
+import type { CategoryOption, ProductRow, UnitOption } from "./types";
 
 type ProductFormModalProps = {
   // null = create a new product, a row = edit that product.
   product: ProductRow | null;
   categories: CategoryOption[];
+  // Unit dropdown options (master table + legacy strings).
+  units: UnitOption[];
+  // categoryId -> product count ("__none__" = without category), used
+  // only for the live next-SKU preview.
+  skuCounts: Record<string, number>;
+  // Fired right after a NEW product is saved: the parent switches from
+  // create-mode to edit-mode so this modal re-resolves the fresh row
+  // and its photo grid (with thumbnail stars) goes live while any
+  // queued photos are still uploading.
+  onCreated?: (productId: string) => void;
   onClose: () => void;
 };
 
@@ -120,19 +131,23 @@ function QtyInput({
 export function ProductFormModal({
   product,
   categories,
+  units,
+  skuCounts,
+  onCreated,
   onClose,
 }: ProductFormModalProps) {
   const router = useRouter();
   const [name, setName] = useState(product?.name ?? "");
-  const [sku, setSku] = useState(product?.sku ?? "");
   const [categoryId, setCategoryId] = useState(product?.categoryId ?? "");
   const [useNewCategory, setUseNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [unitName, setUnitName] = useState(product?.unit ?? "");
+  const [useNewUnit, setUseNewUnit] = useState(false);
+  const [newUnitName, setNewUnitName] = useState("");
   const [price, setPrice] = useState(
     product ? String(product.priceRupiah) : "",
   );
   const [cost, setCost] = useState(product ? String(product.costRupiah) : "");
-  const [unit, setUnit] = useState(product?.unit ?? "pcs");
   const [stock, setStock] = useState(product ? String(product.stock) : "0");
   const [minStock, setMinStock] = useState(
     product ? String(product.minStock) : "5",
@@ -146,6 +161,10 @@ export function ProductFormModal({
   // queue in the browser until the product row exists.
   const [editingFile, setEditingFile] = useState<File | null>(null);
   const [queue, setQueue] = useState<QueuedPhoto[]>([]);
+  // Which QUEUED photo is the thumbnail-to-be (null = the first one).
+  // The starred photo is simply uploaded FIRST, and a fresh product's
+  // first stored photo automatically becomes the thumbnail.
+  const [queuedThumbKey, setQueuedThumbKey] = useState<string | null>(null);
   const [photoBusy, setPhotoBusy] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -155,6 +174,27 @@ export function ProductFormModal({
 
   const images = product?.images ?? [];
   const photoCount = images.length + queue.length;
+  const starredQueueKey = queuedThumbKey ?? queue[0]?.key ?? null;
+
+  // Live SKU preview. Edit mode shows the fixed SKU; create mode derives
+  // it from the selected category (the server computes the real value
+  // on save, this is only a preview).
+  const previewSku = useMemo(() => {
+    if (product) return product.sku;
+    const categoryName = useNewCategory
+      ? newCategoryName.trim() || null
+      : (categories.find((c) => c.id === categoryId)?.name ?? null);
+    const seq =
+      (useNewCategory ? 0 : (skuCounts[categoryId || "__none__"] ?? 0)) + 1;
+    return formatSku(skuPrefixOf(categoryName), seq);
+  }, [
+    product,
+    categories,
+    categoryId,
+    useNewCategory,
+    newCategoryName,
+    skuCounts,
+  ]);
 
   useEffect(() => {
     firstFieldRef.current?.focus();
@@ -172,6 +212,14 @@ export function ProductFormModal({
       return;
     }
     setCategoryId(value);
+  };
+
+  const handleUnitSelect = (value: string) => {
+    if (value === "__new__") {
+      setUseNewUnit(true);
+      return;
+    }
+    setUnitName(value);
   };
 
   const pickPhoto = () => {
@@ -232,6 +280,9 @@ export function ProductFormModal({
       if (found) URL.revokeObjectURL(found.preview);
       return items.filter((item) => item.key !== key);
     });
+    if (queuedThumbKey === key) {
+      setQueuedThumbKey(null);
+    }
   };
 
   const run = async (
@@ -251,13 +302,23 @@ export function ProductFormModal({
   };
 
   // Uploads every queued photo (create flow). Stops at the first
-  // failure so the owner can retry without losing the rest.
+  // failure so the owner can retry without losing the rest. The starred
+  // photo is moved to the FRONT first: a fresh product's first stored
+  // photo automatically becomes the thumbnail.
   const uploadRemaining = async (productId: string) => {
     setPhotoBusy("queue");
     setPhotoError(null);
+    const ordered = [...queue];
+    const thumbIndex = ordered.findIndex(
+      (item) => item.key === starredQueueKey,
+    );
+    if (thumbIndex > 0) {
+      const [starred] = ordered.splice(thumbIndex, 1);
+      ordered.unshift(starred);
+    }
     const failed: QueuedPhoto[] = [];
     let firstError: string | null = null;
-    for (const item of queue) {
+    for (const item of ordered) {
       if (firstError) {
         failed.push(item);
         continue;
@@ -292,8 +353,7 @@ export function ProductFormModal({
     }
 
     const trimmedName = name.trim();
-    const trimmedSku = sku.trim().toUpperCase();
-    const trimmedUnit = unit.trim() || "pcs";
+    const trimmedUnitName = newUnitName.trim();
     const trimmedCategory = newCategoryName.trim();
     const priceRp = price ? parseInt(price, 10) : 0;
     const costRp = cost ? parseInt(cost, 10) : 0;
@@ -304,10 +364,12 @@ export function ProductFormModal({
       setError("Nama produk wajib diisi.");
       return;
     }
-    if (!/^[A-Z0-9-]{2,32}$/.test(trimmedSku)) {
-      setError(
-        "SKU wajib 2-32 karakter: huruf besar, angka, atau tanda hubung.",
-      );
+    if (useNewUnit && !trimmedUnitName) {
+      setError("Nama satuan baru wajib diisi.");
+      return;
+    }
+    if (!useNewUnit && !unitName) {
+      setError("Satuan wajib dipilih.");
       return;
     }
     if (useNewCategory && !trimmedCategory) {
@@ -331,12 +393,12 @@ export function ProductFormModal({
       const result = await saveProduct({
         id: product?.id,
         name: trimmedName,
-        sku: trimmedSku,
         categoryId: useNewCategory ? null : categoryId || null,
         newCategoryName: useNewCategory ? trimmedCategory : null,
+        unitName: useNewUnit ? null : unitName,
+        newUnitName: useNewUnit ? trimmedUnitName : null,
         priceRupiah: priceRp,
         costRupiah: costRp,
-        unit: trimmedUnit,
         stock: stockQty,
         minStock: minStockQty,
       });
@@ -349,6 +411,7 @@ export function ProductFormModal({
         return;
       }
       setCreatedId(result.productId);
+      onCreated?.(result.productId);
       await uploadRemaining(result.productId);
     });
   };
@@ -407,6 +470,189 @@ export function ProductFormModal({
               </div>
             )}
 
+            {/* ============ FOTO PRODUK — dipindah ke PALING ATAS ============ */}
+            <div>
+              <p className={LABEL_CLASS}>Foto Produk (maks. {MAX_PHOTOS})</p>
+              <p className="mt-0.5 text-[11px] leading-tight text-slate-400">
+                Tampil di keranjang kasir, kartu produk, dan tabel. Tandai foto
+                dengan bintang untuk menjadikannya thumbnail — default: foto
+                pertama.
+              </p>
+              <div className="mt-2 grid grid-cols-3 gap-2.5 sm:grid-cols-4">
+                {images.map((image, index) => {
+                  const tileBusy =
+                    photoBusy !== null && photoBusy.startsWith(`${image.id}:`);
+                  return (
+                    <div
+                      key={image.id}
+                      className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
+                    >
+                      {image.isThumb && (
+                        <span className="absolute left-1 top-1 z-10 rounded bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                          Thumbnail
+                        </span>
+                      )}
+                      <img
+                        src={`/api/images/${image.id}`}
+                        alt=""
+                        loading="lazy"
+                        className="pointer-events-none h-full w-full object-cover"
+                      />
+                      {tileBusy ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                        </div>
+                      ) : (
+                        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-0.5 bg-black/50 p-1">
+                          <button
+                            type="button"
+                            title="Jadikan thumbnail"
+                            disabled={image.isThumb}
+                            onClick={() =>
+                              run(image.id, "thumb", () =>
+                                setProductThumbnail(image.id),
+                              )
+                            }
+                            className={TILE_BTN}
+                          >
+                            <Star
+                              className={`h-3.5 w-3.5 ${image.isThumb ? "text-amber-500" : ""}`}
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            title="Geser ke kiri"
+                            disabled={index === 0}
+                            onClick={() =>
+                              run(image.id, "left", () =>
+                                moveProductImage(image.id, "left"),
+                              )
+                            }
+                            className={TILE_BTN}
+                          >
+                            <ChevronLeft className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Geser ke kanan"
+                            disabled={index === images.length - 1}
+                            onClick={() =>
+                              run(image.id, "right", () =>
+                                moveProductImage(image.id, "right"),
+                              )
+                            }
+                            className={TILE_BTN}
+                          >
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Hapus foto"
+                            onClick={() => {
+                              if (confirmDelete === image.id) {
+                                setConfirmDelete(null);
+                                run(image.id, "delete", () =>
+                                  deleteProductImage(image.id),
+                                );
+                              } else {
+                                setConfirmDelete(image.id);
+                              }
+                            }}
+                            className="flex h-6 w-6 items-center justify-center rounded-md bg-red-600 text-white shadow-sm transition hover:bg-red-700"
+                          >
+                            {confirmDelete === image.id ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {queue.map((item) => {
+                  const isStarred = item.key === starredQueueKey;
+                  return (
+                    <div
+                      key={item.key}
+                      className="relative aspect-square overflow-hidden rounded-lg border border-blue-200 bg-slate-100"
+                    >
+                      <span
+                        className={`absolute left-1 top-1 z-10 rounded px-1.5 py-0.5 text-[9px] font-bold text-white ${
+                          isStarred ? "bg-amber-500" : "bg-blue-600"
+                        }`}
+                      >
+                        {isStarred ? "Thumbnail" : "Baru"}
+                      </span>
+                      <img
+                        src={item.preview}
+                        alt=""
+                        className="pointer-events-none h-full w-full object-cover"
+                      />
+                      {photoBusy === "queue" ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                        </div>
+                      ) : (
+                        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-0.5 bg-black/50 p-1">
+                          <button
+                            type="button"
+                            title="Jadikan thumbnail"
+                            onClick={() => setQueuedThumbKey(item.key)}
+                            className={TILE_BTN}
+                          >
+                            <Star
+                              className={`h-3.5 w-3.5 ${isStarred ? "text-amber-500" : ""}`}
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            title="Hapus foto"
+                            onClick={() => removeQueued(item.key)}
+                            className="flex h-6 w-6 items-center justify-center rounded-md bg-red-600 text-white shadow-sm transition hover:bg-red-700"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {photoCount < MAX_PHOTOS && (
+                  <button
+                    type="button"
+                    onClick={pickPhoto}
+                    className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400 transition hover:border-blue-400 hover:text-blue-500"
+                  >
+                    {photoBusy === "upload" ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <ImagePlus className="h-5 w-5" />
+                    )}
+                    <span className="text-[10px] font-semibold">
+                      {photoBusy === "upload" ? "Mengunggah…" : "Tambah foto"}
+                    </span>
+                  </button>
+                )}
+              </div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onFileChosen}
+              />
+              {photoError && (
+                <p className="mt-2 text-xs font-medium text-rose-600">
+                  {photoError}
+                </p>
+              )}
+            </div>
+
+            {/* ============ Fields ============ */}
             <fieldset
               disabled={createdId !== null}
               className="space-y-3 border-0 p-0 disabled:opacity-60"
@@ -429,44 +675,67 @@ export function ProductFormModal({
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="product-sku" className={LABEL_CLASS}>
-                    SKU
-                  </label>
-                  <input
-                    id="product-sku"
-                    type="text"
-                    autoComplete="off"
-                    value={sku}
-                    onChange={(event) =>
-                      setSku(
-                        event.target.value
-                          .toUpperCase()
-                          .replace(/[^A-Z0-9-]/g, "")
-                          .slice(0, 32),
-                      )
-                    }
-                    placeholder="BRG-001"
-                    className={`mt-1 font-mono ${INPUT_CLASS}`}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="product-unit" className={LABEL_CLASS}>
-                    Satuan
-                  </label>
-                  <input
+              <div>
+                <label htmlFor="product-sku" className={LABEL_CLASS}>
+                  SKU (otomatis)
+                </label>
+                <input
+                  id="product-sku"
+                  type="text"
+                  readOnly
+                  tabIndex={-1}
+                  value={previewSku}
+                  className={`mt-1 cursor-default bg-slate-50 font-mono ${INPUT_CLASS}`}
+                />
+                <p className="mt-1 text-[11px] leading-tight text-slate-400">
+                  {product
+                    ? "SKU tetap setelah produk dibuat."
+                    : "Dibuat otomatis dari kategori — nomor final ditetapkan saat disimpan."}
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="product-unit" className={LABEL_CLASS}>
+                  Satuan
+                </label>
+                {useNewUnit ? (
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      id="product-unit"
+                      type="text"
+                      autoComplete="off"
+                      value={newUnitName}
+                      onChange={(event) =>
+                        setNewUnitName(event.target.value.trim().slice(0, 16))
+                      }
+                      placeholder="cth: renceng"
+                      className={`flex-1 ${INPUT_CLASS}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setUseNewUnit(false)}
+                      className="flex shrink-0 items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                      Pilih lama
+                    </button>
+                  </div>
+                ) : (
+                  <select
                     id="product-unit"
-                    type="text"
-                    autoComplete="off"
-                    value={unit}
-                    onChange={(event) =>
-                      setUnit(event.target.value.trim().slice(0, 16))
-                    }
-                    placeholder="pcs"
+                    value={unitName}
+                    onChange={(event) => handleUnitSelect(event.target.value)}
                     className={`mt-1 ${INPUT_CLASS}`}
-                  />
-                </div>
+                  >
+                    <option value="">Pilih satuan…</option>
+                    {units.map((unit) => (
+                      <option key={unit.name} value={unit.name}>
+                        {unit.name}
+                      </option>
+                    ))}
+                    <option value="__new__">+ Satuan baru…</option>
+                  </select>
+                )}
               </div>
 
               <div>
@@ -568,167 +837,6 @@ export function ProductFormModal({
                 </div>
               </div>
             </fieldset>
-
-            <div>
-              <p className={LABEL_CLASS}>Foto Produk (maks. {MAX_PHOTOS})</p>
-              <p className="mt-0.5 text-[11px] leading-tight text-slate-400">
-                Tampil di kartu kasir dan tabel produk. Foto pertama otomatis
-                menjadi thumbnail.
-              </p>
-              <div className="mt-2 grid grid-cols-3 gap-2.5 sm:grid-cols-4">
-                {images.map((image, index) => {
-                  const tileBusy =
-                    photoBusy !== null && photoBusy.startsWith(`${image.id}:`);
-                  return (
-                    <div
-                      key={image.id}
-                      className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
-                    >
-                      {image.isThumb && (
-                        <span className="absolute left-1 top-1 z-10 rounded bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                          Thumbnail
-                        </span>
-                      )}
-                      <img
-                        src={`/api/images/${image.id}`}
-                        alt=""
-                        loading="lazy"
-                        className="pointer-events-none h-full w-full object-cover"
-                      />
-                      {tileBusy ? (
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
-                        </div>
-                      ) : (
-                        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-0.5 bg-black/50 p-1">
-                          <button
-                            type="button"
-                            title="Jadikan thumbnail"
-                            disabled={image.isThumb}
-                            onClick={() =>
-                              run(image.id, "thumb", () =>
-                                setProductThumbnail(image.id),
-                              )
-                            }
-                            className={TILE_BTN}
-                          >
-                            <Star
-                              className={`h-3.5 w-3.5 ${image.isThumb ? "text-amber-500" : ""}`}
-                            />
-                          </button>
-                          <button
-                            type="button"
-                            title="Geser ke kiri"
-                            disabled={index === 0}
-                            onClick={() =>
-                              run(image.id, "left", () =>
-                                moveProductImage(image.id, "left"),
-                              )
-                            }
-                            className={TILE_BTN}
-                          >
-                            <ChevronLeft className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            title="Geser ke kanan"
-                            disabled={index === images.length - 1}
-                            onClick={() =>
-                              run(image.id, "right", () =>
-                                moveProductImage(image.id, "right"),
-                              )
-                            }
-                            className={TILE_BTN}
-                          >
-                            <ChevronRight className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            title="Hapus foto"
-                            onClick={() => {
-                              if (confirmDelete === image.id) {
-                                setConfirmDelete(null);
-                                run(image.id, "delete", () =>
-                                  deleteProductImage(image.id),
-                                );
-                              } else {
-                                setConfirmDelete(image.id);
-                              }
-                            }}
-                            className="flex h-6 w-6 items-center justify-center rounded-md bg-red-600 text-white shadow-sm transition hover:bg-red-700"
-                          >
-                            {confirmDelete === image.id ? (
-                              <Check className="h-3.5 w-3.5" />
-                            ) : (
-                              <Trash2 className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {queue.map((item) => (
-                  <div
-                    key={item.key}
-                    className="relative aspect-square overflow-hidden rounded-lg border border-blue-200 bg-slate-100"
-                  >
-                    <span className="absolute left-1 top-1 z-10 rounded bg-blue-600 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                      Baru
-                    </span>
-                    <img
-                      src={item.preview}
-                      alt=""
-                      className="pointer-events-none h-full w-full object-cover"
-                    />
-                    {photoBusy === "queue" ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => removeQueued(item.key)}
-                        className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-red-600/90 py-1 text-[10px] font-semibold text-white transition hover:bg-red-700"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        Hapus
-                      </button>
-                    )}
-                  </div>
-                ))}
-
-                {photoCount < MAX_PHOTOS && (
-                  <button
-                    type="button"
-                    onClick={pickPhoto}
-                    className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400 transition hover:border-blue-400 hover:text-blue-500"
-                  >
-                    {photoBusy === "upload" ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <ImagePlus className="h-5 w-5" />
-                    )}
-                    <span className="text-[10px] font-semibold">
-                      {photoBusy === "upload" ? "Mengunggah…" : "Tambah foto"}
-                    </span>
-                  </button>
-                )}
-              </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onFileChosen}
-              />
-              {photoError && (
-                <p className="mt-2 text-xs font-medium text-rose-600">
-                  {photoError}
-                </p>
-              )}
-            </div>
 
             {error && (
               <div

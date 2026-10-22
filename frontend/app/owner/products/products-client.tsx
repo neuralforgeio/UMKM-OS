@@ -24,7 +24,7 @@ import {
 } from "../../cashier/ui";
 import { toggleProductActive } from "./actions";
 import { ProductFormModal } from "./product-form-modal";
-import type { CategoryOption, ProductRow } from "./types";
+import type { CategoryOption, ProductRow, UnitOption } from "./types";
 
 const STATUS_TABS = [
   { key: "ALL", label: "Semua" },
@@ -201,10 +201,14 @@ export function ProductsClient({
   outletName,
   products,
   categories,
+  units,
+  skuCounts,
 }: {
   outletName: string;
   products: ProductRow[];
   categories: CategoryOption[];
+  units: UnitOption[];
+  skuCounts: Record<string, number>;
 }) {
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -478,6 +482,9 @@ export function ProductsClient({
         <ProductFormModal
           product={editingProduct}
           categories={categories}
+          units={units}
+          skuCounts={skuCounts}
+          onCreated={(productId) => setEditingId(productId)}
           onClose={() => setEditingId(undefined)}
         />
       )}

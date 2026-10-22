@@ -109,6 +109,15 @@ model Category {
   products Product[]
 }
 
+/// Satuan produk (pcs, box, kg, ...). Master data yang dikelola penjual
+/// lewat form produk — mengikuti alur Category. Product.unit tetap
+/// string snapshot (tanpa relasi) agar data lama tetap aman.
+model Unit {
+  id       String  @id @default(uuid())
+  name     String  @unique
+  isActive Boolean @default(true)
+}
+
 /// Sellable item. Stock is tracked PER OUTLET.
 model Product {
   id         String    @id @default(uuid())

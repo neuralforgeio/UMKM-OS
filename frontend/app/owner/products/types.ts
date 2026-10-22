@@ -30,3 +30,10 @@ export type CategoryOption = {
   id: string;
   name: string;
 };
+
+// Satuan dropdown option. The value is the NAME (not an id): the form
+// submits it back as unitName, so legacy product.unit strings typed
+// freehand before this table existed keep working as-is.
+export type UnitOption = {
+  name: string;
+};
