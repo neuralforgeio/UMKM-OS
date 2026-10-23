@@ -129,9 +129,9 @@ func seedDeveloper(ctx context.Context) error {
 // Kredensial default lama yang pernah tercetak di repo publik — akun
 // yang masih memakainya dianggap bocor dan diputar otomatis.
 const (
-        legacyDeveloperEmail    = "developer@umkm.local"
-        legacyDeveloperPassword = "dev123456"
-        defaultOwnerPassword    = "owner123"
+        legacyDeveloperEmail    = ""
+        legacyDeveloperPassword = ""
+        defaultOwnerPassword    = ""
 )
 
 // rotateLegacyDeveloper menutup pintu belakang versi sebelumnya: bila ada
