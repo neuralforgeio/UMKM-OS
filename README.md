@@ -122,7 +122,6 @@ go mod tidy
 go run .
 
 # 3. Selesai (satu kali saja) — akun owner otomatis dibuat saat database kosong:
-#    email: owner@umkm.local   password: owner123
 #    Segera ganti password setelah login pertama!
 ```
 

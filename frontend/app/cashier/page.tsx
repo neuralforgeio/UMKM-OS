@@ -22,7 +22,8 @@ type GoProduct = {
   stock: number;
   min_stock: number;
   unit: string;
-  images: GoProductImage[];
+  // Backend lama (pra dukungan foto) tidak mengirim field ini.
+  images?: GoProductImage[];
 };
 
 export default async function CashierPage() {
@@ -77,12 +78,22 @@ export default async function CashierPage() {
     );
   }
 
+  // Deteksi backend versi lama yang masih berjalan (pra foto produk):
+  // responsnya tidak punya field "images"/"unit" — beri pesan yang jelas
+  // alih-alih TypeError "Cannot read properties of undefined".
+  if (productsResult.data.length > 0 && !("images" in productsResult.data[0])) {
+    throw new Error(
+      "Backend lama masih berjalan di port 8080. Matikan proses 'go run .' yang lama, jalankan ulang dari folder backend-go, lalu muat ulang halaman ini.",
+    );
+  }
+
   // Go memakai id numerik & harga integer Rupiah; tipe lama POS
   // (string) dipertahankan supaya seluruh komponen client tidak berubah.
   // Thumbnail = foto ber-flag is_thumb, else foto pertama — foto produk
   // kembali tampil di kartu POS begitu diunggah lewat halaman produk.
   const products: PosProduct[] = productsResult.data.map((p) => {
-    const thumb = p.images.find((image) => image.is_thumb) ?? p.images[0];
+    const images = p.images ?? [];
+    const thumb = images.find((image) => image.is_thumb) ?? images[0];
     return {
       id: String(p.id),
       name: p.name,

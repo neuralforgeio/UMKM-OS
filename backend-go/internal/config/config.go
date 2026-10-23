@@ -8,8 +8,10 @@ import (
 )
 
 // AppVersion mengikuti Semantic Versioning: MAJOR.MINOR.PATCH
-// 1.0.0 = rilis awal integrasi backend Go
-const AppVersion = "1.0.0"
+// 1.0.1 = hotfix: urutan migrasi schema (ALTER sebelum INDEX), akun
+// developer tanpa kredensial default, gerakan stok penjualan terikat
+// nomor struk, role DEVELOPER melihat semua transaksi.
+const AppVersion = "1.0.1"
 
 func init() {
         _ = godotenv.Load()
@@ -41,8 +43,15 @@ func ClientURL() string     { return Get("CLIENT_URL", "http://localhost:3000") 
 func OwnerEmail() string    { return Get("OWNER_EMAIL", "owner@umkm.local") }
 func OwnerPassword() string { return Get("OWNER_PASSWORD", "owner123") }
 
-// Akun DEVELOPER: konsol lintas outlet (mode maintenance Task 35).
-// Ganti via env DEVELOPER_EMAIL / DEVELOPER_PASSWORD sebelum dipakai
-// di luar mesin development.
-func DeveloperEmail() string    { return Get("DEVELOPER_EMAIL", "developer@umkm.local") }
-func DeveloperPassword() string { return Get("DEVELOPER_PASSWORD", "dev123456") }
+// Akun DEVELOPER (konsol lintas outlet): TIDAK ADA kredensial default —
+// repo ini publik, password apa pun yang tertulis di kode langsung
+// menjadi pintu belakang. Akun hanya dibuat saat boot bila keduanya
+// diatur di backend-go/.env (file itu sudah di-gitignore):
+//
+//	DEVELOPER_EMAIL=dev@warunganda.id
+//	DEVELOPER_PASSWORD=password-kuat-pilihan-anda
+//
+// Setelah akun dibuat, ganti password selanjutnya lewat menu ganti
+// password biasa (login memakai hash di database, bukan env).
+func DeveloperEmail() string    { return Get("DEVELOPER_EMAIL", "") }
+func DeveloperPassword() string { return Get("DEVELOPER_PASSWORD", "") }
