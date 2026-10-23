@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { goFetch } from "@/lib/api";
 import {
   StockClient,
   type StockMovementRow,
@@ -20,95 +20,108 @@ const timeFmt = new Intl.DateTimeFormat("id-ID", {
   hourCycle: "h23",
 });
 
+type GoProduct = {
+  id: number;
+  name: string;
+  sku: string | null;
+  stock: number;
+  min_stock: number;
+  unit: string;
+  cost: number;
+};
+
+type GoMovement = {
+  id: number;
+  product_name: string;
+  sku: string | null;
+  unit: string;
+  type: string;
+  qty: number;
+  unit_cost: number | null;
+  note: string;
+  user_name: string | null;
+  receipt_no: string | null;
+  created_at: string;
+};
+
 export default async function OwnerStockPage() {
   // Same guard pattern as the products page: reading cookies also makes
   // the route request-dynamic, which is what cacheComponents expects
   // (route segment "dynamic" config is not allowed there).
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") redirect("/cashier");
+  if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER")
+    redirect("/cashier");
+  if (!session.user.goToken) {
+    throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
+  }
+  const goToken = session.user.goToken;
 
-  // Owners may not be tied to an outlet; fall back to the first one,
-  // mirroring the products page and dashboard resolution.
-  const outletId =
-    session.user.outletId ??
-    (await prisma.outlet.findFirst({ select: { id: true } }))?.id;
-  if (!outletId) redirect("/owner");
-
-  const [products, movements, productAgg, movementCount] = await Promise.all([
-    prisma.product.findMany({
-      where: { outletId, isActive: true },
-      select: {
-        id: true,
-        name: true,
-        sku: true,
-        stock: true,
-        minStock: true,
-        unit: true,
-        cost: true,
-      },
-      orderBy: { name: "asc" },
-    }),
-    prisma.stockMovement.findMany({
-      where: { product: { outletId } },
-      take: 200,
-      orderBy: { createdAt: "desc" },
-      include: {
-        product: { select: { name: true, sku: true, unit: true } },
-        user: { select: { name: true } },
-        transaction: { select: { code: true } },
-      },
-    }),
-    prisma.product.aggregate({
-      where: { outletId, isActive: true },
-      _count: true,
-      _sum: { stock: true },
-    }),
-    prisma.stockMovement.count({ where: { product: { outletId } } }),
+  // Produk aktif + 200 gerakan terakhir + total gerakan, semuanya dari
+  // backend-go — kartu stok dan kasir membaca angka yang sama.
+  const [productsResult, movementsResult] = await Promise.all([
+    goFetch<GoProduct[]>(goToken, "/products"),
+    goFetch<{ total: number; rows: GoMovement[] }>(
+      goToken,
+      "/stock-movements?limit=200",
+    ),
   ]);
+  if (!productsResult.ok) throw new Error(productsResult.message);
+  if (!movementsResult.ok) throw new Error(movementsResult.message);
 
-  // Decimals become whole-Rupiah numbers at the boundary, matching the
-  // products page convention (warung prices never carry cents).
-  const productOptions: StockProductOption[] = products.map((product) => ({
-    id: product.id,
-    name: product.name,
-    sku: product.sku,
-    stock: product.stock,
-    minStock: product.minStock,
-    unit: product.unit,
-    costRupiah: Math.round(Number(product.cost)),
-  }));
+  const productOptions: StockProductOption[] = productsResult.data.map(
+    (product) => ({
+      id: String(product.id),
+      name: product.name,
+      sku: product.sku ?? "",
+      stock: product.stock,
+      minStock: product.min_stock,
+      unit: product.unit || "pcs",
+      costRupiah: product.cost,
+    }),
+  );
 
   // Rows are plain serializable objects. Display strings are prepared on
-  // the server so the client render stays hydration-safe.
-  const movementRows: StockMovementRow[] = movements.map((movement) => ({
-    id: movement.id,
-    productName: movement.product.name,
-    sku: movement.product.sku,
-    unit: movement.product.unit,
-    type: movement.type,
-    quantity: movement.quantity,
-    unitCostRupiah: movement.unitCost
-      ? Math.round(Number(movement.unitCost))
-      : null,
-    note: movement.note,
-    userName: movement.user?.name ?? null,
-    transactionCode: movement.transaction?.code ?? null,
-    timeLabel: timeFmt.format(movement.createdAt),
-  }));
+  // the server so the client render stays hydration-safe. Gerakan OUT
+  // yang terikat nomor struk = penjualan kasir — ditampilkan SALE agar
+  // makna barisnya sama dengan era sebelumnya.
+  const movementRows: StockMovementRow[] = movementsResult.data.rows.map(
+    (movement) => ({
+      id: String(movement.id),
+      productName: movement.product_name,
+      sku: movement.sku ?? "",
+      unit: movement.unit || "pcs",
+      type:
+        movement.type === "OUT" && movement.receipt_no ? "SALE" : movement.type,
+      quantity: movement.qty,
+      unitCostRupiah: movement.unit_cost,
+      note: movement.note || null,
+      userName: movement.user_name,
+      transactionCode: movement.receipt_no,
+      timeLabel: timeFmt.format(new Date(movement.created_at)),
+    }),
+  );
 
   const lowStockCount = productOptions.filter(
     (product) => product.stock <= product.minStock,
   ).length;
 
   const stats = [
-    { label: "Jenis produk", value: productAgg._count.toLocaleString("id-ID") },
+    {
+      label: "Jenis produk",
+      value: productOptions.length.toLocaleString("id-ID"),
+    },
     {
       label: "Total unit stok",
-      value: (productAgg._sum.stock ?? 0).toLocaleString("id-ID"),
+      value: productOptions
+        .reduce((sum, product) => sum + product.stock, 0)
+        .toLocaleString("id-ID"),
     },
     { label: "Perlu restok", value: lowStockCount.toLocaleString("id-ID") },
-    { label: "Gerakan tercatat", value: movementCount.toLocaleString("id-ID") },
+    {
+      label: "Gerakan tercatat",
+      value: movementsResult.data.total.toLocaleString("id-ID"),
+    },
   ];
 
   return (

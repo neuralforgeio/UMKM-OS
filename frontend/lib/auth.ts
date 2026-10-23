@@ -84,9 +84,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = json.data?.user;
         if (typeof goToken !== "string" || !user) return null;
 
-        // Go hanya mengenal OWNER/CASHIER; seluruh halaman memakai KASIR.
-        const role: "OWNER" | "KASIR" =
-          user.role === "CASHIER" ? "KASIR" : "OWNER";
+        // Go mengenal OWNER/CASHIER/DEVELOPER; seluruh halaman memakai
+        // KASIR (developer = konsol lintas outlet milik Task 35).
+        const role: "OWNER" | "KASIR" | "DEVELOPER" =
+          user.role === "CASHIER"
+            ? "KASIR"
+            : user.role === "DEVELOPER"
+              ? "DEVELOPER"
+              : "OWNER";
 
         return {
           id: String(user.id ?? ""),
@@ -94,7 +99,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email ?? "",
           role,
           // Go v1.0.0 belum punya konsep outlet: halaman yang butuh konteks
-          // outlet sudah punya fallback masing-masing (prisma findFirst).
+          // outlet sudah punya fallback masing-masing (prisma findFirst),
+          // dan developer mengisinya lewat cookie dev_outlet.
           outletId: null,
           goToken,
         };
@@ -140,8 +146,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               role?: string;
             }>;
             const freshRole = json.data?.role;
-            if (freshRole === "OWNER" || freshRole === "CASHIER") {
-              token.role = freshRole === "CASHIER" ? "KASIR" : "OWNER";
+            if (
+              freshRole === "OWNER" ||
+              freshRole === "CASHIER" ||
+              freshRole === "DEVELOPER"
+            ) {
+              token.role =
+                freshRole === "CASHIER"
+                  ? "KASIR"
+                  : freshRole === "DEVELOPER"
+                    ? "DEVELOPER"
+                    : "OWNER";
             }
             // outletId TIDAK disinkronkan dari Go (belum ada konsep outlet
             // di sana) — biarkan nilai token apa adanya.

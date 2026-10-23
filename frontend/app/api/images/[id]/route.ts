@@ -1,31 +1,36 @@
-import { prisma } from "@/lib/prisma";
-
-// Streams one product photo from the database. Ids are UUIDs whose bytes
-// never change (an edit is always a new row), so responses are immutable
-// and safe to cache forever — the POS grid and product table can then
-// reuse the browser cache instead of re-hitting the database.
+// Proxy foto produk ke backend-go. URL-nya TETAH /api/images/{id} — sama
+// dengan era sebelumnya — sehingga tidak ada satu pun komponen client
+// yang perlu berubah; header cache "immutable" juga dipertahankan
+// (edit foto selalu membuat baris baru, id tidak pernah dipakai ulang).
+const API_URL = process.env.API_URL ?? "http://localhost:8080";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-
-  const image = await prisma.productImage.findUnique({
-    where: { id },
-    select: { data: true, mimeType: true },
-  });
-  if (!image) {
+  // Id foto era backend-go berupa angka; id UUID lama langsung 404.
+  if (!/^\d+$/.test(id)) {
     return new Response("Not found", { status: 404 });
   }
 
-  // Prisma Bytes is a Uint8Array already — a valid Response body.
-  const bytes = new Uint8Array(image.data);
+  let upstream: Response | null = null;
+  try {
+    upstream = await fetch(`${API_URL}/api/v1/images/${id}`, {
+      cache: "no-store",
+    });
+  } catch {
+    upstream = null;
+  }
+  if (!upstream || !upstream.ok) {
+    return new Response("Not found", { status: 404 });
+  }
 
+  const bytes = new Uint8Array(await upstream.arrayBuffer());
   return new Response(bytes, {
     status: 200,
     headers: {
-      "Content-Type": image.mimeType || "image/jpeg",
+      "Content-Type": upstream.headers.get("content-type") ?? "image/jpeg",
       "Content-Length": String(bytes.byteLength),
       "Cache-Control": "public, max-age=31536000, immutable",
     },

@@ -181,3 +181,26 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	w.WriteHeader(status)
 	_, _ = w.Write(fmt.Appendf(nil, `{"success":false,"error":{"message":%q}}`, msg))
 }
+
+// RequireRoleIn membatasi endpoint untuk beberapa role sekaligus. Era
+// pra-multi-outlet (backend-go 1.0.x): DEVELOPER diperlakukan setara
+// OWNER di endpoint manajemen — restukturisasi 1.1.0 akan memisahkan
+// keduanya kembali bersama konsep outlet.
+func RequireRoleIn(roles ...string) func(http.Handler) http.Handler {
+        return func(next http.Handler) http.Handler {
+                return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                        claims := User(r)
+                        if claims == nil {
+                                writeError(w, http.StatusForbidden, "Akses ditolak")
+                                return
+                        }
+                        for _, role := range roles {
+                                if claims.Role == role {
+                                        next.ServeHTTP(w, r)
+                                        return
+                                }
+                        }
+                        writeError(w, http.StatusForbidden, "Akses ditolak: khusus "+strings.Join(roles, "/"))
+                })
+        }
+}

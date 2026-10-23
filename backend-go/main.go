@@ -40,7 +40,11 @@ func main() {
 		api.Get("/version", handler.Version)
 		api.Post("/auth/login", handler.Login)
 
-		// Butuh login (OWNER & CASHIER)
+		// Foto produk: publik — struk & POS memuatnya via tag <img>
+		// yang tidak bisa membawa header Authorization.
+		api.Get("/images/{id}", handler.ServeImage)
+
+		// Butuh login (OWNER, CASHIER, DEVELOPER)
 		api.Group(func(priv chi.Router) {
 			priv.Use(middleware.RequireAuth)
 
@@ -57,30 +61,39 @@ func main() {
 			priv.Get("/reports/dashboard", handler.Dashboard)
 		})
 
-		// Khusus OWNER
-		api.Group(func(owner chi.Router) {
-			owner.Use(middleware.RequireAuth)
-			owner.Use(middleware.RequireRole("OWNER"))
+		// Khusus OWNER & DEVELOPER (era pra-multi-outlet — 1.1.0
+		// akan memisahkan developer bersama konsep outlet).
+		api.Group(func(mgr chi.Router) {
+			mgr.Use(middleware.RequireAuth)
+			mgr.Use(middleware.RequireRoleIn("OWNER", "DEVELOPER"))
 
-			owner.Get("/users", handler.ListUsers)
-			owner.Post("/users", handler.CreateUser)
-			owner.Put("/users/{id}", handler.UpdateUser)
-			owner.Delete("/users/{id}", handler.DeleteUser)
+			mgr.Get("/users", handler.ListUsers)
+			mgr.Post("/users", handler.CreateUser)
+			mgr.Put("/users/{id}", handler.UpdateUser)
+			mgr.Delete("/users/{id}", handler.DeleteUser)
 
-			owner.Post("/products", handler.CreateProduct)
-			owner.Put("/products/{id}", handler.UpdateProduct)
-			owner.Delete("/products/{id}", handler.DeleteProduct)
-			owner.Post("/products/{id}/stock", handler.AdjustStock)
+			mgr.Post("/products", handler.CreateProduct)
+			mgr.Put("/products/{id}", handler.UpdateProduct)
+			mgr.Delete("/products/{id}", handler.DeleteProduct)
+			mgr.Put("/products/{id}/active", handler.SetProductActive)
+			mgr.Post("/products/{id}/stock", handler.AdjustStock)
+			mgr.Post("/products/{id}/images", handler.AddProductImage)
 
-			owner.Get("/reports/sales", handler.SalesReport)
-			owner.Get("/reports/top-products", handler.TopProducts)
-			owner.Get("/reports/low-stock", handler.LowStock)
+			mgr.Delete("/images/{id}", handler.DeleteImage)
+			mgr.Put("/images/{id}/thumb", handler.SetImageThumb)
+			mgr.Put("/images/{id}/move", handler.MoveImage)
 
-			owner.Get("/audit-logs", handler.ListAuditLogs)
+			mgr.Get("/stock-movements", handler.ListStockMovements)
+
+			mgr.Get("/reports/sales", handler.SalesReport)
+			mgr.Get("/reports/top-products", handler.TopProducts)
+			mgr.Get("/reports/low-stock", handler.LowStock)
+
+			mgr.Get("/audit-logs", handler.ListAuditLogs)
 
 			// Log sistem (untuk dibaca di frontend nanti)
-			owner.Get("/logs", handler.ListLogFiles)
-			owner.Get("/logs/{date}", handler.ReadLogFile)
+			mgr.Get("/logs", handler.ListLogFiles)
+			mgr.Get("/logs/{date}", handler.ReadLogFile)
 		})
 	})
 

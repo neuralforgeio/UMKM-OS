@@ -1,122 +1,118 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { goFetch } from "@/lib/api";
 import { ProductsClient } from "./products-client";
 import type { CategoryOption, ProductRow, UnitOption } from "./types";
 
 export const instant = false;
 
+// Bentuk produk & foto dari backend-go.
+type GoProductImage = { id: number; is_thumb: boolean };
+type GoProduct = {
+  id: number;
+  name: string;
+  sku: string | null;
+  category: string;
+  price: number;
+  cost: number;
+  stock: number;
+  min_stock: number;
+  unit: string;
+  is_active: boolean;
+  images: GoProductImage[];
+};
+type GoTopProduct = { product_id: number; qty: number };
+
 export default async function OwnerProductsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") redirect("/cashier");
+  if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER")
+    redirect("/cashier");
+  if (!session.user.goToken) {
+    throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
+  }
+  const goToken = session.user.goToken;
 
-  // Owners may not be tied to an outlet; fall back to the first one,
-  // mirroring the cashier and dashboard resolution.
-  const outletId =
-    session.user.outletId ??
-    (await prisma.outlet.findFirst({ select: { id: true } }))?.id;
-  if (!outletId) redirect("/owner");
+  // Nama outlet untuk header masih dari tabel outlet Prisma — ikut
+  // pindah ke backend-go saat fase multi-outlet.
+  const outlet = await prisma.outlet.findFirst({ select: { name: true } });
 
-  const since30Days = new Date();
-  since30Days.setDate(since30Days.getDate() - 30);
-
-  const [outlet, products, categories, units, soldRows] = await Promise.all([
-    prisma.outlet.findUnique({
-      where: { id: outletId },
-      select: { name: true },
-    }),
-    prisma.product.findMany({
-      where: { outletId },
-      // Active products first, then alphabetical, matching the POS feel.
-      orderBy: [{ isActive: "desc" }, { name: "asc" }],
-      select: {
-        id: true,
-        name: true,
-        sku: true,
-        price: true,
-        cost: true,
-        stock: true,
-        minStock: true,
-        unit: true,
-        isActive: true,
-        categoryId: true,
-        category: { select: { id: true, name: true } },
-        // Photos in manager order (sortOrder, then upload time).
-        images: {
-          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-          select: { id: true, isThumb: true },
-        },
-      },
-    }),
-    prisma.category.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    prisma.unit.findMany({
-      orderBy: { name: "asc" },
-      select: { name: true },
-    }),
-    // Demand signal for the owner: how many units moved in the last 30
-    // days. Only COMPLETED transactions count.
-    prisma.transactionItem.groupBy({
-      by: ["productId"],
-      where: {
-        transaction: {
-          outletId,
-          status: "COMPLETED",
-          createdAt: { gte: since30Days },
-        },
-      },
-      _sum: { quantity: true },
-    }),
+  // Produk (termasuk terarsip) + permintaan 30 hari terakhir, keduanya
+  // dari backend-go — satu sumber kebenaran yang sama dengan kasir.
+  // Laporan terlaris bersifat pelengkap: kegagalannya tidak boleh
+  // menutup halaman produk.
+  const [productsResult, topResult] = await Promise.all([
+    goFetch<GoProduct[]>(goToken, "/products?all=true"),
+    goFetch<{ products: GoTopProduct[] }>(
+      goToken,
+      "/reports/top-products?days=30&limit=1000",
+    ),
   ]);
-
-  const soldByProduct = new Map(
-    soldRows.map((row) => [row.productId, row._sum.quantity ?? 0]),
-  );
-
-  // Decimals become plain numbers at the boundary. Warung prices are
-  // whole Rupiah, so rounding is a no-op safety net.
-  const rows: ProductRow[] = products.map((product) => {
-    const thumb = product.images.find((image) => image.isThumb);
-    return {
-      id: product.id,
-      name: product.name,
-      sku: product.sku,
-      categoryId: product.category?.id ?? null,
-      categoryName: product.category?.name ?? null,
-      priceRupiah: Math.round(Number(product.price)),
-      costRupiah: Math.round(Number(product.cost)),
-      stock: product.stock,
-      minStock: product.minStock,
-      unit: product.unit,
-      isActive: product.isActive,
-      soldLast30Days: soldByProduct.get(product.id) ?? 0,
-      images: product.images.map((image) => ({
-        id: image.id,
-        isThumb: image.isThumb,
-      })),
-      // Chosen thumbnail, else the first photo by manager order.
-      thumbImageId: (thumb ?? product.images[0])?.id ?? null,
-    };
-  });
-
-  const categoryOptions: CategoryOption[] = categories.map((category) => ({
-    id: category.id,
-    name: category.name,
-  }));
-
-  // Unit dropdown options: the master table PLUS distinct legacy unit
-  // strings still used by existing products (case-insensitive dedupe),
-  // so rows created before the Unit table existed still resolve.
-  const unitByName = new Map<string, string>();
-  for (const unit of units) {
-    if (!unitByName.has(unit.name.toLowerCase())) {
-      unitByName.set(unit.name.toLowerCase(), unit.name);
+  if (!productsResult.ok) {
+    throw new Error(productsResult.message);
+  }
+  const soldById = new Map<number, number>();
+  if (topResult.ok) {
+    for (const row of topResult.data.products) {
+      soldById.set(row.product_id, row.qty);
     }
   }
-  for (const product of products) {
+
+  // Decimals sudah berupa Rupiah bulat di sisi Go. Urutan tampil sama
+  // dengan sebelumnya: produk aktif dulu, lalu alfabetis.
+  const rows: ProductRow[] = productsResult.data
+    .map((product) => {
+      const thumb =
+        product.images.find((image) => image.is_thumb) ?? product.images[0];
+      return {
+        id: String(product.id),
+        name: product.name,
+        sku: product.sku ?? "",
+        // Era backend-go: kategori adalah teks pada produk — namanya
+        // sekaligus menjadi id di seluruh form.
+        categoryId: product.category || null,
+        categoryName: product.category || null,
+        priceRupiah: product.price,
+        costRupiah: product.cost,
+        stock: product.stock,
+        minStock: product.min_stock,
+        unit: product.unit || "pcs",
+        isActive: product.is_active,
+        soldLast30Days: soldById.get(product.id) ?? 0,
+        images: product.images.map((image) => ({
+          id: String(image.id),
+          isThumb: image.is_thumb,
+        })),
+        // Chosen thumbnail, else the first photo by manager order.
+        thumbImageId: thumb ? String(thumb.id) : null,
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.isActive) - Number(a.isActive) ||
+        a.name.localeCompare(b.name, "id"),
+    );
+
+  // Opsi kategori turun dari produk yang ada (nama unik, deduped
+  // case-insensitive, urut abjad) — kategori baru tetap bisa diketik
+  // langsung di form lalu otomatis ikut daftar di muat berikutnya.
+  const categoryByName = new Map<string, string>();
+  for (const product of productsResult.data) {
+    const name = (product.category ?? "").trim();
+    if (name && !categoryByName.has(name.toLowerCase())) {
+      categoryByName.set(name.toLowerCase(), name);
+    }
+  }
+  const categoryOptions: CategoryOption[] = [...categoryByName.values()]
+    .sort((a, b) => a.localeCompare(b, "id"))
+    .map((name) => ({ id: name, name }));
+
+  // Unit dropdown options: satuan yang benar-benar dipakai produk
+  // (case-insensitive dedupe) + "pcs" sebagai dasar — satuan baru
+  // ditulis bebas di form dan langsung terpakai (maks. 16 karakter).
+  const unitByName = new Map<string, string>([["pcs", "pcs"]]);
+  for (const product of productsResult.data) {
     const trimmed = (product.unit ?? "").trim();
     if (trimmed && !unitByName.has(trimmed.toLowerCase())) {
       unitByName.set(trimmed.toLowerCase(), trimmed);
@@ -130,8 +126,8 @@ export default async function OwnerProductsPage() {
   // preview ("__none__" = products without a category -> BRG-xxxx).
   // The server still computes the authoritative SKU on save.
   const skuCounts: Record<string, number> = {};
-  for (const product of products) {
-    const key = product.categoryId ?? "__none__";
+  for (const product of productsResult.data) {
+    const key = product.category ?? "__none__";
     skuCounts[key] = (skuCounts[key] ?? 0) + 1;
   }
 

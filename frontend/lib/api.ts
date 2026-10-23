@@ -23,7 +23,7 @@ export type GoResult<T> =
 export async function goFetch<T>(
   token: string,
   path: string,
-  init?: { method?: string; body?: string },
+  init?: { method?: string; body?: string | FormData },
 ): Promise<GoResult<T>> {
   let res: Response;
   try {
@@ -31,7 +31,11 @@ export async function goFetch<T>(
       method: init?.method,
       body: init?.body,
       headers: {
-        ...(init?.body ? { "Content-Type": "application/json" } : {}),
+        // FormData sengaja dibiarkan tanpa Content-Type supaya boundary
+        // multipart terpasang otomatis oleh fetch.
+        ...(typeof init?.body === "string"
+          ? { "Content-Type": "application/json" }
+          : {}),
         Authorization: `Bearer ${token}`,
       },
       cache: "no-store",

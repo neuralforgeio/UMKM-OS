@@ -12,6 +12,7 @@ export const instant = false;
 
 // Bentuk produk dari backend-go (GET /api/v1/products) — hanya kolom
 // yang dipakai POS yang dideklarasikan.
+type GoProductImage = { id: number; is_thumb: boolean };
 type GoProduct = {
   id: number;
   name: string;
@@ -20,6 +21,8 @@ type GoProduct = {
   price: number;
   stock: number;
   min_stock: number;
+  unit: string;
+  images: GoProductImage[];
 };
 
 export default async function CashierPage() {
@@ -76,21 +79,22 @@ export default async function CashierPage() {
 
   // Go memakai id numerik & harga integer Rupiah; tipe lama POS
   // (string) dipertahankan supaya seluruh komponen client tidak berubah.
-  const products: PosProduct[] = productsResult.data.map((p) => ({
-    id: String(p.id),
-    name: p.name,
-    sku: p.sku ?? "",
-    price: String(p.price),
-    stock: p.stock,
-    // backend-go belum punya kolom satuan — sementara "pcs" sampai
-    // Tahap 3 menambahkan unit di schema produk Go.
-    unit: "pcs",
-    minStock: p.min_stock,
-    categoryName: p.category || null,
-    // Foto produk belum ada di backend-go — null mempertahankan tile
-    // inisial berwarna kategori (jalur design yang memang sudah ada).
-    thumbImageId: null,
-  }));
+  // Thumbnail = foto ber-flag is_thumb, else foto pertama — foto produk
+  // kembali tampil di kartu POS begitu diunggah lewat halaman produk.
+  const products: PosProduct[] = productsResult.data.map((p) => {
+    const thumb = p.images.find((image) => image.is_thumb) ?? p.images[0];
+    return {
+      id: String(p.id),
+      name: p.name,
+      sku: p.sku ?? "",
+      price: String(p.price),
+      stock: p.stock,
+      unit: p.unit || "pcs",
+      minStock: p.min_stock,
+      categoryName: p.category || null,
+      thumbImageId: thumb ? String(thumb.id) : null,
+    };
+  });
 
   // Antrean Penyajian (v3): today's receipts still waiting to be
   // handed over. Rendered as a floating bar; it refreshes on every

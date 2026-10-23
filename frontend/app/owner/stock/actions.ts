@@ -2,8 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { audit } from "@/lib/audit";
+import { goFetch } from "@/lib/api";
 
 export type StockActionState = {
   error?: string;
@@ -11,10 +10,22 @@ export type StockActionState = {
 };
 
 // Only owner-driven movement types are writable here. SALE rows belong
-// to the cashier checkout, which will write them atomically with the
-// receipt, so the ledger stays consistent with actual sales.
+// to the cashier checkout, which writes them atomically with the
+// receipt (backend-go mengikat transaction_id), so the ledger stays
+// consistent with actual sales.
 const MOVEMENT_TYPES = ["IN", "ADJUST"] as const;
 type MovementType = (typeof MOVEMENT_TYPES)[number];
+
+type GoProduct = {
+  id: number;
+  name: string;
+  stock: number;
+};
+
+type GoStockResult = {
+  stock_before: number;
+  stock_after: number;
+};
 
 // Refresh every view that reads stock data.
 function revalidateStockViews() {
@@ -29,9 +40,18 @@ export async function createStockMovementAction(
   formData: FormData,
 ): Promise<StockActionState> {
   const session = await auth();
-  if (!session?.user || session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") {
+  if (
+    !session?.user ||
+    (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER")
+  ) {
     return { error: "Sesi tidak valid. Aksi ini hanya untuk pemilik." };
   }
+  if (!session.user.goToken) {
+    return {
+      error: "Sesi tidak memiliki token backend — silakan login ulang.",
+    };
+  }
+  const token = session.user.goToken;
 
   const productId = String(formData.get("productId") ?? "").trim();
   const rawType = String(formData.get("type") ?? "")
@@ -42,6 +62,7 @@ export async function createStockMovementAction(
   const note = String(formData.get("note") ?? "").trim();
 
   if (!productId) return { error: "Produk wajib dipilih." };
+  if (!/^\d+$/.test(productId)) return { error: "Produk tidak ditemukan." };
   if (!MOVEMENT_TYPES.includes(rawType as MovementType)) {
     return { error: "Tipe gerakan tidak valid." };
   }
@@ -61,93 +82,53 @@ export async function createStockMovementAction(
     return { error: "Biaya satuan tidak valid." };
   }
 
-  try {
-    const result = await prisma.$transaction(async (tx) => {
-      const product = await tx.product.findUnique({
-        where: { id: productId },
-        select: { id: true, name: true, stock: true, outletId: true },
-      });
-      if (!product) throw new Error("PRODUCT_NOT_FOUND");
+  // Data produk segar dari backend-go: validasi keberadaan produk, stok
+  // sekarang (cek selisih opname + susun catatan opname).
+  const productsRes = await goFetch<GoProduct[]>(token, "/products");
+  if (!productsRes.ok) return { error: productsRes.message };
+  const product = productsRes.data.find((p) => String(p.id) === productId);
+  if (!product) return { error: "Produk tidak ditemukan." };
 
-      const currentStock = product.stock;
-      let delta: number;
-      let storedQuantity: number;
-      let storedNote: string | null;
-      let storedUnitCost: number | null;
-
-      if (type === "IN") {
-        // Restock: the input is what arrived, the cost is a per-unit
-        // snapshot for later profit reports.
-        delta = quantity;
-        storedQuantity = quantity;
-        storedNote = note || null;
-        storedUnitCost = unitCost > 0 ? unitCost : null;
-      } else {
-        // Opname: the input is the physical count. The blueprint stores
-        // magnitude-only quantities, so the signed delta goes into the
-        // note to keep the ledger explainable.
-        delta = quantity - currentStock;
-        if (delta === 0) throw new Error("NO_DIFFERENCE");
-        storedQuantity = Math.abs(delta);
-        const userNote = note ? ` — ${note}` : "";
-        storedNote = `opname: sistem ${currentStock} → fisik ${quantity}${userNote}`;
-        storedUnitCost = null;
-      }
-
-      await tx.stockMovement.create({
-        data: {
-          productId,
-          type,
-          quantity: storedQuantity,
-          unitCost: storedUnitCost,
-          note: storedNote,
-          userId: session.user.id,
-        },
-      });
-
-      const updated = await tx.product.update({
-        where: { id: productId },
-        data: { stock: currentStock + delta },
-        select: { stock: true },
-      });
-
-      await audit({
-        actorId: session.user.id,
-        outletId: product.outletId,
-        action: type === "IN" ? "STOCK_IN" : "STOCK_ADJUST",
-        entity: `product:${productId}`,
-        summary:
-          type === "IN"
-            ? `Restok ${product.name} +${quantity}${note ? ` — ${note}` : ""}`
-            : `Opname ${product.name}: sistem ${currentStock} → fisik ${quantity}`,
-        meta: { name: product.name, quantity: storedQuantity, delta },
-        db: tx,
-      });
-
-      return { name: product.name, stock: updated.stock, delta };
-    });
-
-    revalidateStockViews();
-
-    if (type === "IN") {
-      return {
-        success: `Restok ${result.name} tercatat (+${quantity}). Stok sekarang: ${result.stock}.`,
-      };
-    }
-    const sign = result.delta > 0 ? "+" : "";
+  if (type === "ADJUST" && quantity === product.stock) {
     return {
-      success: `Opname ${result.name}: selisih ${sign}${result.delta} dicatat. Stok sekarang: ${result.stock}.`,
+      error: "Hasil opname sama dengan stok sistem, tidak ada selisih.",
     };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    if (message === "PRODUCT_NOT_FOUND") {
-      return { error: "Produk tidak ditemukan." };
-    }
-    if (message === "NO_DIFFERENCE") {
-      return {
-        error: "Hasil opname sama dengan stok sistem, tidak ada selisih.",
-      };
-    }
-    return { error: "Gagal menyimpan gerakan stok. Coba lagi." };
   }
+
+  // IN = restok (jumlah yang datang, biaya satuan sebagai snapshot);
+  // ADJUST = opname (jumlah = hasil hitungan fisik; selisihnya
+  // dituangkan ke catatan supaya buku kas tetap bisa dibaca manusia).
+  const payload =
+    type === "IN"
+      ? {
+          type: "IN",
+          qty: quantity,
+          note,
+          ...(unitCost > 0 ? { unit_cost: unitCost } : {}),
+        }
+      : {
+          type: "ADJUST",
+          qty: quantity,
+          note: `opname: sistem ${product.stock} → fisik ${quantity}${note ? ` — ${note}` : ""}`,
+        };
+
+  const res = await goFetch<GoStockResult>(
+    token,
+    `/products/${productId}/stock`,
+    { method: "POST", body: JSON.stringify(payload) },
+  );
+  if (!res.ok) return { error: res.message };
+
+  revalidateStockViews();
+
+  if (type === "IN") {
+    return {
+      success: `Restok ${product.name} tercatat (+${quantity}). Stok sekarang: ${res.data.stock_after}.`,
+    };
+  }
+  const delta = res.data.stock_after - res.data.stock_before;
+  const sign = delta > 0 ? "+" : "";
+  return {
+    success: `Opname ${product.name}: selisih ${sign}${delta} dicatat. Stok sekarang: ${res.data.stock_after}.`,
+  };
 }

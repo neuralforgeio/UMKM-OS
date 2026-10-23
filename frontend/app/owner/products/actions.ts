@@ -2,10 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { goFetch } from "@/lib/api";
 import { formatSku, skuPrefixOf } from "@/lib/sku";
-import { audit } from "@/lib/audit";
-import { formatThousands } from "@/lib/format";
 
 // Whole-Rupiah money: the form sends plain integers, so validation only
 // needs integer range checks. Decimal precision is preserved end-to-end
@@ -46,12 +44,19 @@ export type ProductActionResult =
 // message instead of a stack trace.
 class ProductActionError extends Error {}
 
+// Bentuk data dari backend-go.
+type GoProduct = {
+  id: number;
+  name: string;
+  sku: string | null;
+  category: string;
+  unit: string;
+};
+
 // Every mutation here is owner-only: the client hides the buttons for
-// cashiers, but the server action is the real gate.
-async function requireOwnerOutletId(): Promise<{
-  outletId: string;
-  userId: string;
-}> {
+// cashiers, but backend-go re-validates the role (OWNER/DEVELOPER) on
+// every endpoint — the server is the real gate.
+async function requireStaffToken(): Promise<string> {
   const session = await auth();
   if (!session?.user) {
     throw new ProductActionError("Sesi sudah berakhir. Silakan login ulang.");
@@ -59,19 +64,18 @@ async function requireOwnerOutletId(): Promise<{
   if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") {
     throw new ProductActionError("Hanya pemilik yang boleh mengubah produk.");
   }
-  // Owners may not be tied to an outlet; fall back to the first one,
-  // mirroring the cashier and dashboard resolution.
-  let outletId = session.user.outletId;
-  if (!outletId) {
-    const firstOutlet = await prisma.outlet.findFirst({
-      select: { id: true },
-    });
-    if (!firstOutlet) {
-      throw new ProductActionError("Belum ada outlet terdaftar.");
-    }
-    outletId = firstOutlet.id;
+  if (!session.user.goToken) {
+    throw new ProductActionError(
+      "Sesi tidak memiliki token backend — silakan login ulang.",
+    );
   }
-  return { outletId, userId: session.user.id };
+  return session.user.goToken;
+}
+
+async function fetchAllProducts(token: string): Promise<GoProduct[]> {
+  const result = await goFetch<GoProduct[]>(token, "/products?all=true");
+  if (!result.ok) throw new ProductActionError(result.message);
+  return result.data;
 }
 
 const isIntInRange = (value: unknown, min: number, max: number) =>
@@ -80,11 +84,13 @@ const isIntInRange = (value: unknown, min: number, max: number) =>
   value >= min &&
   value <= max;
 
+const isNumericId = (value: string) => /^\d+$/.test(value);
+
 export async function saveProduct(
   input: SaveProductInput,
 ): Promise<ProductActionResult> {
   try {
-    const { outletId, userId } = await requireOwnerOutletId();
+    const token = await requireStaffToken();
 
     const name = (input.name ?? "").trim();
     const newCategoryName = (input.newCategoryName ?? "").trim();
@@ -133,186 +139,113 @@ export async function saveProduct(
     if (unitName.length > MAX_UNIT_LENGTH) {
       throw new ProductActionError("Satuan tidak valid.");
     }
-    if (!newCategoryName && categoryId) {
-      const category = await prisma.category.findUnique({
-        where: { id: categoryId },
-        select: { id: true },
-      });
-      if (!category) {
+
+    // Data segar dari backend-go: verifikasi produk (mode update),
+    // resolusi kategori case-insensitive, dan dasar generasi SKU.
+    const all = await fetchAllProducts(token);
+
+    // Resolve the category: reuse a matching name (any casing) so the
+    // owner never ends up with twin categories like "Snack"/"snack".
+    let resolvedCategory: string;
+    if (newCategoryName) {
+      const found = all.find(
+        (product) =>
+          (product.category ?? "").toLowerCase() ===
+          newCategoryName.toLowerCase(),
+      );
+      resolvedCategory = found?.category ?? newCategoryName;
+    } else if (categoryId) {
+      const known = all.some((product) => product.category === categoryId);
+      if (!known) {
         throw new ProductActionError("Kategori tidak ditemukan.");
       }
+      resolvedCategory = categoryId;
+    } else {
+      resolvedCategory = "Umum";
     }
 
-    // The unit must be a KNOWN name — from the Unit master table, or a
-    // legacy string still used by existing products. Free text coming
-    // from a tampered request is rejected before it reaches the DB.
-    if (!newUnitName && unitName) {
-      const allUnits = await prisma.unit.findMany({
-        select: { name: true },
-      });
-      const unitKnown = allUnits.some(
-        (unit) => unit.name.toLowerCase() === unitName.toLowerCase(),
-      );
-      if (!unitKnown) {
-        const legacy = await prisma.product.findFirst({
-          where: { unit: unitName },
-          select: { id: true },
-        });
-        if (!legacy) {
-          throw new ProductActionError(
-            "Satuan tidak dikenal — pilih dari daftar atau buat satuan baru.",
-          );
-        }
-      }
-    }
+    // Era backend-go: satuan adalah teks pada produk — nama baru langsung
+    // dipakai (Go memvalidasi panjangnya), tidak ada tabel master.
+    const resolvedUnit = newUnitName || unitName;
 
+    // The saved product id goes back to the form modal: create mode
+    // queues photos locally, then uploads them one by one right after
+    // saveProduct resolves with this id.
     if (input.id) {
-      const existing = await prisma.product.findUnique({
-        where: { id: input.id },
-        select: { outletId: true },
-      });
-      if (!existing || existing.outletId !== outletId) {
-        throw new ProductActionError("Produk tidak ditemukan di outlet ini.");
+      if (!isNumericId(input.id)) {
+        throw new ProductActionError("Produk tidak ditemukan.");
       }
+      const existing = all.find((product) => String(product.id) === input.id);
+      if (!existing) {
+        throw new ProductActionError("Produk tidak ditemukan.");
+      }
+
+      const result = await goFetch<GoProduct>(token, `/products/${input.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          name,
+          category: resolvedCategory,
+          price: input.priceRupiah,
+          cost: input.costRupiah,
+          stock: input.stock,
+          min_stock: input.minStock,
+          unit: resolvedUnit,
+        }),
+      });
+      if (!result.ok) return { ok: false, error: result.message };
+
+      revalidatePath("/owner/products");
+      revalidatePath("/owner");
+      revalidatePath("/cashier");
+      return { ok: true, productId: String(result.data.id) };
     }
 
-    // The transaction hands the saved product id back: create mode in
-    // the form modal queues photos locally, then uploads them one by
-    // one right after saveProduct resolves with this id.
-    const savedProductId = await prisma.$transaction(async (tx) => {
-      // Resolve the category first: reuse a matching name (any casing) so
-      // the owner never ends up with twin categories like "Snack"/"snack".
-      let resolvedCategoryId = categoryId;
-      let resolvedCategoryName: string | null = null;
-      if (newCategoryName) {
-        const allCategories = await tx.category.findMany({
-          select: { id: true, name: true },
-        });
-        const found = allCategories.find(
-          (category) =>
-            category.name.toLowerCase() === newCategoryName.toLowerCase(),
-        );
-        if (found) {
-          resolvedCategoryId = found.id;
-          resolvedCategoryName = found.name;
-        } else {
-          const createdCategory = await tx.category.create({
-            data: { name: newCategoryName },
-            select: { id: true, name: true },
-          });
-          resolvedCategoryId = createdCategory.id;
-          resolvedCategoryName = createdCategory.name;
-        }
-      } else if (categoryId) {
-        const category = await tx.category.findUnique({
-          where: { id: categoryId },
-          select: { name: true },
-        });
-        resolvedCategoryName = category?.name ?? null;
-      }
-
-      // Resolve the unit the same way: reuse a matching name (any
-      // casing) so "Pcs" and "pcs" stay one satuan, or create it.
-      let resolvedUnit: string;
-      if (newUnitName) {
-        const allUnits = await tx.unit.findMany({
-          select: { id: true, name: true },
-        });
-        const found = allUnits.find(
-          (unit) => unit.name.toLowerCase() === newUnitName.toLowerCase(),
-        );
-        resolvedUnit =
-          found?.name ??
-          (
-            await tx.unit.create({
-              data: { name: newUnitName },
-              select: { name: true },
-            })
-          ).name;
-      } else {
-        resolvedUnit = unitName;
-      }
-
-      // Fields written on BOTH create and update. sku is deliberately
-      // absent: on update it is immutable, on create it is generated
-      // below — the client never supplies it.
-      const data = {
-        name,
-        categoryId: resolvedCategoryId,
-        price: input.priceRupiah,
-        cost: input.costRupiah,
-        stock: input.stock,
-        minStock: input.minStock,
-        unit: resolvedUnit,
-        outletId,
-      };
-
-      if (input.id) {
-        await tx.product.update({ where: { id: input.id }, data });
-        return input.id;
-      }
-
-      // Auto SKU: prefix from the category, sequence from the highest
-      // existing number with that prefix. sku is globally unique, so
-      // the scan is global too; a P2002 retry loop absorbs the tiny
-      // race window between two simultaneous creates.
-      const prefix = skuPrefixOf(resolvedCategoryName);
-      const siblings = await tx.product.findMany({
-        where: { sku: { startsWith: `${prefix}-` } },
-        select: { sku: true },
-      });
-      let maxSeq = 0;
-      for (const row of siblings) {
-        const seq = parseInt(row.sku.slice(prefix.length + 1), 10);
+    // Auto SKU: prefix from the category, sequence from the highest
+    // existing number with that prefix. sku is globally unique, so the
+    // scan is global too; a 409 retry loop absorbs the tiny race window
+    // between two simultaneous creates (backend-go detects the clash).
+    const prefix = skuPrefixOf(resolvedCategory);
+    let maxSeq = 0;
+    for (const product of all) {
+      if ((product.sku ?? "").startsWith(`${prefix}-`)) {
+        const seq = parseInt((product.sku ?? "").slice(prefix.length + 1), 10);
         if (Number.isInteger(seq) && seq > maxSeq) maxSeq = seq;
       }
+    }
 
-      let sku = formatSku(prefix, maxSeq + 1);
-      let created: { id: string } | null = null;
-      for (let attempt = 0; attempt < 6 && !created; attempt++) {
-        try {
-          created = await tx.product.create({
-            data: { ...data, sku },
-            select: { id: true },
-          });
-        } catch (error) {
-          if ((error as { code?: string }).code === "P2002") {
-            const seq = parseInt(sku.slice(prefix.length + 1), 10) + 1;
-            sku = formatSku(prefix, seq);
-            continue;
-          }
-          throw error;
-        }
+    let created: GoProduct | null = null;
+    for (let attempt = 0; attempt < 6 && !created; attempt++) {
+      const sku = formatSku(prefix, maxSeq + 1 + attempt);
+      const result = await goFetch<GoProduct>(token, "/products", {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+          sku,
+          category: resolvedCategory,
+          price: input.priceRupiah,
+          cost: input.costRupiah,
+          stock: input.stock,
+          min_stock: input.minStock,
+          unit: resolvedUnit,
+        }),
+      });
+      if (result.ok) {
+        created = result.data;
+        break;
       }
-      if (!created) {
-        throw new ProductActionError(
-          "Gagal membuat SKU unik — coba simpan ulang.",
-        );
-      }
-      return created.id;
-    });
+      if (result.status === 409) continue; // SKU bentrok — nomor berikutnya
+      return { ok: false, error: result.message };
+    }
+    if (!created) {
+      throw new ProductActionError(
+        "Gagal membuat SKU unik — coba simpan ulang.",
+      );
+    }
 
-    await audit({
-      actorId: userId,
-      outletId,
-      action: input.id ? "PRODUCT_UPDATE" : "PRODUCT_CREATE",
-      entity: `product:${savedProductId}`,
-      summary: input.id
-        ? `Produk "${name}" diperbarui — Rp ${formatThousands(input.priceRupiah)}`
-        : `Produk baru "${name}" — Rp ${formatThousands(input.priceRupiah)}`,
-      meta: {
-        name,
-        priceRupiah: input.priceRupiah,
-        costRupiah: input.costRupiah,
-        stock: input.stock,
-      },
-    });
-
-    // The POS grid, the restock list and this page all read products.
     revalidatePath("/owner/products");
     revalidatePath("/owner");
     revalidatePath("/cashier");
-    return { ok: true, productId: savedProductId };
+    return { ok: true, productId: String(created.id) };
   } catch (error) {
     if (error instanceof ProductActionError) {
       return { ok: false, error: error.message };
@@ -329,29 +262,18 @@ export async function toggleProductActive(
   nextActive: boolean,
 ): Promise<ProductActionResult> {
   try {
-    const { outletId, userId } = await requireOwnerOutletId();
-
-    const existing = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { outletId: true, name: true },
-    });
-    if (!existing || existing.outletId !== outletId) {
-      throw new ProductActionError("Produk tidak ditemukan di outlet ini.");
+    const token = await requireStaffToken();
+    if (!isNumericId(productId)) {
+      throw new ProductActionError("Produk tidak ditemukan.");
     }
 
-    await prisma.product.update({
-      where: { id: productId },
-      data: { isActive: nextActive },
-    });
-    await audit({
-      actorId: userId,
-      outletId,
-      action: nextActive ? "PRODUCT_ACTIVATE" : "PRODUCT_ARCHIVE",
-      entity: `product:${productId}`,
-      summary: nextActive
-        ? `Produk "${existing.name}" diaktifkan kembali`
-        : `Produk "${existing.name}" diarsipkan (hilang dari kasir)`,
-    });
+    const result = nextActive
+      ? await goFetch(token, `/products/${productId}/active`, {
+          method: "PUT",
+          body: JSON.stringify({ active: true }),
+        })
+      : await goFetch(token, `/products/${productId}`, { method: "DELETE" });
+    if (!result.ok) return { ok: false, error: result.message };
 
     revalidatePath("/owner/products");
     revalidatePath("/owner");
@@ -366,8 +288,8 @@ export async function toggleProductActive(
 }
 
 // Photo limits: the editor already caps dimensions and quality, these
-// guards stop anything oversized from ever reaching the database.
-const MAX_IMAGES_PER_PRODUCT = 6;
+// guards stop anything oversized from ever reaching the database
+// (backend-go memvalidasi ulang semuanya di sisi sana).
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -382,14 +304,9 @@ export async function addProductImage(
   file: File,
 ): Promise<ImageActionResult> {
   try {
-    const { outletId } = await requireOwnerOutletId();
-
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { outletId: true },
-    });
-    if (!product || product.outletId !== outletId) {
-      throw new ProductActionError("Produk tidak ditemukan di outlet ini.");
+    const token = await requireStaffToken();
+    if (!isNumericId(productId)) {
+      throw new ProductActionError("Produk tidak ditemukan.");
     }
     if (!file || typeof file.arrayBuffer !== "function") {
       throw new ProductActionError("Berkas foto tidak valid.");
@@ -401,43 +318,19 @@ export async function addProductImage(
       throw new ProductActionError("Format foto harus JPG, PNG, atau WebP.");
     }
 
-    const existingImages = await prisma.productImage.findMany({
-      where: { productId },
-      select: { sortOrder: true },
-      orderBy: { sortOrder: "asc" },
-    });
-    if (existingImages.length >= MAX_IMAGES_PER_PRODUCT) {
-      throw new ProductActionError(
-        `Maksimal ${MAX_IMAGES_PER_PRODUCT} foto per produk.`,
-      );
-    }
-
-    // Buffer (Node Uint8Array) is what Prisma's Bytes column expects.
-    const bytes = Buffer.from(await file.arrayBuffer());
-    if (bytes.byteLength === 0) {
-      throw new ProductActionError("Berkas foto kosong.");
-    }
-
-    // The mimeType is normalized to the detected type; the editor always
-    // exports JPEG, uploads straight from the gallery keep their type.
-    const mimeType =
-      file.type && ALLOWED_IMAGE_TYPES.has(file.type)
-        ? file.type
-        : "image/jpeg";
-
-    await prisma.productImage.create({
-      data: {
-        productId,
-        data: bytes,
-        mimeType,
-        sortOrder: existingImages.length,
-        isThumb: existingImages.length === 0,
-      },
-    });
+    // FormData diteruskan apa adanya ke backend-go (multipart).
+    const fd = new FormData();
+    fd.append("file", file);
+    const result = await goFetch<{ image_count?: number }>(
+      token,
+      `/products/${productId}/images`,
+      { method: "POST", body: fd },
+    );
+    if (!result.ok) return { ok: false, error: result.message };
 
     revalidatePath("/owner/products");
     revalidatePath("/cashier");
-    return { ok: true, imageCount: existingImages.length + 1 };
+    return { ok: true, imageCount: result.data.image_count };
   } catch (error) {
     if (error instanceof ProductActionError) {
       return { ok: false, error: error.message };
@@ -453,39 +346,15 @@ export async function deleteProductImage(
   imageId: string,
 ): Promise<ImageActionResult> {
   try {
-    const { outletId } = await requireOwnerOutletId();
-
-    const image = await prisma.productImage.findUnique({
-      where: { id: imageId },
-      select: { productId: true, isThumb: true },
-    });
-    if (!image) {
+    const token = await requireStaffToken();
+    if (!isNumericId(imageId)) {
       throw new ProductActionError("Foto tidak ditemukan.");
     }
-    const product = await prisma.product.findUnique({
-      where: { id: image.productId },
-      select: { outletId: true },
-    });
-    if (!product || product.outletId !== outletId) {
-      throw new ProductActionError("Produk tidak ditemukan di outlet ini.");
-    }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.productImage.delete({ where: { id: imageId } });
-      if (image.isThumb) {
-        const next = await tx.productImage.findFirst({
-          where: { productId: image.productId },
-          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-          select: { id: true },
-        });
-        if (next) {
-          await tx.productImage.update({
-            where: { id: next.id },
-            data: { isThumb: true },
-          });
-        }
-      }
+    const result = await goFetch(token, `/images/${imageId}`, {
+      method: "DELETE",
     });
+    if (!result.ok) return { ok: false, error: result.message };
 
     revalidatePath("/owner/products");
     revalidatePath("/cashier");
@@ -503,33 +372,15 @@ export async function setProductThumbnail(
   imageId: string,
 ): Promise<ImageActionResult> {
   try {
-    const { outletId } = await requireOwnerOutletId();
-
-    const image = await prisma.productImage.findUnique({
-      where: { id: imageId },
-      select: { productId: true },
-    });
-    if (!image) {
+    const token = await requireStaffToken();
+    if (!isNumericId(imageId)) {
       throw new ProductActionError("Foto tidak ditemukan.");
     }
-    const product = await prisma.product.findUnique({
-      where: { id: image.productId },
-      select: { outletId: true },
-    });
-    if (!product || product.outletId !== outletId) {
-      throw new ProductActionError("Produk tidak ditemukan di outlet ini.");
-    }
 
-    await prisma.$transaction([
-      prisma.productImage.updateMany({
-        where: { productId: image.productId },
-        data: { isThumb: false },
-      }),
-      prisma.productImage.update({
-        where: { id: imageId },
-        data: { isThumb: true },
-      }),
-    ]);
+    const result = await goFetch(token, `/images/${imageId}/thumb`, {
+      method: "PUT",
+    });
+    if (!result.ok) return { ok: false, error: result.message };
 
     revalidatePath("/owner/products");
     revalidatePath("/cashier");
@@ -549,43 +400,16 @@ export async function moveProductImage(
   direction: "left" | "right",
 ): Promise<ImageActionResult> {
   try {
-    const { outletId } = await requireOwnerOutletId();
-
-    const image = await prisma.productImage.findUnique({
-      where: { id: imageId },
-      select: { productId: true },
-    });
-    if (!image) {
+    const token = await requireStaffToken();
+    if (!isNumericId(imageId)) {
       throw new ProductActionError("Foto tidak ditemukan.");
     }
-    const product = await prisma.product.findUnique({
-      where: { id: image.productId },
-      select: { outletId: true },
-    });
-    if (!product || product.outletId !== outletId) {
-      throw new ProductActionError("Produk tidak ditemukan di outlet ini.");
-    }
 
-    const list = await prisma.productImage.findMany({
-      where: { productId: image.productId },
-      select: { id: true },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    const result = await goFetch(token, `/images/${imageId}/move`, {
+      method: "PUT",
+      body: JSON.stringify({ direction }),
     });
-    const index = list.findIndex((item) => item.id === imageId);
-    const target = direction === "left" ? index - 1 : index + 1;
-    if (index === -1 || target < 0 || target >= list.length) {
-      return { ok: true }; // Already at the edge — nothing to do.
-    }
-    [list[index], list[target]] = [list[target], list[index]];
-
-    await prisma.$transaction(
-      list.map((item, i) =>
-        prisma.productImage.update({
-          where: { id: item.id },
-          data: { sortOrder: i },
-        }),
-      ),
-    );
+    if (!result.ok) return { ok: false, error: result.message };
 
     revalidatePath("/owner/products");
     return { ok: true };

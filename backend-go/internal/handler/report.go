@@ -192,11 +192,17 @@ func fillMonthlyGaps(points []SalesPoint) []SalesPoint {
 	return out
 }
 
-// GET /api/v1/reports/top-products?days=30 (OWNER)
+// GET /api/v1/reports/top-products?days=30&limit=10 (OWNER/DEVELOPER)
+// limit bisa dinaikkan (mis. 1000) untuk menghitung jumlah terjual
+// 30 hari TERAKHIR untuk semua produk di halaman kelola produk.
 func TopProducts(w http.ResponseWriter, r *http.Request) {
 	days := 30
 	if v, err := strconv.Atoi(r.URL.Query().Get("days")); err == nil && v > 0 && v <= 365 {
 		days = v
+	}
+	limit := 10
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 && v <= 1000 {
+		limit = v
 	}
 
 	type TopProduct struct {
@@ -214,7 +220,7 @@ func TopProducts(w http.ResponseWriter, r *http.Request) {
         WHERE t.created_at >= CURRENT_DATE - ($1 - 1)
         GROUP BY ti.product_id, ti.product_name
         ORDER BY SUM(ti.subtotal) DESC
-        LIMIT 10`, days)
+        LIMIT $2`, days, limit)
 	if err != nil {
 		Err(w, http.StatusInternalServerError, "Gagal mengambil produk terlaris")
 		return
