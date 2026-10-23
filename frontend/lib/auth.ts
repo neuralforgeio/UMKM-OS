@@ -1,13 +1,16 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
-import { prisma } from "@/lib/prisma";
-import { audit } from "@/lib/audit";
 
-// Jwt-recheck (Task 34): sesi JWT diverifikasi ulang ke database paling
-// lama setiap 5 menit. Akun yang dinonaktifkan / dihapus (soft-delete) /
-// berganti peran akan berlaku efektif tanpa menunggu sesi 30 hari habis.
+// Backend-go jadi satu-satunya pemeriksa kredensial: hash password,
+// pengecekan akun aktif, dan audit login semua dicatat di sana. Frontend
+// tetap memegang sesi NextAuth seperti semula — design & alur halaman
+// tidak berubah sama sekali.
+const API_URL = process.env.API_URL ?? "http://localhost:8080";
+
+// Jwt-recheck (Task 34, versi Go): sesi diverifikasi ulang ke Go paling
+// lama setiap 5 menit lewat GET /api/v1/auth/me. Akun yang dinonaktifkan
+// akan berlaku efektif tanpa menunggu JWT kedaluwarsa.
 const RECHECK_MS = 5 * 60_000;
 
 // Mode maintenance developer (Task 35): developer memilih outlet lewat
@@ -32,6 +35,14 @@ async function syncDevOutletFromCookie(token: {
   }
 }
 
+// Format respons Go konsisten (lihat backend-go/internal/handler/respond.go):
+// sukses -> {"success":true,"data":...}
+type GoEnvelope<T> = {
+  success: boolean;
+  data?: T;
+  error?: { message: string };
+};
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
@@ -48,49 +59,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        const user = await prisma.user.findUnique({ where: { email } });
-        // deletedAt = soft-delete (manajemen akun Fase B/C): riwayat
-        // transaksi & audit tetap menunjuk akun ini, tapi pintu masuknya
-        // ditutup total — login maupun sesi lama.
-        if (!user || !user.isActive || user.deletedAt) {
-          await audit({
-            actorId: null,
-            action: "LOGIN_FAILED",
-            summary: `Login gagal: ${email}`,
-            meta: {
-              email,
-              reason: user ? "akun-nonaktif" : "akun-tidak-ditemukan",
-            },
+        // Semua pemeriksaan (email terdaftar, password, akun aktif) dan
+        // pencatatannya dilakukan Go — konsol backend-go adalah tempat
+        // lihat gagal-berhasilnya login.
+        let res: Response;
+        try {
+          res = await fetch(`${API_URL}/api/v1/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email.trim(), password }),
+            cache: "no-store",
           });
+        } catch {
+          // Backend tidak terjangkau — perlakukan seperti login gagal.
           return null;
         }
+        if (!res.ok) return null;
 
-        const valid = await bcrypt.compare(password, user.password);
-        if (!valid) {
-          await audit({
-            actorId: user.id,
-            outletId: user.outletId,
-            action: "LOGIN_FAILED",
-            summary: `Login gagal: ${email} (password salah)`,
-            meta: { email, reason: "password-salah" },
-          });
-          return null;
-        }
+        const json = (await res.json()) as GoEnvelope<{
+          token?: string;
+          user?: { id?: number; name?: string; email?: string; role?: string };
+        }>;
+        const goToken = json.data?.token;
+        const user = json.data?.user;
+        if (typeof goToken !== "string" || !user) return null;
 
-        await audit({
-          actorId: user.id,
-          outletId: user.outletId,
-          action: "LOGIN_SUCCESS",
-          summary: `Login berhasil: ${user.name} (${user.role})`,
-          meta: { email },
-        });
+        // Go hanya mengenal OWNER/CASHIER; seluruh halaman memakai KASIR.
+        const role: "OWNER" | "KASIR" =
+          user.role === "CASHIER" ? "KASIR" : "OWNER";
 
         return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          outletId: user.outletId,
+          id: String(user.id ?? ""),
+          name: user.name ?? "",
+          email: user.email ?? "",
+          role,
+          // Go v1.0.0 belum punya konsep outlet: halaman yang butuh konteks
+          // outlet sudah punya fallback masing-masing (prisma findFirst).
+          outletId: null,
+          goToken,
         };
       },
     }),
@@ -101,11 +107,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Jalur sign-in: identitas segar dari authorize().
         token.id = user.id;
         token.role = user.role;
-        token.outletId = user.outletId;
+        token.outletId = user.outletId ?? null;
+        token.goToken = user.goToken;
         token.checkedAt = Date.now();
         return token;
       }
-      // Jalur permintaan biasa: cukup satu koneksi DB per 5 menit per sesi.
+      // Jalur permintaan biasa: cukup satu panggilan /auth/me per 5 menit per sesi.
       const last = typeof token.checkedAt === "number" ? token.checkedAt : 0;
       if (Date.now() - last < RECHECK_MS) {
         // Mode maintenance harus berefek SEGERA (masuk/keluar), jadi
@@ -114,29 +121,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return token;
       }
       token.checkedAt = Date.now();
-      try {
-        const fresh = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: {
-            role: true,
-            outletId: true,
-            isActive: true,
-            deletedAt: true,
-          },
-        });
-        // null = putus sesi: Auth.js menghapus cookie, semua guard fail-closed
-        // (terverifikasi dari source next-auth 5.0.0-beta.32).
-        if (!fresh || !fresh.isActive || fresh.deletedAt) return null;
-        // Peran/outlet terbaru ikut tersinkron ke sesi (mis. kasir
-        // dipromosikan jadi owner oleh developer di Fase B).
-        token.role = fresh.role;
-        token.outletId = fresh.outletId;
-      } catch {
-        // Database tidak terjangkau: biarkan sesi tetap hidup — warung
-        // harus tetap bisa jualan; recheck berikutnya menyinkronkan lagi.
+      if (typeof token.goToken === "string" && token.goToken.length > 0) {
+        try {
+          const res = await fetch(`${API_URL}/api/v1/auth/me`, {
+            headers: { Authorization: `Bearer ${token.goToken}` },
+            cache: "no-store",
+          });
+          if (res.status === 401 || res.status === 403) {
+            // Akun sudah tidak sah (dinonaktifkan / token mati):
+            // putus sesi — Auth.js menghapus cookie, guard fail-closed.
+            return null;
+          }
+          if (res.ok) {
+            const json = (await res.json()) as GoEnvelope<{
+              id?: number;
+              name?: string;
+              email?: string;
+              role?: string;
+            }>;
+            const freshRole = json.data?.role;
+            if (freshRole === "OWNER" || freshRole === "CASHIER") {
+              token.role = freshRole === "CASHIER" ? "KASIR" : "OWNER";
+            }
+            // outletId TIDAK disinkronkan dari Go (belum ada konsep outlet
+            // di sana) — biarkan nilai token apa adanya.
+          }
+        } catch {
+          // Backend tidak terjangkau: biarkan sesi tetap hidup — warung
+          // harus tetap bisa jualan; recheck berikutnya menyinkronkan lagi.
+        }
       }
-      // Recheck barusan menimpa outletId dari DB (developer = null) —
-      // suntikkan ulang outlet maintenance bila cookie masih ada.
+      // Mode maintenance developer tetap disuntikkan ulang tiap
+      // permintaan lewat cookie dev_outlet (kalau sedang aktif).
       await syncDevOutletFromCookie(token);
       return token;
     },
