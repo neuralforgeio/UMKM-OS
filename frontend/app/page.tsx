@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import { LiveClock } from "@/components/live-clock";
 
@@ -20,7 +21,7 @@ export default async function HomePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   // Developer punya konsol sendiri lintas outlet - halaman peluncur ini berbasis satu outlet dan tidak relevan untuk super-user
-  if (session.user.role === "DEVELOPER") redirect("/dev")
+  if (session.user.role === "DEVELOPER") redirect("/dev");
 
   const outlet = session.user.outletId
     ? await prisma.outlet.findUnique({ where: { id: session.user.outletId } })
@@ -31,6 +32,8 @@ export default async function HomePage() {
 
   // Owner briefing: a tiny live snapshot so the launcher page already
   // answers "how is the warung doing today" without opening reports.
+  // Angka kini dari backend-go (satu sumber data) — kalau backend tidak
+  // merespons, kartu statistik dilewati, halaman tetap terbuka.
   let stats: {
     omzetToday: number;
     trxToday: number;
@@ -38,40 +41,19 @@ export default async function HomePage() {
     lowStock: number;
   } | null = null;
 
-  if (isOwner && outlet) {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const completedToday = {
-      outletId: outlet.id,
-      status: "COMPLETED" as const,
-      createdAt: { gte: startOfToday },
-    };
-    const [todayAgg, itemsAgg, lowStockCount] = await Promise.all([
-      prisma.transaction.aggregate({
-        where: completedToday,
-        _sum: { total: true },
-        _count: true,
-      }),
-      prisma.transactionItem.aggregate({
-        where: { transaction: completedToday },
-        _sum: { quantity: true },
-      }),
-      prisma.product.count({
-        where: {
-          outletId: outlet.id,
-          isActive: true,
-          stock: { lte: prisma.product.fields.minStock },
-        },
-      }),
-    ]);
-    stats = {
-      omzetToday: todayAgg._sum.total
-        ? parseFloat(todayAgg._sum.total.toString())
-        : 0,
-      trxToday: todayAgg._count,
-      itemsToday: itemsAgg._sum.quantity ?? 0,
-      lowStock: lowStockCount,
-    };
+  if (isOwner && session.user.goToken) {
+    const dash = await goFetch<{
+      today: { revenue: number; transactions: number; items_sold: number };
+      low_stock: unknown[];
+    }>(session.user.goToken, "/reports/dashboard");
+    if (dash.ok) {
+      stats = {
+        omzetToday: dash.data.today.revenue,
+        trxToday: dash.data.today.transactions,
+        itemsToday: dash.data.today.items_sold,
+        lowStock: dash.data.low_stock.length,
+      };
+    }
   }
 
   const menu = [

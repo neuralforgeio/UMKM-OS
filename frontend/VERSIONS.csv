@@ -1,0 +1,2 @@
+version,tanggal,jenis,deskripsi,catatan
+1.0.0,2026-10-23,RILIS AWAL,"Baseline integrasi backend-go dengan design asli dipertahankan: login via Go /auth/login (Tahap 1), kasir POS produk & checkout via Go (Tahap 2), kelola produk & stok & foto produk via Go (Tahap 3), dashboard owner + halaman peluncur via GET /reports/dashboard (Tahap 4a)","NextAuth tetap lapisan sesi (token Go disimpan di JWT, tidak diekspos ke browser); identitas outlet (nama/logo) masih Prisma menunggu fase multi-outlet; versi tampil di halaman Settings About (menyusul)"

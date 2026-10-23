@@ -3,6 +3,13 @@
 GET /api/v1/forecast/revenue   - daily revenue history + weekday-seasonal forecast
 GET /api/v1/forecast/products  - per-product 7-day demand forecast + restock advice
 
+Sejak integrasi Tahap 4a (ml-service 1.0.0), kedua endpoint membaca tabel
+milik backend-go: transactions, transaction_items, products (snake_case,
+Rupiah BIGINT utuh). Era single-outlet Go belum punya kolom outlet di
+tabel transaksi — seluruh data dianggap milik satu warung; nama warung
+diambil dari tabel "Outlet" era Prisma (masih dipakai frontend sebagai
+identitas) dengan fallback "Warung".
+
 The forecast window starts TODAY: the owner asks in the morning and
 gets today's expected full-day total plus the days after. To keep
 that estimate honest the model never sees a day that is not over
@@ -15,7 +22,7 @@ live partial view.
 import math
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,16 +45,20 @@ HISTORY_DAYS = 56
 METHOD = "weekday-seasonal weighted average (up to 4 recent weeks)"
 
 
-async def resolve_outlet(session: AsyncSession) -> Outlet:
-    """Single-outlet warung: default to the first active outlet."""
+async def resolve_outlet(session: AsyncSession) -> tuple[str, str]:
+    """Era single-outlet Go: nama warung dari tabel Outlet era Prisma.
+
+    Mengembalikan (outlet_id, outlet_name); ("", "Warung") bila tabel
+    kosong — peramalan tetap jalan tanpa identitas outlet.
+    """
     outlet = (
         await session.execute(
             select(Outlet).where(Outlet.isActive.is_(True)).order_by(Outlet.createdAt)
         )
     ).scalars().first()
     if outlet is None:
-        raise HTTPException(status_code=404, detail="No active outlet found.")
-    return outlet
+        return ("", "Warung")
+    return (outlet.id, outlet.name)
 
 
 @router.get("/revenue", response_model=RevenueForecastResponse)
@@ -56,7 +67,7 @@ async def forecast_revenue(
     horizon: int = Query(default=7, ge=1, le=14),
     session: AsyncSession = Depends(get_session),
 ):
-    outlet = await resolve_outlet(session)
+    outlet_id, outlet_name = await resolve_outlet(session)
     today = date.today()
     yesterday = today - timedelta(days=1)
     history_start = today - timedelta(days=HISTORY_DAYS - 1)
@@ -65,17 +76,16 @@ async def forecast_revenue(
     rows = (
         await session.execute(
             select(
-                func.date(Transaction.createdAt).label("d"),
+                func.date(Transaction.created_at).label("d"),
                 func.sum(Transaction.total).label("revenue"),
                 func.count(Transaction.id).label("trx"),
             )
             .where(
-                Transaction.outletId == outlet.id,
                 Transaction.status == "COMPLETED",
-                Transaction.createdAt >= history_start,
+                Transaction.created_at >= history_start,
             )
-            .group_by(func.date(Transaction.createdAt))
-            .order_by(func.date(Transaction.createdAt))
+            .group_by(func.date(Transaction.created_at))
+            .order_by(func.date(Transaction.created_at))
         )
     ).all()
 
@@ -89,8 +99,8 @@ async def forecast_revenue(
     trx_by_date = {r.d: r.trx for r in rows}
 
     return RevenueForecastResponse(
-        outlet_id=outlet.id,
-        outlet_name=outlet.name,
+        outlet_id=outlet_id,
+        outlet_name=outlet_name,
         history_days=days,
         horizon_days=horizon,
         method=METHOD,
@@ -108,7 +118,7 @@ async def forecast_products(
     limit: int = Query(default=5, ge=1, le=20),
     session: AsyncSession = Depends(get_session),
 ):
-    outlet = await resolve_outlet(session)
+    outlet_id, outlet_name = await resolve_outlet(session)
     today = date.today()
     yesterday = today - timedelta(days=1)
     history_start = today - timedelta(days=HISTORY_DAYS - 1)
@@ -117,23 +127,24 @@ async def forecast_products(
     # Rank products by quantity sold in the last 28 days.
     rank_rows = (
         await session.execute(
-            select(TransactionItem.productId)
-            .join(Transaction, TransactionItem.transactionId == Transaction.id)
+            select(TransactionItem.product_id)
+            .join(Transaction, TransactionItem.transaction_id == Transaction.id)
             .where(
-                Transaction.outletId == outlet.id,
                 Transaction.status == "COMPLETED",
-                Transaction.createdAt >= rank_start,
+                Transaction.created_at >= rank_start,
             )
-            .group_by(TransactionItem.productId)
-            .order_by(func.sum(TransactionItem.quantity).desc())
+            .group_by(TransactionItem.product_id)
+            .order_by(func.sum(TransactionItem.qty).desc())
             .limit(limit)
         )
     ).all()
-    product_ids = [r.productId for r in rank_rows]
+    # ID produk backend-go adalah BIGINT — dikirim ke frontend sebagai
+    # string agar bentuk respons tidak berubah (klien lama pakai cuid).
+    product_ids = [r.product_id for r in rank_rows]
 
     if not product_ids:
         return ProductsForecastResponse(
-            outlet_id=outlet.id, outlet_name=outlet.name, products=[]
+            outlet_id=outlet_id, outlet_name=outlet_name, products=[]
         )
 
     products = (
@@ -145,24 +156,23 @@ async def forecast_products(
     daily_rows = (
         await session.execute(
             select(
-                TransactionItem.productId,
-                func.date(Transaction.createdAt).label("d"),
-                func.sum(TransactionItem.quantity).label("qty"),
+                TransactionItem.product_id,
+                func.date(Transaction.created_at).label("d"),
+                func.sum(TransactionItem.qty).label("qty"),
             )
-            .join(Transaction, TransactionItem.transactionId == Transaction.id)
+            .join(Transaction, TransactionItem.transaction_id == Transaction.id)
             .where(
-                Transaction.outletId == outlet.id,
                 Transaction.status == "COMPLETED",
-                Transaction.createdAt >= history_start,
-                TransactionItem.productId.in_(product_ids),
+                Transaction.created_at >= history_start,
+                TransactionItem.product_id.in_(product_ids),
             )
-            .group_by(TransactionItem.productId, func.date(Transaction.createdAt))
+            .group_by(TransactionItem.product_id, func.date(Transaction.created_at))
         )
     ).all()
 
-    series_by_product: dict[str, list[tuple[date, float]]] = {pid: [] for pid in product_ids}
+    series_by_product: dict[int, list[tuple[date, float]]] = {pid: [] for pid in product_ids}
     for row in daily_rows:
-        series_by_product[row.productId].append((row.d, row.qty or 0))
+        series_by_product[row.product_id].append((row.d, row.qty or 0))
 
     items: list[ProductForecast] = []
     for pid in product_ids:
@@ -175,11 +185,11 @@ async def forecast_products(
         restock = max(0, math.ceil(point) - product.stock)
         items.append(
             ProductForecast(
-                product_id=pid,
+                product_id=str(pid),
                 name=product.name,
                 unit=product.unit,
                 current_stock=product.stock,
-                min_stock=product.minStock,
+                min_stock=product.min_stock,
                 forecast_7d_point=point,
                 forecast_7d_low=low,
                 forecast_7d_high=high,
@@ -188,5 +198,5 @@ async def forecast_products(
         )
 
     return ProductsForecastResponse(
-        outlet_id=outlet.id, outlet_name=outlet.name, products=items
+        outlet_id=outlet_id, outlet_name=outlet_name, products=items
     )

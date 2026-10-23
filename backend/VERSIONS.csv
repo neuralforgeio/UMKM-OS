@@ -1,0 +1,2 @@
+version,tanggal,jenis,deskripsi,catatan
+1.0.0,2026-10-23,RILIS AWAL,"Layanan ML terintegrasi penuh dengan schema backend-go: peramalan pendapatan (weekday-seasonal weighted average) dan saran restock membaca tabel transactions / transaction_items / products (snake_case, Rupiah BIGINT utuh) — PostgreSQL menjadi satu sumber data utama bersama Go","Masih bernamakan folder backend/; rename ke ml-service/ dijadwalkan pada fase deploy Docker; riwayat pra-1.0.0 (0.1.0) = era membaca tabel Prisma"

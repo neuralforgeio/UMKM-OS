@@ -7,6 +7,7 @@ Every runtime value is loaded from environment variables (or a local
   1. Copy `backend/.env.example` to `backend/.env`
   2. Fill in the values for your environment
   3. `.env` is git-ignored; `.env.example` is committed as documentation
+
 """
 
 from functools import lru_cache
@@ -14,7 +15,6 @@ from typing import Annotated, Literal
 
 from pydantic import BeforeValidator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
-
 
 def parse_cors_origins(value):
     """Allow CORS origins to be written as a comma-separated string.
@@ -26,7 +26,6 @@ def parse_cors_origins(value):
         return [origin.strip() for origin in value.split(",") if origin.strip()]
     return value
 
-
 class Settings(BaseSettings):
     """Single source of truth for every configurable value of the service."""
 
@@ -34,7 +33,10 @@ class Settings(BaseSettings):
     # Service identity
     # ------------------------------------------------------------------
     APP_NAME: str = "UMKM OS Backend"
-    VERSION: str = "0.1.0"
+    # Semantic Versioning — 1.0.0 = rilis integrasi pertama: layanan ML
+    # membaca schema backend-go (transactions/transaction_items/products)
+    # sehingga PostgreSQL menjadi satu sumber data utama seluruh bisnis.
+    VERSION: str = "1.0.0"
 
     # Running mode: development | production | test
     ENVIRONMENT: Literal["development", "production", "test"] = "development"
@@ -91,12 +93,10 @@ class Settings(BaseSettings):
         """Full mount path of the current API version, e.g. '/api/v1'."""
         return f"{self.API_PREFIX}/{self.API_VERSION}"
 
-
 @lru_cache
 def get_settings() -> Settings:
     """Build Settings once per process and cache the instance."""
     return Settings()
-
 
 # Module-level singleton — import this everywhere:
 #   from app.core.config import settings

@@ -3,7 +3,7 @@
 // skips itself so re-deploys never wipe photos, restocks, and real
 // sales the owner has recorded. Set FORCE_SEED=1 to wipe and rebuild
 // the deterministic dataset (fixed RNG seed) from scratch.
-
+import { randomBytes } from "node:crypto";
 import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
@@ -18,9 +18,8 @@ config({ path: ".env.local" });
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error(
-    "DATABASE_URL is not set. For the docker demo db use: " +
-      '$env:DATABASE_URL = "postgresql://umkm:umkmindo45@localhost:5433/umkmos" ' +
-      "(docker, port 5433) or frontend/.env.local (local dev, port 5432).",
+    "DATABASE_URL is not set. Isi di frontend/.env (atau .env.local) — " +
+      "contoh format: postgresql://umkm:PASSWORD_ANDA@localhost:5432/umkmos.",
   );
 }
 
@@ -74,17 +73,20 @@ const OUTLET = {
   phone: "0812-3456-7890",
 };
 
+// Password demo TIDAK ditulis di kode (repo publik): ambil dari env
+// SEED_OWNER_PASSWORD / SEED_KASIR_PASSWORD; bila kosong, dibuat acak
+// dan dicetak sekali di akhir seed supaya tetap bisa dipakai.
 const USERS = [
   {
     name: "Bu Sari",
     email: "busari@warung.id",
-    password: "owner12345",
+    password: process.env.SEED_OWNER_PASSWORD || randomBytes(8).toString("hex"),
     role: "OWNER" as const,
   },
   {
     name: "Rizky Pratama",
     email: "rizky@warung.id",
-    password: "kasir12345",
+    password: process.env.SEED_KASIR_PASSWORD || randomBytes(8).toString("hex"),
     role: "KASIR" as const,
   },
 ];
@@ -553,9 +555,12 @@ async function main() {
   console.log(
     `[seed] done: revenue total Rp ${revenue.toLocaleString("id-ID")}`,
   );
-  console.log("[seed] demo logins:");
-  console.log("  owner : busari@warung.id / owner12345");
-  console.log("  kasir : rizky@warung.id / kasir12345");
+  console.log("[seed] demo logins (password dari SEED_OWNER_PASSWORD /");
+  console.log(
+    "  SEED_KASIR_PASSWORD di .env — acak bila kosong, dicetak sekali):",
+  );
+  console.log(`  owner : ${USERS[0].email} / ${USERS[0].password}`);
+  console.log(`  kasir : ${USERS[1].email} / ${USERS[1].password}`);
 }
 
 main()
