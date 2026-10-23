@@ -30,6 +30,7 @@ datasource db {
 enum Role {
   OWNER // full access: all outlets, reports, settings, user management
   KASIR // point-of-sale access for their assigned outlet
+  DEVELOPER // platform super-user: cross-outlet console, account management, audit logs
 }
 
 /// Payment methods accepted at the cashier.
@@ -60,21 +61,25 @@ enum StockMovementType {
 
 /// Application user (owner or cashier).
 model User {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   name      String
-  email     String   @unique
+  email     String    @unique
   /// Bcrypt hash — the plain password is never stored.
   password  String
-  role      Role     @default(KASIR)
+  role      Role      @default(KASIR)
   /// Kasir is tied to one outlet; owner may be unassigned (all outlets).
   outletId  String?
-  outlet    Outlet?  @relation(fields: [outletId], references: [id])
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  outlet    Outlet?   @relation(fields: [outletId], references: [id])
+  isActive  Boolean   @default(true)
+  /// Soft-delete (manajemen akun): riwayat transaksi & jejak audit tetap
+  /// menunjuk akun ini, tapi login ditolak dan sesi diputus jwt-recheck.
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   transactions   Transaction[]
   stockMovements StockMovement[]
+  auditEvents    AuditEvent[]
 
   @@index([outletId])
 }
@@ -98,6 +103,34 @@ model Outlet {
   users        User[]
   products     Product[]
   transactions Transaction[]
+  auditEvents  AuditEvent[]
+}
+
+/// Jejak audit append-only (Task 34): SEMUA aksi penting tercatat —
+/// transaksi, refund, penyajian, gerakan stok, produk, pengaturan,
+/// akun, dan percobaan login. Baris tidak pernah diubah/dihapus;
+/// konsol developer (Fase B) menjadikannya sumber query + CSV owner.
+model AuditEvent {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  /// Siapa yang melakukan (null = sistem / login tanpa akun valid).
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorId   String?
+  /// Outlet tempat aksi terjadi (null = aksi lintas-outlet / login).
+  outlet    Outlet?  @relation(fields: [outletId], references: [id], onDelete: SetNull)
+  outletId  String?
+  /// Nama aksi stabil, mis. TRANSACTION_CREATE, STOCK_IN, LOGIN_FAILED.
+  action    String
+  /// Penunjuk entitas "jenis:id", mis. "transaction:<uuid>".
+  entity    String?
+  /// Satu kalimat manusiawi untuk dibaca manusia.
+  summary   String
+  /// Detail tambahan (JSON primitif).
+  meta      Json?
+
+  @@index([createdAt])
+  @@index([outletId])
+  @@index([action])
 }
 
 /// Product grouping for the cashier UI and reports.

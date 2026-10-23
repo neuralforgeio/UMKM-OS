@@ -9,6 +9,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isValidSignatureData, startOfTodayWIB } from "@/lib/handover";
+import { audit } from "@/lib/audit";
 
 export type HandoverActionResult = { ok: true } | { ok: false; error: string };
 
@@ -182,6 +183,17 @@ export async function markServed(input: {
       }),
     ]);
 
+    // Jejak ganda: HandoverEvent = bukti detail per struk, AuditEvent =
+    // aliran aktivitas lintas aksi untuk konsol developer & CSV owner.
+    await audit({
+      actorId: staff.id,
+      outletId: tx.outletId,
+      action: "HANDOVER_SERVE",
+      entity: `transaction:${tx.id}`,
+      summary: `Struk ${tx.code} ditandai sudah disajikan`,
+      meta: { code: tx.code },
+    });
+
     revalidateAll(tx.id, tx.claimCode);
     revalidatePath(`/verify/${tx.code}`);
     revalidatePath("/cashier");
@@ -260,6 +272,15 @@ export async function confirmHandoverInApp(input: {
       }),
     ]);
 
+    await audit({
+      actorId: staff.id,
+      outletId: tx.outletId,
+      action: "HANDOVER_CONFIRM",
+      entity: `transaction:${tx.id}`,
+      summary: `Struk ${tx.code} dikonfirmasi diterima pembeli${buyerName ? ` (${buyerName})` : ""} — tanda tangan digital`,
+      meta: { code: tx.code },
+    });
+
     revalidateAll(tx.id, tx.claimCode);
     return { ok: true };
   } catch (e) {
@@ -331,6 +352,15 @@ export async function claimDelivered(input: {
         data: { handoverStatus: "COURIER_CLAIMED" },
       }),
     ]);
+
+    await audit({
+      actorId: staff.id,
+      outletId: tx.outletId,
+      action: "HANDOVER_CLAIM",
+      entity: `transaction:${tx.id}`,
+      summary: `Struk ${tx.code} diklaim sudah diantar (tanpa tanda tangan pembeli)`,
+      meta: { code: tx.code },
+    });
 
     revalidateAll(tx.id, tx.claimCode);
     return { ok: true };

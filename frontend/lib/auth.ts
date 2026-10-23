@@ -2,6 +2,12 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { audit } from "@/lib/audit";
+
+// Jwt-recheck (Task 34): sesi JWT diverifikasi ulang ke database paling
+// lama setiap 5 menit. Akun yang dinonaktifkan / dihapus (soft-delete) /
+// berganti peran akan berlaku efektif tanpa menunggu sesi 30 hari habis.
+const RECHECK_MS = 5 * 60_000;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
@@ -20,10 +26,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !user.isActive) return null;
+        // deletedAt = soft-delete (manajemen akun Fase B/C): riwayat
+        // transaksi & audit tetap menunjuk akun ini, tapi pintu masuknya
+        // ditutup total — login maupun sesi lama.
+        if (!user || !user.isActive || user.deletedAt) {
+          await audit({
+            actorId: null,
+            action: "LOGIN_FAILED",
+            summary: `Login gagal: ${email}`,
+            meta: {
+              email,
+              reason: user ? "akun-nonaktif" : "akun-tidak-ditemukan",
+            },
+          });
+          return null;
+        }
 
         const valid = await bcrypt.compare(password, user.password);
-        if (!valid) return null;
+        if (!valid) {
+          await audit({
+            actorId: user.id,
+            outletId: user.outletId,
+            action: "LOGIN_FAILED",
+            summary: `Login gagal: ${email}`,
+            meta: { email, reason: "password-salah" },
+          });
+          return null;
+        }
+
+        await audit({
+          actorId: user.id,
+          outletId: user.outletId,
+          action: "LOGIN_SUCCESS",
+          summary: `Login berhasil: ${user.name} (${user.role})`,
+          meta: { email },
+        });
 
         return {
           id: user.id,
@@ -36,18 +73,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
+        // Jalur sign-in: identitas segar dari authorize().
         token.id = user.id;
         token.role = user.role;
         token.outletId = user.outletId;
+        token.checkedAt = Date.now();
+        return token;
+      }
+      // Jalur permintaan biasa: cukup satu koneksi DB per 5 menit per sesi.
+      const last = typeof token.checkedAt === "number" ? token.checkedAt : 0;
+      if (Date.now() - last < RECHECK_MS) return token;
+      token.checkedAt = Date.now();
+      try {
+        const fresh = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: {
+            role: true,
+            outletId: true,
+            isActive: true,
+            deletedAt: true,
+          },
+        });
+        // null = putus sesi: Auth.js menghapus cookie, semua guard fail-closed
+        // (terverifikasi dari source next-auth 5.0.0-beta.32).
+        if (!fresh || !fresh.isActive || fresh.deletedAt) return null;
+        // Peran/outlet terbaru ikut tersinkron ke sesi (mis. kasir
+        // dipromosikan jadi owner oleh developer di Fase B).
+        token.role = fresh.role;
+        token.outletId = fresh.outletId;
+      } catch {
+        // Database tidak terjangkau: biarkan sesi tetap hidup — warung
+        // harus tetap bisa jualan; recheck berikutnya menyinkronkan lagi.
       }
       return token;
     },
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as "OWNER" | "KASIR";
+        session.user.role = token.role as "OWNER" | "KASIR" | "DEVELOPER";
         session.user.outletId = token.outletId ?? null;
       }
       return session;

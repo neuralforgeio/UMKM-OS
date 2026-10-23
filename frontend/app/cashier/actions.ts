@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateHandoverCode } from "@/lib/handover";
+import { audit } from "@/lib/audit";
 import type {
   CheckoutResult,
   DiscountInput,
@@ -229,6 +230,23 @@ export async function createTransaction(input: {
           userId: sessionUser.id,
           transactionId: created.id,
         })),
+      });
+      // Jejak audit menumpang transaksi yang sama: kalau baris audit gagal
+      // tertulis, Postgres menolak commit dan seluruh checkout batal —
+      // syarat "semuanya tercatat" ditegakkan database, bukan niat baik.
+      await audit({
+        actorId: sessionUser.id,
+        outletId: effectiveOutletId,
+        action: "TRANSACTION_CREATE",
+        entity: `transaction:${created.id}`,
+        summary: `Transaksi ${code} — Rp ${formatThousands(totalSen / 100)} (${paymentMethod})`,
+        meta: {
+          code,
+          totalRupiah: totalSen / 100,
+          paymentMethod,
+          itemCount: lines.length,
+        },
+        db: tx,
       });
       return {
         code: created.code,

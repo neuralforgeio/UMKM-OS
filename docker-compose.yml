@@ -26,6 +26,9 @@ services:
     command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts"
     environment:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-umkmos}"
+      # Akun developer bootstrap — nilai asli hanya di root .env (ter-gitignore).
+      DEV_SEED_EMAIL: ${DEV_SEED_EMAIL:-}
+      DEV_SEED_PASSWORD: ${DEV_SEED_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy

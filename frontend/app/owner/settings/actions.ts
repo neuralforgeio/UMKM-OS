@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { audit } from "@/lib/audit";
 
 export type SettingsActionState = { ok: boolean; message: string };
 
@@ -11,7 +12,11 @@ const MAX_LOGO_BYTES = 900 * 1024;
 
 // Settings are OWNER-only; the guard runs again inside every action so
 // a spoofed form post can never touch the branding.
-async function ownerOutletId(): Promise<string | null> {
+// Sekaligus mengembalikan id aktor — setiap mutasi kini berjejak audit.
+async function ownerActor(): Promise<{
+  outletId: string;
+  userId: string;
+} | null> {
   const session = await auth();
   if (!session?.user || session.user.role !== "OWNER") return null;
   const outlet = session.user.outletId
@@ -20,7 +25,8 @@ async function ownerOutletId(): Promise<string | null> {
         select: { id: true },
       })
     : await prisma.outlet.findFirst({ select: { id: true } });
-  return outlet?.id ?? null;
+  if (!outlet) return null;
+  return { outletId: outlet.id, userId: session.user.id };
 }
 
 function revalidateBranding() {
@@ -35,8 +41,8 @@ export async function updateOutletProfile(
   _prev: SettingsActionState,
   formData: FormData,
 ): Promise<SettingsActionState> {
-  const outletId = await ownerOutletId();
-  if (!outletId) {
+  const actor = await ownerActor();
+  if (!actor) {
     return {
       ok: false,
       message: "Hanya pemilik yang boleh mengubah pengaturan.",
@@ -54,8 +60,16 @@ export async function updateOutletProfile(
   if (phone.length > 30)
     return { ok: false, message: "Nomor telepon maksimal 30 karakter." };
   await prisma.outlet.update({
-    where: { id: outletId },
+    where: { id: actor.outletId },
     data: { name, address: address || null, phone: phone || null },
+  });
+  await audit({
+    actorId: actor.userId,
+    outletId: actor.outletId,
+    action: "SETTINGS_UPDATE",
+    entity: `outlet:${actor.outletId}`,
+    summary: `Profil warung diperbarui — nama: ${name}`,
+    meta: { name, phone: phone || null },
   });
   revalidateBranding();
   return { ok: true, message: "Profil warung tersimpan." };
@@ -65,8 +79,8 @@ export async function uploadOutletLogo(
   _prev: SettingsActionState,
   formData: FormData,
 ): Promise<SettingsActionState> {
-  const outletId = await ownerOutletId();
-  if (!outletId) {
+  const actor = await ownerActor();
+  if (!actor) {
     return {
       ok: false,
       message: "Hanya pemilik yang boleh mengubah pengaturan.",
@@ -84,13 +98,21 @@ export async function uploadOutletLogo(
   }
   const bytes = Buffer.from(await file.arrayBuffer());
   await prisma.outlet.update({
-    where: { id: outletId },
+    where: { id: actor.outletId },
     data: {
       logoData: bytes,
       logoMimeType: file.type,
       // New version -> new ?v= in every URL -> zero stale caches.
       logoVersion: { increment: 1 },
     },
+  });
+  await audit({
+    actorId: actor.userId,
+    outletId: actor.outletId,
+    action: "SETTINGS_UPDATE",
+    entity: `outlet:${actor.outletId}`,
+    summary: "Logo warung diperbarui",
+    meta: { bytes: file.size, mimeType: file.type },
   });
   revalidateBranding();
   return { ok: true, message: "Logo tersimpan." };
@@ -100,20 +122,27 @@ export async function removeOutletLogo(
   _prev: SettingsActionState,
   _formData: FormData,
 ): Promise<SettingsActionState> {
-  const outletId = await ownerOutletId();
-  if (!outletId) {
+  const actor = await ownerActor();
+  if (!actor) {
     return {
       ok: false,
       message: "Hanya pemilik yang boleh mengubah pengaturan.",
     };
   }
   await prisma.outlet.update({
-    where: { id: outletId },
+    where: { id: actor.outletId },
     data: {
       logoData: null,
       logoMimeType: null,
       logoVersion: { increment: 1 },
     },
+  });
+  await audit({
+    actorId: actor.userId,
+    outletId: actor.outletId,
+    action: "SETTINGS_UPDATE",
+    entity: `outlet:${actor.outletId}`,
+    summary: "Logo warung dihapus",
   });
   revalidateBranding();
   return { ok: true, message: "Logo dihapus." };

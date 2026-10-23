@@ -19,6 +19,8 @@ export const instant = false;
 export default async function HomePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  // Developer punya konsol sendiri lintas outlet - halaman peluncur ini berbasis satu outlet dan tidak relevan untuk super-user
+  if (session.user.role === "DEVELOPER") redirect("/dev")
 
   const outlet = session.user.outletId
     ? await prisma.outlet.findUnique({ where: { id: session.user.outletId } })

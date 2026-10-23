@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { audit } from "@/lib/audit";
+import { formatThousands } from "@/lib/format";
 import type { DetailResult, TransactionDetail } from "./types";
 
 export type HistoryActionResult = { ok: true } | { ok: false; error: string };
@@ -138,7 +140,7 @@ export async function refundTransaction(input: {
     await prisma.$transaction(async (tx) => {
       const trx = await tx.transaction.findFirst({
         where: { id: input.transactionId, outletId },
-        select: { id: true, code: true, handoverStatus: true },
+        select: { id: true, code: true, total: true, handoverStatus: true },
       });
       if (!trx) {
         throw new HistoryActionError("Transaksi tidak ditemukan.");
@@ -184,7 +186,23 @@ export async function refundTransaction(input: {
           })),
         });
       }
-    });
+      // Refund = aksi paling sensitif (uang kembali + stok naik) — wajib
+      // tercatat berjejak, apalagi untuk struk yang sudah disajikan.
+      await audit({
+        actorId: userId,
+        outletId,
+        action: "TRANSACTION_REFUND",
+        entity: `transaction:${trx.id}`,
+        summary: `Refund ${trx.code} — Rp ${formatThousands(Number(trx.total))}${reason ? ` — alasan: ${reason}` : ""}`,
+        meta: {
+          code: trx.code,
+          totalRupiah: Number(trx.total),
+          itemCount: items.length,
+          reason: reason || null,
+        },
+        db: tx,
+      });
+  });
 
     revalidatePath("/owner");
     revalidatePath("/owner/transactions");

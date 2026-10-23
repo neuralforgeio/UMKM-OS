@@ -348,6 +348,47 @@ function buildPlans(catalog: { id: string; price: number }[]): TrxPlan[] {
   return plans;
 }
 
+// Akun developer bootstrap (Task 34, Fase A). Kredensial TIDAK pernah
+// ditulis di kode: DEV_SEED_EMAIL / DEV_SEED_PASSWORD datang dari root
+// .env (ter-gitignore) dan diteruskan compose ke service migrate.
+// Create-if-missing: password hanya dipakai saat pembuatan pertama —
+// selanjutnya ganti password lewat konsol developer (Fase B).
+async function seedDeveloperAccount() {
+  const devEmail = process.env.DEV_SEED_EMAIL?.trim().toLowerCase();
+  const devPassword = process.env.DEV_SEED_PASSWORD;
+  if (!devEmail || !devPassword) {
+    console.log(
+      "[seed] DEV_SEED_EMAIL/DEV_SEED_PASSWORD belum diisi — akun developer dilewati",
+    );
+    return;
+  }
+  const existing = await prisma.user.findUnique({ where: { email: devEmail } });
+  if (!existing) {
+    await prisma.user.create({
+      data: {
+        name: "Developer",
+        email: devEmail,
+        password: await bcrypt.hash(devPassword, 10),
+        role: "DEVELOPER",
+        outletId: null,
+      },
+    });
+    console.log(`[seed] akun developer dibuat: ${devEmail}`);
+  } else if (
+    existing.role !== "DEVELOPER" ||
+    !existing.isActive ||
+    existing.deletedAt
+  ) {
+    await prisma.user.update({
+      where: { id: existing.id },
+      data: { role: "DEVELOPER", isActive: true, deletedAt: null },
+    });
+    console.log(`[seed] akun dipulihkan sebagai developer: ${devEmail}`);
+  } else {
+    console.log(`[seed] akun developer sudah ada: ${devEmail}`);
+  }
+}
+
 async function main() {
   // "docker compose up --build migrate" runs this seed after every
   // migration. Without the guard, that would wipe the ProductImage rows
@@ -358,6 +399,7 @@ async function main() {
       `[seed] skipped: ${existingProducts} products already exist (data preserved)`,
     );
     console.log("[seed] set FORCE_SEED=1 to wipe and rebuild the demo dataset");
+    await seedDeveloperAccount();
     return;
   }
 
@@ -370,6 +412,7 @@ async function main() {
     prisma.user.deleteMany(),
     prisma.outlet.deleteMany(),
   ]);
+  await seedDeveloperAccount();
 
   const outlet = await prisma.outlet.create({ data: { ...OUTLET } });
   console.log(`[seed] outlet: ${outlet.name}`);

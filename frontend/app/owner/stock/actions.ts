@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { audit } from "@/lib/audit";
 
 export type StockActionState = {
   error?: string;
@@ -33,7 +34,9 @@ export async function createStockMovementAction(
   }
 
   const productId = String(formData.get("productId") ?? "").trim();
-  const rawType = String(formData.get("type") ?? "").trim().toUpperCase();
+  const rawType = String(formData.get("type") ?? "")
+    .trim()
+    .toUpperCase();
   const quantityRaw = String(formData.get("quantity") ?? "").trim();
   const unitCostRaw = String(formData.get("unitCost") ?? "").replace(/\D/g, "");
   const note = String(formData.get("note") ?? "").trim();
@@ -62,7 +65,7 @@ export async function createStockMovementAction(
     const result = await prisma.$transaction(async (tx) => {
       const product = await tx.product.findUnique({
         where: { id: productId },
-        select: { id: true, name: true, stock: true },
+        select: { id: true, name: true, stock: true, outletId: true },
       });
       if (!product) throw new Error("PRODUCT_NOT_FOUND");
 
@@ -106,6 +109,19 @@ export async function createStockMovementAction(
         where: { id: productId },
         data: { stock: currentStock + delta },
         select: { stock: true },
+      });
+
+      await audit({
+        actorId: session.user.id,
+        outletId: product.outletId,
+        action: type === "IN" ? "STOCK_IN" : "STOCK_ADJUST",
+        entity: `product:${productId}`,
+        summary:
+          type === "IN"
+            ? `Restok ${product.name} +${quantity}${note ? ` — ${note}` : ""}`
+            : `Opname ${product.name}: sistem ${currentStock} → fisik ${quantity}`,
+        meta: { name: product.name, quantity: storedQuantity, delta },
+        db: tx,
       });
 
       return { name: product.name, stock: updated.stock, delta };

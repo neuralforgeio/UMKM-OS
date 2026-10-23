@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatSku, skuPrefixOf } from "@/lib/sku";
+import { audit } from "@/lib/audit";
+import { formatThousands } from "@/lib/format";
 
 // Whole-Rupiah money: the form sends plain integers, so validation only
 // needs integer range checks. Decimal precision is preserved end-to-end
@@ -46,7 +48,10 @@ class ProductActionError extends Error {}
 
 // Every mutation here is owner-only: the client hides the buttons for
 // cashiers, but the server action is the real gate.
-async function requireOwnerOutletId(): Promise<string> {
+async function requireOwnerOutletId(): Promise<{
+  outletId: string;
+  userId: string;
+}> {
   const session = await auth();
   if (!session?.user) {
     throw new ProductActionError("Sesi sudah berakhir. Silakan login ulang.");
@@ -66,7 +71,7 @@ async function requireOwnerOutletId(): Promise<string> {
     }
     outletId = firstOutlet.id;
   }
-  return outletId;
+  return { outletId, userId: session.user.id };
 }
 
 const isIntInRange = (value: unknown, min: number, max: number) =>
@@ -79,7 +84,7 @@ export async function saveProduct(
   input: SaveProductInput,
 ): Promise<ProductActionResult> {
   try {
-    const outletId = await requireOwnerOutletId();
+    const { outletId, userId } = await requireOwnerOutletId();
 
     const name = (input.name ?? "").trim();
     const newCategoryName = (input.newCategoryName ?? "").trim();
@@ -287,6 +292,22 @@ export async function saveProduct(
       return created.id;
     });
 
+    await audit({
+      actorId: userId,
+      outletId,
+      action: input.id ? "PRODUCT_UPDATE" : "PRODUCT_CREATE",
+      entity: `product:${savedProductId}`,
+      summary: input.id
+        ? `Produk "${name}" diperbarui — Rp ${formatThousands(input.priceRupiah)}`
+        : `Produk baru "${name}" — Rp ${formatThousands(input.priceRupiah)}`,
+      meta: {
+        name,
+        priceRupiah: input.priceRupiah,
+        costRupiah: input.costRupiah,
+        stock: input.stock,
+      },
+    });
+
     // The POS grid, the restock list and this page all read products.
     revalidatePath("/owner/products");
     revalidatePath("/owner");
@@ -308,11 +329,11 @@ export async function toggleProductActive(
   nextActive: boolean,
 ): Promise<ProductActionResult> {
   try {
-    const outletId = await requireOwnerOutletId();
+    const { outletId, userId } = await requireOwnerOutletId();
 
     const existing = await prisma.product.findUnique({
       where: { id: productId },
-      select: { outletId: true },
+      select: { outletId: true, name: true },
     });
     if (!existing || existing.outletId !== outletId) {
       throw new ProductActionError("Produk tidak ditemukan di outlet ini.");
@@ -321,6 +342,15 @@ export async function toggleProductActive(
     await prisma.product.update({
       where: { id: productId },
       data: { isActive: nextActive },
+    });
+    await audit({
+      actorId: userId,
+      outletId,
+      action: nextActive ? "PRODUCT_ACTIVATE" : "PRODUCT_ARCHIVE",
+      entity: `product:${productId}`,
+      summary: nextActive
+        ? `Produk "${existing.name}" diaktifkan kembali`
+        : `Produk "${existing.name}" diarsipkan (hilang dari kasir)`,
     });
 
     revalidatePath("/owner/products");
@@ -352,7 +382,7 @@ export async function addProductImage(
   file: File,
 ): Promise<ImageActionResult> {
   try {
-    const outletId = await requireOwnerOutletId();
+    const { outletId } = await requireOwnerOutletId();
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
@@ -423,7 +453,7 @@ export async function deleteProductImage(
   imageId: string,
 ): Promise<ImageActionResult> {
   try {
-    const outletId = await requireOwnerOutletId();
+    const { outletId } = await requireOwnerOutletId();
 
     const image = await prisma.productImage.findUnique({
       where: { id: imageId },
@@ -473,7 +503,7 @@ export async function setProductThumbnail(
   imageId: string,
 ): Promise<ImageActionResult> {
   try {
-    const outletId = await requireOwnerOutletId();
+    const { outletId } = await requireOwnerOutletId();
 
     const image = await prisma.productImage.findUnique({
       where: { id: imageId },
@@ -519,7 +549,7 @@ export async function moveProductImage(
   direction: "left" | "right",
 ): Promise<ImageActionResult> {
   try {
-    const outletId = await requireOwnerOutletId();
+    const { outletId } = await requireOwnerOutletId();
 
     const image = await prisma.productImage.findUnique({
       where: { id: imageId },
