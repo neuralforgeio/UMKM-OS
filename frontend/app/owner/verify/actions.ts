@@ -28,7 +28,11 @@ export type ServeQueueRow = {
 async function requireStaff() {
   const session = await auth();
   const u = session?.user;
-  if (!u || (u.role !== "OWNER" && u.role !== "KASIR" && u.role !== "DEVELOPER")) return null;
+  if (
+    !u ||
+    (u.role !== "OWNER" && u.role !== "KASIR" && u.role !== "DEVELOPER")
+  )
+    return null;
   return u;
 }
 
@@ -128,7 +132,15 @@ export async function markServed(input: {
         handoverStatus: true,
       },
     });
-    if (!tx) return { ok: false, error: "Transaksi tidak ditemukan." };
+    if (!tx) {
+      // Struk era backend-go (id numerik) hidup di tabel Go, bukan tabel
+      // Prisma — dia memang tidak pernah masuk Antrean Penyajian, jadi
+      // tidak ada yang perlu ditandai. Sukses sunyi supaya tombol
+      // "Sudah Diserahkan" tetap konsisten sampai ledger penyajian ikut
+      // pindah ke backend-go (fase berikutnya).
+      if (/^\d+$/.test(input.transactionId)) return { ok: true };
+      return { ok: false, error: "Transaksi tidak ditemukan." };
+    }
     if (staff.outletId && tx.outletId !== staff.outletId) {
       return { ok: false, error: "Transaksi ini bukan milik outlet Anda." };
     }

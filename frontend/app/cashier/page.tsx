@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { goFetch } from "@/lib/api";
 import { PosClient } from "./pos-client";
 import type { PosProduct } from "./types";
 import { getServeQueue } from "@/app/owner/verify/actions";
@@ -9,14 +10,28 @@ import { MaintenanceBanner } from "@/components/maintenance-banner";
 
 export const instant = false;
 
+// Bentuk produk dari backend-go (GET /api/v1/products) — hanya kolom
+// yang dipakai POS yang dideklarasikan.
+type GoProduct = {
+  id: number;
+  name: string;
+  sku: string | null;
+  category: string;
+  price: number;
+  stock: number;
+  min_stock: number;
+};
+
 export default async function CashierPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  // Kasir must be tied to an outlet; owner may use any (first) outlet.
-  // Developer dalam mode maintenance punya outletId via cookie dev_outlet.
+  // Era backend-go v1.0.0 (belum multi-outlet): akun kasir dibuat tanpa
+  // outlet, jadi kasir memakai outlet pertama sama seperti owner.
+  // Developer dalam mode maintenance tetap punya outletId via cookie
+  // dev_outlet — tanpa mode aktif dia dilempar balik ke /dev.
   const outletId = session.user.outletId;
-  if (!outletId && session.user.role !== "OWNER") redirect("/");
+  if (!outletId && session.user.role === "DEVELOPER") redirect("/");
 
   // Select only the identity fields the client needs — the logo BYTES
   // stay on the server; the client gets a cache-busted URL instead.
@@ -44,44 +59,37 @@ export default async function CashierPage() {
       : null,
   };
 
-  const rows = await prisma.product.findMany({
-    where: { outletId: outlet.id, isActive: true },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      sku: true,
-      price: true,
-      stock: true,
-      unit: true,
-      minStock: true,
-      category: { select: { name: true } },
-      // One image is enough for the card: the thumbnail wins, else the
-      // first photo by manager order.
-      images: {
-        orderBy: [
-          { isThumb: "desc" },
-          { sortOrder: "asc" },
-          { createdAt: "asc" },
-        ],
-        take: 1,
-        select: { id: true },
-      },
-    },
-  });
+  // Produk kini dari backend-go — satu sumber kebenaran yang sama dengan
+  // audit stok & halaman produk. Kalau backend tidak merespons, POS tidak
+  // boleh terbuka dengan grid kosong yang terlihat normal: gagal keras.
+  const goToken = session.user.goToken;
+  const productsResult = goToken
+    ? await goFetch<GoProduct[]>(goToken, "/products")
+    : undefined;
+  if (!productsResult || !productsResult.ok) {
+    throw new Error(
+      productsResult
+        ? productsResult.message
+        : "Sesi tidak memiliki token backend — silakan login ulang.",
+    );
+  }
 
-  // Decimal values are serialized as strings before crossing the
-  // server/client boundary.
-  const products: PosProduct[] = rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    sku: row.sku,
-    price: row.price.toString(),
-    stock: row.stock,
-    unit: row.unit,
-    minStock: row.minStock,
-    categoryName: row.category?.name ?? null,
-    thumbImageId: row.images[0]?.id ?? null,
+  // Go memakai id numerik & harga integer Rupiah; tipe lama POS
+  // (string) dipertahankan supaya seluruh komponen client tidak berubah.
+  const products: PosProduct[] = productsResult.data.map((p) => ({
+    id: String(p.id),
+    name: p.name,
+    sku: p.sku ?? "",
+    price: String(p.price),
+    stock: p.stock,
+    // backend-go belum punya kolom satuan — sementara "pcs" sampai
+    // Tahap 3 menambahkan unit di schema produk Go.
+    unit: "pcs",
+    minStock: p.min_stock,
+    categoryName: p.category || null,
+    // Foto produk belum ada di backend-go — null mempertahankan tile
+    // inisial berwarna kategori (jalur design yang memang sudah ada).
+    thumbImageId: null,
   }));
 
   // Antrean Penyajian (v3): today's receipts still waiting to be

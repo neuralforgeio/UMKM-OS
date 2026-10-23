@@ -6,14 +6,17 @@ declare module "next-auth" {
       id: string;
       role: "OWNER" | "KASIR" | "DEVELOPER";
       outletId: string | null;
+      // Token JWT backend-go — dipakai server action / server component
+      // untuk memanggil API dengan Authorization: Bearer. Tidak ada
+      // komponen client yang memanggil useSession, jadi nilai ini
+      // praktis tidak pernah sampai ke browser.
+      goToken?: string;
     } & DefaultSession["user"];
   }
 
   interface User {
     role?: "OWNER" | "KASIR" | "DEVELOPER"
     outletId?: string | null
-    // Token JWT dari backend-go — hanya untuk jwt-recheck internal
-    // (GET /auth/me), tidak diekspos ke session/client.
     goToken?: string
   }
 }
