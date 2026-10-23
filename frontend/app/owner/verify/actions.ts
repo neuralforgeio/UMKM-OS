@@ -229,6 +229,10 @@ export async function confirmHandoverInApp(input: {
       where: { id: input.transactionId },
       select: {
         id: true,
+        // code dipakai ringkasan audit di bawah — Prisma select menentukan
+        // bentuk hasil query, jadi kolom harus ikut di-select agar tx.code
+        // ada (markServed sudah benar; dua fungsi ini sebelumnya lupa).
+        code: true,
         outletId: true,
         claimCode: true,
         handoverStatus: true,
@@ -307,6 +311,10 @@ export async function claimDelivered(input: {
       where: { id: input.transactionId },
       select: {
         id: true,
+        // code dipakai ringkasan audit di bawah — Prisma select menentukan
+        // bentuk hasil query, jadi kolom harus ikut di-select agar tx.code
+        // ada (markServed sudah benar; dua fungsi ini sebelumnya lupa).
+        code: true,
         outletId: true,
         claimCode: true,
         handoverStatus: true,

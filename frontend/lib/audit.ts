@@ -6,6 +6,7 @@
 // yang sudah sah (kecuali ketika dipanggil DI DALAM prisma.$transaction —
 // di sana audit dan mutasi menjadi satu nasib: all-or-nothing).
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/lib/generated/prisma/client";
 
 // Menerima baik client penuh maupun client transaksi ($transaction) —
 // keduanya punya auditEvent dengan bentuk yang sama.
@@ -42,7 +43,11 @@ export async function audit(input: AuditInput): Promise<void> {
         action: input.action,
         entity: input.entity ?? null,
         summary: input.summary,
-        meta: input.meta ?? null,
+        // Kolom JSONB nullable menolak `null` JavaScript biasa — Prisma
+        // minta sentinel eksplisit agar tidak ambigu: DbNull = kolom
+        // benar-benar NULL di database, JsonNull = nilai JSON null yang
+        // tersimpan sebagai data. Tanpa meta kita mau yang pertama.
+        meta: input.meta ?? Prisma.DbNull,
       },
     });
   } catch (error) {
