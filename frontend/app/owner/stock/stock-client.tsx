@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { formatRupiah, formatThousands } from "@/lib/format";
+import { TablePagination } from "@/components/table-pagination";
 import { createStockMovementAction, type StockActionState } from "./actions";
 
 export type StockProductOption = {
@@ -66,6 +67,9 @@ const FILTERS: { key: TypeFilter; label: string }[] = [
   { key: "SALE", label: "Penjualan" },
   { key: "ADJUST", label: "Opname" },
 ];
+
+// Rows per page on the movements table (shared pagination footer).
+const PAGE_SIZE = 20;
 
 const INPUT_CLASS =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
@@ -133,6 +137,19 @@ export function StockClient({
       );
     });
   }, [rows, query, typeFilter]);
+
+  // Pagination: 20 rows per page; any search/filter change resets to
+  // page 1 so the top of the new result set stays visible.
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    setPage(1);
+  }, [query, typeFilter]);
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = filteredRows.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   const countFor = (key: TypeFilter) =>
     key === "ALL" ? rows.length : rows.filter((row) => row.type === key).length;
@@ -289,7 +306,7 @@ export function StockClient({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredRows.map((row) => {
+                  {pageRows.map((row) => {
                     const meta = typeMeta(row.type);
                     return (
                       <tr key={row.id} className="transition hover:bg-slate-50">
@@ -393,6 +410,14 @@ export function StockClient({
                 );
               })}
             </ul>
+            <TablePagination
+              page={safePage}
+              pageCount={pageCount}
+              pageSize={PAGE_SIZE}
+              total={filteredRows.length}
+              unit="gerakan"
+              onPage={setPage}
+            />
           </>
         )}
       </div>

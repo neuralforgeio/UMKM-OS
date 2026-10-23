@@ -160,10 +160,11 @@ export async function createTransaction(input: {
         where: { outletId: effectiveOutletId, createdAt: { gte: startOfDay } },
       });
       const code = `TRX-${ymd}-${String(todayCount + 1).padStart(4, "0")}`;
-      // Kode verifikasi serah terima v2: 8 karakter tanpa huruf/angka
-      // ambigu (32^8 ≈ 1,1 triliun kombinasi). Kode ini tercetak di
-      // struk, masuk ke QR, DAN selalu bisa dilihat kurir yang login di
-      // /owner/verify — jadi "lupa kode" tidak lagi mungkin terjadi.
+      // Kode verifikasi 8 karakter tetap DIGENERATE dan disimpan (untuk
+      // jalur online/WA di masa depan), tetapi sejak v3 dine-in kode ini
+      // TIDAK dicetak di struk dan TIDAK masuk QR — pembeli tidak boleh
+      // memegang kunci verifikasi apa pun. Penyerahan dine-in dicatat
+      // staf lewat Antrean Penyajian (/owner/verify → "Sudah Disajikan").
       // Retried a few times in the rare case the draw collides.
       let claimCode = generateHandoverCode();
       for (let i = 0; i < 6; i++) {
@@ -231,7 +232,7 @@ export async function createTransaction(input: {
       });
       return {
         code: created.code,
-        claimCode,
+        transactionId: created.id,
         createdAt: created.createdAt.toISOString(),
         paymentMethod,
         subtotal: subtotalSen / 100,
@@ -252,11 +253,10 @@ export async function createTransaction(input: {
     // transaction is already saved at this point, so a QR failure must
     // never be reported as a failed checkout — the receipt still renders,
     // just without the QR block (qrSvg stays ""). With NEXT_PUBLIC_APP_URL
-    // set the QR encodes the PUBLIC verification link keyed by the
-    // handover code, so the buyer's phone opens the confirmation page
-    // directly. Without it the payload is a plain-text summary ending
-    // with the code, readable by any scanner app (kamera HP, Google
-    // Lens, dsb.) — the buyer can then open /verify/{kode} manually.
+    // set the QR encodes the PUBLIC status page keyed by the RECEIPT CODE
+    // (v3: the number printed on the struk is an address, not a secret —
+    // the buyer can LOOK but never confirm/dispute from it). Without it
+    // the payload is a plain-text summary, readable by any scanner app.
     let qrSvg = "";
     try {
       const itemCount = receipt.items.reduce(
@@ -270,13 +270,12 @@ export async function createTransaction(input: {
       }).format(new Date(receipt.createdAt));
       const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
       const payload = appUrl
-        ? `${appUrl}/verify/${receipt.claimCode}`
+        ? `${appUrl}/verify/${receipt.code}`
         : [
             `STRUK ${outletName}`,
             receipt.code,
             `${timeWib} WIB`,
             `${itemCount} item - Total Rp ${formatThousands(receipt.total)}`,
-            `Kode verifikasi: ${receipt.claimCode}`,
           ].join("\n");
       qrSvg = await QRCode.toString(payload, {
         type: "svg",
@@ -291,7 +290,8 @@ export async function createTransaction(input: {
     revalidatePath("/owner");
     revalidatePath("/owner/products");
     revalidatePath("/owner/stock");
-    revalidatePath("/owner/verify"); // daftar serah terima kurir hari ini
+    revalidatePath("/owner/verify"); // antrean penyajian + konsol verifikasi
+    revalidatePath("/owner/transactions"); // riwayat transaksi owner
     return { ok: true, receipt: { ...receipt, qrSvg } };
   } catch (error) {
     if (error instanceof CheckoutError) {

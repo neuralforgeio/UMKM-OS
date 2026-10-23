@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PosClient } from "./pos-client";
 import type { PosProduct } from "./types";
+import { getServeQueue } from "@/app/owner/verify/actions";
+import { ServeQueueBar } from "@/components/serve-queue";
 
 export const instant = false;
 
@@ -80,11 +82,19 @@ export default async function CashierPage() {
     thumbImageId: row.images[0]?.id ?? null,
   }));
 
+  // Antrean Penyajian (v3): today's receipts still waiting to be
+  // handed over. Rendered as a floating bar; it refreshes on every
+  // checkout and polls live on its own.
+  const serveRows = await getServeQueue();
+
   return (
-    <PosClient
-      cashierName={session.user.name ?? "Kasir"}
-      outlet={outletInfo}
-      products={products}
-    />
+    <>
+      <PosClient
+        cashierName={session.user.name ?? "Kasir"}
+        outlet={outletInfo}
+        products={products}
+      />
+      <ServeQueueBar rows={serveRows} />
+    </>
   );
 }

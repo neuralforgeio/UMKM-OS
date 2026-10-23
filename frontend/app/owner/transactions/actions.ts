@@ -119,6 +119,9 @@ export async function getTransactionDetail(
 // The status update is a conditional updateMany (status must still be
 // COMPLETED), which doubles as the concurrency guard against double
 // refunds from two open owner tabs.
+// Refund paga (v3): a SERVED receipt CAN still be refunded, but never
+// silently — a reason becomes mandatory so the owner can spot staff
+// abusing refunds after the order was handed over.
 export async function refundTransaction(input: {
   transactionId: string;
   reason?: string;
@@ -135,10 +138,15 @@ export async function refundTransaction(input: {
     await prisma.$transaction(async (tx) => {
       const trx = await tx.transaction.findFirst({
         where: { id: input.transactionId, outletId },
-        select: { id: true, code: true },
+        select: { id: true, code: true, handoverStatus: true },
       });
       if (!trx) {
         throw new HistoryActionError("Transaksi tidak ditemukan.");
+      }
+      if (trx.handoverStatus === "SERVED" && !reason) {
+        throw new HistoryActionError(
+          "Struk ini tercatat SUDAH DISAJIKAN — refund wajib menyertakan alasan (mis. pesanan salah, komplain pembeli).",
+        );
       }
       const upd = await tx.transaction.updateMany({
         where: { id: trx.id, status: "COMPLETED" },

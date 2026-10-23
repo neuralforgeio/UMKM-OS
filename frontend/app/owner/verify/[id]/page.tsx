@@ -1,5 +1,7 @@
-// Detail SATU transaksi — dibuka kurir dari perangkat LOGIN.
-// Kode & QR selalu ada di sini: kurir gak perlu ingat apa pun.
+// Detail SATU transaksi — dibuka staf dari perangkat LOGIN.
+// v3: jalur utama dine-in = tombol "Sudah Disajikan" (satu arah,
+// berjejak); tanda tangan pembeli tetap tersedia sebagai bukti kuat
+// untuk takeaway/online. Kode & QR selalu ada di sini untuk itu.
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import QRCode from "qrcode";
@@ -7,7 +9,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatRupiah } from "@/lib/format";
 import { buildVerifyUrl } from "@/lib/handover";
-import { ClaimDeliveredButton, ConfirmInAppForm, CopyButton } from "./client"
+import { ServeButton } from "@/components/serve-queue";
+import { ClaimDeliveredButton, ConfirmInAppForm, CopyButton } from "./client";
 
 export const instant = false;
 
@@ -24,12 +27,14 @@ const PAYMENT_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLE: Record<string, { label: string; cls: string }> = {
+  SERVED: { label: "Disajikan", cls: "bg-teal-100 text-teal-800" },
   CONFIRMED: { label: "Terverifikasi", cls: "bg-emerald-100 text-emerald-800" },
   COURIER_CLAIMED: { label: "Klaim Kurir", cls: "bg-amber-100 text-amber-800" },
   DISPUTED: { label: "Dibantah Pembeli!", cls: "bg-red-100 text-red-800" },
 };
 
 const KIND_LABEL: Record<string, string> = {
+  STAFF_SERVE: "Disajikan staf",
   BUYER_CONFIRM: "Konfirmasi pembeli",
   COURIER_CLAIM: "Klaim kurir",
   BUYER_DISPUTE: "Pembantahan pembeli",
@@ -70,6 +75,15 @@ export default async function VerifyDetailPage({
   const confirmEvent = tx.handoverEvents.find(
     (e) => e.kind === "BUYER_CONFIRM",
   );
+  // Who recorded the serve/confirmation on the staff side (v3 audit).
+  const actorName = tx.handoverConfirmedBy
+    ? ((
+        await prisma.user.findUnique({
+          where: { id: tx.handoverConfirmedBy },
+          select: { name: true },
+        })
+      )?.name ?? null)
+    : null;
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-md bg-slate-50 p-4 pb-16">
@@ -118,7 +132,7 @@ export default async function VerifyDetailPage({
         </ul>
       </section>
 
-      {/* Kode + QR — selalu tersedia, inilah obat lupa kode */}
+      {/* Kode + QR — selalu tersedia (staf never forgets the code) */}
       <section className="mt-3 rounded-2xl bg-white p-4 text-center shadow-sm">
         <p className="text-xs font-medium text-slate-500">Kode verifikasi</p>
         <p className="mt-1 font-mono text-3xl font-bold tracking-[0.25em] text-slate-900">
@@ -131,7 +145,8 @@ export default async function VerifyDetailPage({
           />
         </div>
         <p className="mt-2 text-[11px] text-slate-500">
-          Minta pembeli scan QR ini dengan HP-nya, atau bacakan kodenya.
+          Untuk bukti kuat: minta pembeli scan QR ini dengan HP-nya, atau
+          bacakan kodenya.
         </p>
         <div className="mt-2 flex justify-center gap-2">
           <CopyButton text={code} label="Salin kode" />
@@ -141,7 +156,19 @@ export default async function VerifyDetailPage({
 
       {/* Aksi */}
       <section className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
-        {status === "CONFIRMED" ? (
+        {status === "SERVED" ? (
+          <div className="space-y-2 text-center">
+            <p className="text-sm font-semibold text-emerald-700">
+              ✔ Tercatat disajikan{" "}
+              {dtFmt.format(tx.handoverConfirmedAt ?? tx.createdAt)} WIB
+              {actorName ? ` oleh ${actorName}` : ""}
+            </p>
+            <p className="text-[11px] leading-relaxed text-slate-500">
+              Penandaan penyajian SATU ARAH — tidak bisa dibatalkan. Klaim
+              penggantian pesanan untuk struk ini ditolak; jejaknya permanen.
+            </p>
+          </div>
+        ) : status === "CONFIRMED" ? (
           <div className="space-y-3 text-center">
             <p className="text-sm font-semibold text-emerald-700">
               ✔ Terverifikasi{" "}
@@ -182,15 +209,21 @@ export default async function VerifyDetailPage({
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="rounded-lg bg-blue-50 p-3">
+              <p className="mb-2 text-xs font-bold text-blue-900">
+                Dine-in / bungkus — pesanan diserahkan sekarang?
+              </p>
+              <ServeButton transactionId={tx.id} />
+            </div>
             <div>
               <p className="mb-2 text-sm font-semibold text-slate-800">
-                Konfirmasi di layar ini (bukti terkuat)
+                Konfirmasi di layar ini (bukti terkuat — tanda tangan pembeli)
               </p>
               <ConfirmInAppForm transactionId={tx.id} />
             </div>
             <div className="border-t border-slate-100 pt-3">
               <p className="mb-2 text-xs font-medium text-slate-500">
-                Pembeli tidak bisa tanda tangan?
+                Pesanan diantar (online) tanpa tanda tangan?
               </p>
               <ClaimDeliveredButton transactionId={tx.id} />
             </div>

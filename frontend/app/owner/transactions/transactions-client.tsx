@@ -30,6 +30,7 @@ const METHOD_META: Record<string, { label: string; badge: string }> = {
 };
 
 const HANDOVER_META: Record<string, { label: string; badge: string }> = {
+  SERVED: { label: "Disajikan", badge: "bg-teal-50 text-teal-700" },
   COURIER_CLAIMED: {
     label: "Diklaim kurir",
     badge: "bg-amber-50 text-amber-700",
@@ -309,16 +310,28 @@ function DetailPanel({
           <p className="text-sm font-semibold text-red-800">
             Refund transaksi ini
           </p>
-          <p className="mt-0.5 text-xs text-red-700/80">
-            Stok setiap produk dikembalikan otomatis dan tercatat di kartu stok
-            sebagai IN. Tindakan ini tidak bisa dibatalkan.
-          </p>
+          {detail.handoverStatus === "SERVED" ? (
+            <p className="mt-0.5 text-xs font-semibold text-amber-700">
+              Struk ini tercatat SUDAH DISAJIKAN — refund tetap bisa dilakukan,
+              tetapi WAJIB menyertakan alasan (tercatat permanen untuk
+              evaluasi).
+            </p>
+          ) : (
+            <p className="mt-0.5 text-xs text-red-700/80">
+              Stok setiap produk dikembalikan otomatis dan tercatat di kartu
+              stok sebagai IN. Tindakan ini tidak bisa dibatalkan.
+            </p>
+          )}
           <textarea
             value={refundReason}
             onChange={(event) => onRefundReasonChange(event.target.value)}
             rows={2}
             maxLength={120}
-            placeholder="Alasan (opsional, mis. barang rusak / salah input)"
+            placeholder={
+              detail.handoverStatus === "SERVED"
+                ? "Alasan (WAJIB — struk tercatat sudah disajikan)"
+                : "Alasan (opsional, mis. barang rusak / salah input)"
+            }
             className="mt-2 w-full resize-none rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100"
           />
           {refundError && (
@@ -329,7 +342,10 @@ function DetailPanel({
           <button
             type="button"
             onClick={onRefundSubmit}
-            disabled={refundPending}
+            disabled={
+              refundPending ||
+              (detail.handoverStatus === "SERVED" && refundReason.trim() === "")
+            }
             className="mt-2 flex items-center gap-1.5 rounded-lg bg-red-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {refundPending ? (
@@ -394,7 +410,7 @@ export function TransactionsClient({
   const [page, setPage] = useState(1);
   useEffect(() => {
     setPage(1);
-  });
+  }, [days, method, status, query]);
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const pageRows = filtered.slice(

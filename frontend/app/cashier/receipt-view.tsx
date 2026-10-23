@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Check, Printer, RotateCcw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { ArrowLeft, Check, Loader2, Printer, RotateCcw } from "lucide-react";
 import type { OutletInfo, Receipt as ReceiptType } from "./types";
 import { formatRupiah } from "@/lib/format";
+import { markServed } from "@/app/owner/verify/actions";
 
 const PAYMENT_LABELS: Record<ReceiptType["paymentMethod"], string> = {
   CASH: "Tunai",
@@ -94,7 +97,28 @@ export function ReceiptView({
   outlet: OutletInfo;
   onNewTransaction: () => void;
 }) {
+  const router = useRouter();
   const createdAt = dateFmt.format(new Date(receipt.createdAt));
+
+  // Eceran serah-langsung (v3): one tap marks this receipt SERVED so it
+  // never lingers in the serve queue. The ledger write itself is the
+  // server action's job — this UI is strictly best-effort.
+  const [served, setServed] = useState(false);
+  const [serveError, setServeError] = useState<string | null>(null);
+  const [servePending, startServeTransition] = useTransition();
+
+  function submitServed() {
+    setServeError(null);
+    startServeTransition(async () => {
+      const res = await markServed({ transactionId: receipt.transactionId });
+      if (res.ok) {
+        setServed(true);
+        router.refresh();
+      } else {
+        setServeError(res.error);
+      }
+    });
+  }
 
   return (
     <div className="min-h-dvh bg-slate-100 print:bg-white">
@@ -180,16 +204,39 @@ export function ReceiptView({
               </div>
             </div>
 
-            <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5 text-xs text-slate-600">
+            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-600 shadow-sm">
               <p className="font-bold text-slate-800">
-                Kode verifikasi: {receipt.claimCode}
+                Pesanan diserahkan langsung?
               </p>
               <p className="mt-0.5 leading-relaxed">
-                Kode ini bukti serah terima pesanan. Pembeli tidak perlu
-                memegang struk: kurir selalu bisa membuka kode ini dari aplikasi
-                (menu Serah Terima), dan pembeli cukup scan QR atau tanda tangan
-                di layar kurir saat pesanan tiba.
+                Untuk pesanan yang diserahkan seketika (makan di tempat /
+                bungkus), tandai sekarang supaya tidak menggantung di Antrean
+                Penyajian kasir.
               </p>
+              {served ? (
+                <p className="mt-2 rounded-lg bg-emerald-100 px-2.5 py-1.5 text-xs font-semibold text-emerald-800">
+                  Tercatat disajikan — terima kasih!
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={submitServed}
+                  disabled={servePending}
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {servePending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Check className="h-3.5 w-3.5" />
+                  )}
+                  {servePending ? "Menyimpan…" : "Sudah Diserahkan ke Pembeli"}
+                </button>
+              )}
+              {serveError && (
+                <p className="mt-1.5 text-xs font-semibold text-red-600">
+                  {serveError}
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -345,24 +392,18 @@ export function ReceiptView({
                 <Rule />
                 {receipt.qrSvg && (
                   <div className="flex flex-col items-center">
-                    {/* Server-rendered QR: the PUBLIC verification link
-                        keyed by the handover code — the buyer's phone
-                        opens the confirmation page directly. */}
+                    {/* Server-rendered QR: the PUBLIC status page keyed by
+                        the receipt code — the buyer's phone shows the
+                        serving status without holding any secret. */}
                     <div
                       className="w-[84px] print:w-[19mm]"
                       dangerouslySetInnerHTML={{ __html: receipt.qrSvg }}
                     />
                     <p className="mt-1 text-[9px]">
-                      Scan utk verifikasi pesanan
+                      Scan utk cek status pesanan
                     </p>
                   </div>
                 )}
-                <p className="mt-1 text-center text-[9px] tracking-widest">
-                  KODE VERIFIKASI
-                </p>
-                <p className="text-center text-[12px] font-bold tracking-[0.3em]">
-                  {receipt.claimCode}
-                </p>
                 <Rule />
                 <p className="text-center text-[10px]">
                   Terima kasih atas kunjungan Anda

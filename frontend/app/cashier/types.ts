@@ -66,10 +66,10 @@ export type Receipt = {
   paidAmount: number;
   changeAmount: number;
   items: ReceiptItem[];
-  // 6-digit claim code: the customer's secret handover proof. Printed
-  // on the receipt paper + embedded in the QR payload; confirmed at
-  // /verify/[code] (public form) or through the owner's verify tools.
-  claimCode: string;
+  // Database id of the saved receipt — used by the "handed over
+  // directly" action on the success screen to mark the order SERVED
+  // (handover ledger v3) without typing anything.
+  transactionId: string;
   // Receipt QR as an inline SVG string, generated server-side by the
   // checkout action (QRCode.toString type "svg"). Empty string = QR
   // generation failed; the receipt itself is still valid and renders
