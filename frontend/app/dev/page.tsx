@@ -1,15 +1,19 @@
-// Konsol Developer (Fase A — gambaran umum).
-// Super-user lintas outlet: ringkasan sistem, daftar outlet, dan 20 jejak
-// audit terbaru. Fase B menambah kelola akun + query log penuh +
-// drill-down outlet; Fase C menambah kelola akun oleh owner.
+// Konsol Developer (Fase A + B).
+// Super-user lintas outlet: ringkasan sistem, pintasan kelola akun &
+// log aktivitas, daftar outlet (klik = drill-down), dan 20 jejak audit
+// terbaru. Fase C menambah kelola akun oleh owner + Akun Saya.
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   Activity,
+  ArrowRight,
   Building2,
   LogOut,
+  ScrollText,
   ShieldCheck,
   Store,
   TriangleAlert,
+  UserCog,
   Users,
 } from "lucide-react";
 import { auth, signOut } from "@/lib/auth";
@@ -142,6 +146,49 @@ export default async function DevConsolePage() {
           </form>
         </header>
 
+        {/* Pintasan Fase B: dua pintu utama konsol. Kartu besar + panah —
+            bukan menu tersembunyi, karena ini alasan konsol ini ada. */}
+        <section className="mt-5 grid gap-3 sm:grid-cols-2">
+          <Link
+            href="/dev/users"
+            className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-violet-300 hover:shadow-md"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white">
+                <UserCog className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900">Kelola Akun</p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Buat owner & kasir, reset password, nonaktifkan, hapus —
+                  semua outlet.
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-violet-600" />
+          </Link>
+          <Link
+            href="/dev/logs"
+            className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-violet-300 hover:shadow-md"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white">
+                <ScrollText className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900">
+                  Log Aktivitas
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Query jejak audit lengkap: filter aksi/outlet/aktor/tanggal
+                  + unduh CSV.
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-violet-600" />
+          </Link>
+        </section>
+
         <section className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {statCards.map((card) => (
             <div
@@ -169,7 +216,8 @@ export default async function DevConsolePage() {
           <h2 className="text-lg font-bold text-slate-900">Outlet</h2>
           <p className="mt-0.5 text-sm text-slate-500">
             Setiap outlet punya produk, stok, dan akunnya sendiri — terpisah
-            secara data, satu database, satu pantauan.
+            secara data, satu database, satu pantauan. Klik nama outlet untuk
+            drill-down detail.
           </p>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
@@ -188,7 +236,12 @@ export default async function DevConsolePage() {
                     className="border-b border-slate-100 last:border-0"
                   >
                     <td className="py-2.5 pr-4 font-semibold text-slate-900">
-                      {o.name}
+                      <Link
+                        href={`/dev/outlets/${o.id}`}
+                        className="transition hover:text-violet-700 hover:underline"
+                      >
+                        {o.name}
+                      </Link>
                       {!o.isActive && (
                         <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
                           nonaktif
@@ -225,8 +278,13 @@ export default async function DevConsolePage() {
           </h2>
           <p className="mt-0.5 text-sm text-slate-500">
             Semua aksi tercatat: transaksi, refund, penyajian struk, stok,
-            produk, pengaturan, akun, dan login. Query penuh + unduh CSV hadir
-            di Fase B.
+            produk, pengaturan, akun, dan login.{" "}
+            <Link
+              href="/dev/logs"
+              className="font-semibold text-violet-700 hover:underline"
+            >
+              Buka query penuh + unduh CSV →
+            </Link>
           </p>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[720px] text-sm">
@@ -294,8 +352,8 @@ export default async function DevConsolePage() {
         </section>
 
         <p className="mt-4 text-center text-xs text-slate-400">
-          Fase A · Fase B (kelola akun + query log + drill-down outlet) menyusul
-          setelah blok ini diverifikasi.
+          Fase A + B aktif · Fase C (kelola kasir oleh owner + log CSV owner +
+          Akun Saya semua peran) menyusul setelah blok ini diverifikasi.
         </p>
       </div>
     </div>
