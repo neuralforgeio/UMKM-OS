@@ -35,7 +35,7 @@ func GetInt(key string, fallback int) int {
 
 func Port() string { return Get("PORT", "8080") }
 func DatabaseURL() string {
-        return Get("DATABASE_URL", "postgres://umkm:umkm@localhost:5432/umkmos?sslmode=disable")
+        return Get("DATABASE_URL", "postgres://umkm:umkmindo45@localhost:5432/umkmos?sslmode=disable")
 }
 func JWTSecret() string     { return Get("JWT_SECRET", "umkm-os-dev-secret") }
 func JWTExpiresHours() int  { return GetInt("JWT_EXPIRES_H", 24) }
