@@ -6,8 +6,10 @@ import type { OutletOption, UserRow } from "./types";
 
 export const instant = false;
 
-// Konsol kelola akun (Task 34, Fase B) — khusus DEVELOPER.
-// Owner mengelola kasir outletnya sendiri lewat /owner/users (Fase C).
+// Konsol kelola akun (Task 34 Fase B) — khusus DEVELOPER.
+// Task 35: query HANYA mengirim akun dengan deletedAt = null — akun yang
+// dihapus hilang dari daftar selamanya (riwayatnya tetap hidup di
+// /dev/logs dan di tabel transaksi lewat relasi FK).
 export default async function DevUsersPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -15,6 +17,7 @@ export default async function DevUsersPage() {
 
   const [userRows, outletRows, lastTxRows] = await Promise.all([
     prisma.user.findMany({
+      where: { deletedAt: null },
       // Terbaru di atas: akun yang baru dibuat langsung terlihat.
       orderBy: { createdAt: "desc" },
       select: {
@@ -24,7 +27,6 @@ export default async function DevUsersPage() {
         role: true,
         outletId: true,
         isActive: true,
-        deletedAt: true,
         createdAt: true,
         outlet: { select: { name: true } },
       },
@@ -53,7 +55,6 @@ export default async function DevUsersPage() {
     outletId: user.outletId,
     outletName: user.outlet?.name ?? null,
     isActive: user.isActive,
-    isDeleted: user.deletedAt !== null,
     createdAtIso: user.createdAt.toISOString(),
     lastTransactionAtIso: lastTxMap.get(user.id)?.toISOString() ?? null,
   }));

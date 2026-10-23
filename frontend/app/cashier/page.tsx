@@ -5,6 +5,7 @@ import { PosClient } from "./pos-client";
 import type { PosProduct } from "./types";
 import { getServeQueue } from "@/app/owner/verify/actions";
 import { ServeQueueBar } from "@/components/serve-queue";
+import { MaintenanceBanner } from "@/components/maintenance-banner";
 
 export const instant = false;
 
@@ -13,6 +14,7 @@ export default async function CashierPage() {
   if (!session?.user) redirect("/login");
 
   // Kasir must be tied to an outlet; owner may use any (first) outlet.
+  // Developer dalam mode maintenance punya outletId via cookie dev_outlet.
   const outletId = session.user.outletId;
   if (!outletId && session.user.role !== "OWNER") redirect("/");
 
@@ -89,6 +91,9 @@ export default async function CashierPage() {
 
   return (
     <>
+      {/* Banner amber hanya muncul untuk developer yang sedang mode
+          maintenance — kasir & owner asli tidak melihat apa pun. */}
+      <MaintenanceBanner />
       <PosClient
         cashierName={session.user.name ?? "Kasir"}
         outlet={outletInfo}

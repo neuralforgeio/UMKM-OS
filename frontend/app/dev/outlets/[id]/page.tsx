@@ -4,13 +4,17 @@ import {
   ArrowLeft,
   Boxes,
   Building2,
+  Calculator,
+  LayoutDashboard,
   Store,
   TriangleAlert,
   Users,
+  Wrench,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatRupiah } from "@/lib/format";
+import { enterMaintenance } from "@/app/dev/maintenance-actions";
 
 export const instant = false;
 
@@ -22,11 +26,13 @@ function formatWib(date: Date): string {
   }).format(date);
 }
 
-// Drill-down outlet (Task 34, Fase B) — READ-ONLY by design:
-// developer MEMBACA data bisnis lintas outlet untuk memantau, tapi
-// mengubah hanya lewat jalurnya masing-masing (produk/stok oleh owner,
-// akun oleh /dev/users). Konsol pemantauan yang bisa mengubah data
-// bisnis adalah pintu kecelakaan tunggal.
+// Drill-down outlet (Task 34 Fase B) — data bisnis READ-ONLY by design:
+// developer MEMBACA untuk memantau, mengubah hanya lewat jalurnya
+// masing-masing (produk/stok oleh owner outlet, akun oleh /dev/users).
+// Task 35 menambah pintu MAINTENANCE: developer bisa membuka konsol
+// owner & POS kasir outlet ini "menjadi stafnya" — memakai cookie
+// dev_outlet yang disuntikkan ke sesi (lihat lib/auth.ts), keluar
+// kapan saja lewat banner amber.
 export default async function DevOutletDetailPage({
   params,
 }: {
@@ -72,7 +78,9 @@ export default async function DevOutletDetailPage({
         },
       }),
       prisma.user.findMany({
-        where: { outletId: outlet.id },
+        // Task 35: akun terhapus tidak pernah tampil di sini — dari
+        // sudut pandang daftar, hapus = selamanya.
+        where: { outletId: outlet.id, deletedAt: null },
         orderBy: [{ role: "asc" }, { name: "asc" }],
         select: {
           id: true,
@@ -80,7 +88,6 @@ export default async function DevOutletDetailPage({
           email: true,
           role: true,
           isActive: true,
-          deletedAt: true,
         },
       }),
       prisma.transaction.findMany({
@@ -118,7 +125,7 @@ export default async function DevOutletDetailPage({
   const omzetToday = todayAgg._sum.total
     ? parseFloat(todayAgg._sum.total.toString())
     : 0;
-  const activeUsers = users.filter((u) => u.isActive && !u.deletedAt).length;
+  const activeUsers = users.filter((u) => u.isActive).length;
 
   const statCards = [
     { label: "Produk", value: String(products.length), icon: Boxes },
@@ -164,13 +171,49 @@ export default async function DevOutletDetailPage({
               )}
             </p>
             <p className="mt-0.5 text-[11px] text-slate-400">
-              Tampilan baca-saja — developer memantau, mengubah data bisnis
-              tetap lewat owner outlet.
+              Data bisnis tampil baca-saja; mode maintenance di bawah untuk
+              membuka konsol owner / kasir outlet ini.
             </p>
           </div>
         </header>
 
-        <section className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {/* Mode maintenance (Task 35): developer "menjadi" staf outlet ini
+            — membuka /owner atau /cashier yang isinya mengikuti outlet.
+            Masuk & keluar tercatat (DEV_MAINTENANCE_ENTER/EXIT). */}
+        <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-amber-900">
+            <Wrench className="h-5 w-5 text-amber-600" />
+            Akses Maintenance
+          </h2>
+          <p className="mt-0.5 text-sm text-amber-800/90">
+            Buka area owner atau kasir outlet {outlet.name} seolah Anda
+            stafnya — untuk men-debug, melatih, atau memperbaiki. Banner
+            amber di halaman tersebut jadi pengingat bahwa Anda sedang
+            bertindak sebagai developer; tekan "Keluar Mode" untuk kembali.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2.5">
+            <form action={enterMaintenance.bind(null, outlet.id, "owner")}>
+              <button
+                type="submit"
+                className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+              >
+                <LayoutDashboard className="h-4 w-4" />
+                Buka Konsol Owner
+              </button>
+            </form>
+            <form action={enterMaintenance.bind(null, outlet.id, "cashier")}>
+              <button
+                type="submit"
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+              >
+                <Calculator className="h-4 w-4" />
+                Buka Kasir (POS)
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {statCards.map((card) => (
             <div
               key={card.label}
@@ -280,7 +323,7 @@ export default async function DevOutletDetailPage({
               >
                 Kelola Akun
               </Link>
-              .
+              . Akun terhapus tidak ditampilkan.
             </p>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[420px] text-sm">
@@ -307,11 +350,7 @@ export default async function DevOutletDetailPage({
                       </td>
                       <td className="py-2.5 pr-4 text-slate-600">{u.role}</td>
                       <td className="py-2.5">
-                        {u.deletedAt ? (
-                          <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-600">
-                            terhapus
-                          </span>
-                        ) : u.isActive ? (
+                        {u.isActive ? (
                           <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-600">
                             aktif
                           </span>

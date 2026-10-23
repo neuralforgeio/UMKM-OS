@@ -6,53 +6,52 @@ import {
   buildLogWhere,
   type LogFilterInput,
 } from "@/lib/audit-query";
+import { buildLogWorkbook, type LogRow } from "@/lib/log-xlsx";
 
-// Export CSV jejak audit (Task 34, Fase B).
+// Export EXCEL jejak audit (Task 35, menggantikan CSV Fase B).
 //
 // Dua pintu dengan dua hak akses BERBEDA — dipaksa di server, bukan di UI:
 //   DEVELOPER : semua outlet + semua filter (q, action, outlet, actor,
-//               rentang tanggal from/to).
-//   OWNER     : hanya outlet sendiri — parameter outlet diabaikan total
-//               (Fase C menaruh tombol unduh di /owner/logs).
+//               rentang tanggal from/to, tingkat level).
+//   OWNER     : hanya outlet sendiri — parameter outlet diabaikan total.
+//               (Tombol unduh untuk owner ada di /owner/settings.)
 //   KASIR     : ditolak.
-// Ini route handler GET biasa: tautan unduh bisa dibagikan/di-bookmark,
-// dan tidak butuh server action.
+// Route handler GET biasa: tautan unduh bisa dibagikan/di-bookmark, dan
+// tidak butuh server action. Hasilnya workbook .xlsx bergambar:
+// Ringkasan (KPI + 4 grafik), Log (rapi, beku header, autofilter),
+// dan Pivot Harian.
 
-const CSV_HEADERS = [
-  "Waktu",
-  "Aktor",
-  "Peran",
-  "Outlet",
-  "Aksi",
-  "Entitas",
-  "Ringkasan",
-] as const;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-// Escape satu field CSV. Pemisah dipakai ";" (bukan ",") karena Excel
-// Indonesia memakai koma sebagai desimal — koma sebagai pemisah membuat
-// semua kolom menyatu jadi satu saat file dibuka dengan dobel-klik.
-// Field dibungkus kutip ganda bila mengandung pemisah/kutip/baris baru,
-// dan kutip ganda di dalamnya digandakan (aturan RFC 4180).
-function csvField(value: string): string {
-  if (/[;"\r\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
+function wibDayLabel(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-");
+  return `${d}/${m}/${y}`;
 }
 
-const wibStamp = (date: Date) =>
-  new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "short",
-    timeStyle: "medium",
-    timeZone: "Asia/Jakarta",
-  }).format(date);
+// Ringkasan filter aktif untuk baris keterangan di sheet Ringkasan —
+// pemilik file harus tahu persis apa yang sedang dia lihat.
+function describeFilters(input: LogFilterInput): string {
+  const parts: string[] = [];
+  if (input.q?.trim()) parts.push(`cari="${input.q.trim()}"`);
+  if (input.action) parts.push(`aksi=${input.action}`);
+  if (input.level) parts.push(`tingkat=${input.level}`);
+  if (input.outlet) parts.push("outlet difilter");
+  if (input.actor) parts.push("aktor difilter");
+  if (input.from && DATE_RE.test(input.from)) {
+    parts.push(`dari ${wibDayLabel(input.from)}`);
+  }
+  if (input.to && DATE_RE.test(input.to)) {
+    parts.push(`sampai ${wibDayLabel(input.to)}`);
+  }
+  return parts.length > 0 ? `Filter: ${parts.join(" · ")}` : "Tanpa filter (semua waktu)";
+}
 
 // Nama file unik per unduhan (WIB) — memudahkan membandingkan beberapa
 // unduhan berurutan tanpa timpa-timpunan.
 function exportFileName(): string {
   const wib = new Date(Date.now() + 7 * 60 * 60 * 1000);
   const p = (n: number) => String(n).padStart(2, "0");
-  return `log-aktivitas-${wib.getUTCFullYear()}${p(wib.getUTCMonth() + 1)}${p(wib.getUTCDate())}-${p(wib.getUTCHours())}${p(wib.getUTCMinutes())}${p(wib.getUTCSeconds())}.csv`;
+  return `log-aktivitas-${wib.getUTCFullYear()}${p(wib.getUTCMonth() + 1)}${p(wib.getUTCDate())}-${p(wib.getUTCHours())}${p(wib.getUTCMinutes())}${p(wib.getUTCSeconds())}.xlsx`;
 }
 
 export async function GET(request: Request) {
@@ -79,6 +78,7 @@ export async function GET(request: Request) {
     actor: params.get("actor") ?? undefined,
     from: params.get("from") ?? undefined,
     to: params.get("to") ?? undefined,
+    level: params.get("level") ?? undefined,
   };
 
   const where = buildLogWhere(input);
@@ -86,22 +86,23 @@ export async function GET(request: Request) {
   // Scope owner: outlet sendiri, param outlet diabaikan (bukan sekadar
   // disembunyikan dari form — route ini bisa dipanggil langsung dengan
   // URL buatan tangan tanpa outlet sama sekali = kosong yang jujur).
+  let scopeWhere: Prisma.AuditEventWhereInput = where;
+  let scopeLabel = "Semua outlet — akses developer";
   if (role === "OWNER") {
-    const outletId =
-      session.user.outletId ??
-      (await prisma.outlet.findFirst({ select: { id: true } }))?.id;
-    const scoped: Prisma.AuditEventWhereInput = outletId
-      ? { AND: [where, { outletId }] }
+    const outlet = session.user.outletId
+      ? await prisma.outlet.findUnique({
+          where: { id: session.user.outletId },
+          select: { id: true, name: true },
+        })
+      : await prisma.outlet.findFirst({ select: { id: true, name: true } });
+    scopeWhere = outlet
+      ? { AND: [where, { outletId: outlet.id }] }
       : { AND: [where, { outletId: "__tidak-ada__" }] };
-    return respondCsv(scoped);
+    scopeLabel = outlet ? `Outlet: ${outlet.name}` : "Outlet belum ada";
   }
 
-  return respondCsv(where);
-}
-
-async function respondCsv(where: Prisma.AuditEventWhereInput) {
   const rows = await prisma.auditEvent.findMany({
-    where,
+    where: scopeWhere,
     orderBy: { createdAt: "desc" },
     take: LOG_EXPORT_ROW_CAP,
     select: {
@@ -114,31 +115,39 @@ async function respondCsv(where: Prisma.AuditEventWhereInput) {
     },
   });
 
-  const lines = [CSV_HEADERS.join(";")];
-  for (const row of rows) {
-    lines.push(
-      [
-        wibStamp(row.createdAt),
-        row.actor?.name ?? "Sistem",
-        row.actor?.role ?? "",
-        row.outlet?.name ?? "",
-        row.action,
-        row.entity ?? "",
-        row.summary,
-      ]
-        .map(csvField)
-        .join(";"),
-    );
+  // Periode aktual dari baris (WIB), bukan asumsi.
+  let periode = "belum ada aktivitas";
+  if (rows.length > 0) {
+    const newest = rows[0].createdAt;
+    const oldest = rows[rows.length - 1].createdAt;
+    const shift = (d: Date) => new Date(d.getTime() + 7 * 60 * 60 * 1000);
+    const fmt = (d: Date) =>
+      `${shift(d).getUTCDate()}/${shift(d).getUTCMonth() + 1}/${shift(d).getUTCFullYear()}`;
+    periode = rows.length === 1 ? fmt(newest) : `${fmt(oldest)} – ${fmt(newest)}`;
   }
 
-  // BOM UTF-8 di depan: tanpa ini Excel menebak charset yang salah dan
-  // ringkasan berbahasa Indonesia berubah jadi tanda tanya.
-  const csv = `\uFEFF${lines.join("\r\n")}\r\n`;
+  const logRows: LogRow[] = rows.map((row) => ({
+    createdAt: row.createdAt,
+    actorName: row.actor?.name ?? null,
+    actorRole: row.actor?.role ?? null,
+    outletName: row.outlet?.name ?? null,
+    action: row.action,
+    entity: row.entity ?? null,
+    summary: row.summary,
+  }));
 
-  return new Response(csv, {
+  const buffer = await buildLogWorkbook(logRows, {
+    scope: scopeLabel,
+    periode,
+    filterNote: describeFilters(input),
+    generatedAt: new Date(),
+  });
+
+  return new Response(new Uint8Array(buffer), {
     status: 200,
     headers: {
-      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${exportFileName()}"`,
       // Log bisa berangsur memuat data sensitif — jangan pernah dicache.
       "Cache-Control": "no-store",

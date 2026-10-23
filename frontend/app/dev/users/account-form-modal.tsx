@@ -1,18 +1,30 @@
 "use client";
 
-// Modal buat / edit akun dari konsol developer (Task 34, Fase B).
-// Create: nama, email, password awal, peran, outlet. Edit: sama tanpa
-// password (reset password punya modal sendiri) + status aktif.
+// Modal buat / edit akun dari konsol developer (Task 34 Fase B,
+// diperbarui Task 35).
+// Create: nama, email, password awal (type password + toggle lihat +
+// checklist hijau saat mengetik), peran, outlet — dan opsi "+ Outlet
+// baru…" yang membuat outlet SEBELUM akun (pola yang sama dengan
+// "+ Kategori baru…" di form produk).
+// Edit: sama tanpa password (reset password punya modal sendiri).
+// Semua field controlled state: nilai TIDAK PERNAH hilang saat submit
+// gagal — pesan error muncul, form tetap terisi.
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck, UserPlus, X } from "lucide-react";
-import { createAccount, updateAccount } from "./actions";
+import { Loader2, MapPin, ShieldCheck, UserPlus, X } from "lucide-react";
+import { PasswordInput } from "@/components/password-input";
+import { isPasswordValid } from "@/lib/password-policy";
+import { createAccount, createOutlet, updateAccount } from "./actions";
 import type { OutletOption, UserRow } from "./types";
 
 const LABEL_CLASS =
   "text-xs font-semibold uppercase tracking-wide text-slate-500";
 const INPUT_CLASS =
   "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-100";
+
+// Nilai sentinel pilihan "buat outlet baru dulu" — konvensi "__new__"
+// disalin dari form produk (kategori) supaya perilakunya seragam.
+const NEW_OUTLET = "__new__";
 
 export function AccountFormModal({
   user,
@@ -41,6 +53,9 @@ export function AccountFormModal({
   const [outletId, setOutletId] = useState(user?.outletId ?? "");
   const [isActive, setIsActive] = useState(user?.isActive ?? true);
   const [error, setError] = useState<string | null>(null);
+  // Field "outlet baru" — aktif hanya saat pilihan outlet = __new__.
+  const [newOutletName, setNewOutletName] = useState("");
+  const [newOutletAddress, setNewOutletAddress] = useState("");
 
   // Escape untuk menutup modal — sama seperti editor foto/gambar produk.
   useEffect(() => {
@@ -52,19 +67,45 @@ export function AccountFormModal({
   }, [onClose]);
 
   const outletRequired = role === "KASIR";
+  const creatingOutlet = outletId === NEW_OUTLET;
 
   async function handleSubmit() {
     setError(null);
-    const inputOutlet = outletId || null;
+
+    // Langkah 1 — bila dipilih "+ Outlet baru…": buat outlet DULU.
+    // Akun butuh id outlet nyata; kalau pembuatan outlet gagal, akun
+    // tidak dibuat dan semua isian tetap ada di layar.
+    let finalOutletId = outletId;
+    if (creatingOutlet) {
+      const trimmed = newOutletName.trim();
+      if (trimmed.length < 2) {
+        setError("Nama outlet baru minimal 2 karakter.");
+        return;
+      }
+      const result = await createOutlet({
+        name: trimmed,
+        address: newOutletAddress.trim() || undefined,
+      });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      finalOutletId = result.outletId;
+    }
+
+    // Langkah 2 — validasi cepat di klien (server tetap memvalidasi
+    // ulang; ini hanya supaya pesan muncul seketika tanpa round-trip).
+    const inputOutlet = finalOutletId || null;
     if (outletRequired && !inputOutlet) {
       setError("Kasir wajib dipilihkan outlet.");
       return;
     }
-    if (!user && password.length < 8) {
-      setError("Password awal minimal 8 karakter.");
+    if (!user && !isPasswordValid(password)) {
+      setError("Password belum memenuhi semua syarat (lihat checklist).");
       return;
     }
 
+    // Langkah 3 — buat/ubah akun.
     const result = user
       ? await updateAccount({
           userId: user.id,
@@ -173,17 +214,16 @@ export function AccountFormModal({
               <label htmlFor="acc-password" className={LABEL_CLASS}>
                 Password awal
               </label>
-              <input
-                id="acc-password"
-                type="text"
-                className={`${INPUT_CLASS} mt-1.5 font-mono`}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="minimal 8 karakter"
-                maxLength={72}
-                autoComplete="off"
-              />
-              <p className="mt-1 text-[11px] text-slate-400">
+              <div className="mt-1.5">
+                <PasswordInput
+                  id="acc-password"
+                  value={password}
+                  onChange={setPassword}
+                  placeholder="ketik untuk melihat syarat"
+                  showChecklist
+                />
+              </div>
+              <p className="mt-1.5 text-[11px] text-slate-400">
                 Disimpan ter-hash bcrypt. User dapat menggantinya sendiri
                 lewat Akun Saya (Fase C).
               </p>
@@ -228,9 +268,43 @@ export function AccountFormModal({
                     {o.name}
                   </option>
                 ))}
+                {/* Pintu yang sama seperti "+ Kategori baru…" di form
+                    produk: pilih, isi nama, selesai — tanpa keluar dari
+                    form akun. */}
+                <option value={NEW_OUTLET}>+ Outlet baru…</option>
               </select>
             </div>
           </div>
+
+          {creatingOutlet && (
+            <div className="space-y-2 rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+              <p className="flex items-center gap-1.5 text-xs font-bold text-violet-800">
+                <MapPin className="h-3.5 w-3.5" />
+                Outlet baru
+              </p>
+              <input
+                className={INPUT_CLASS}
+                value={newOutletName}
+                onChange={(e) => setNewOutletName(e.target.value)}
+                placeholder="Nama outlet (mis. Warung Bu Sari 2)"
+                maxLength={60}
+                autoComplete="off"
+              />
+              <input
+                className={INPUT_CLASS}
+                value={newOutletAddress}
+                onChange={(e) => setNewOutletAddress(e.target.value)}
+                placeholder="Alamat (opsional)"
+                maxLength={120}
+                autoComplete="off"
+              />
+              <p className="text-[11px] leading-relaxed text-slate-500">
+                Outlet dibuat lebih dulu saat menekan tombol simpan, lalu
+                akun otomatis terikat ke outlet itu. Gagal bikin outlet =
+                tidak ada yang dibuat, isian tetap aman di layar.
+              </p>
+            </div>
+          )}
 
           {user && (
             <label className="flex items-center gap-2.5 rounded-xl border border-slate-200 px-3 py-2.5">

@@ -28,7 +28,7 @@ const dec = (value: { toString(): string } | null | undefined) =>
 export default async function OwnerTransactionsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "OWNER") redirect("/cashier");
+  if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") redirect("/cashier");
 
   // Owners may not be tied to an outlet; fall back to the first one,
   // mirroring the cashier and dashboard resolution.

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Settings } from "lucide-react";
+import { FileSpreadsheet, Settings } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { OutletLogoForm, OutletProfileForm } from "./settings-forms";
@@ -10,7 +10,9 @@ export const instant = false;
 export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "OWNER") redirect("/cashier");
+  if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") {
+    redirect("/cashier");
+  }
 
   // Select only identity fields — the logo BYTES never leave the
   // server; the client gets a cache-busted URL instead.
@@ -33,6 +35,9 @@ export default async function SettingsPage() {
     ? `/api/outlet/logo?v=${outlet.logoVersion}`
     : null;
 
+  const INPUT_CLASS =
+    "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+
   return (
     <div className="flex min-h-dvh flex-col bg-slate-100">
       <header className="shrink-0 border-b border-slate-200 bg-white">
@@ -46,7 +51,7 @@ export default async function SettingsPage() {
                 className="h-10 w-10 shrink-0 rounded-xl object-contain"
               />
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
                 <Settings className="h-5 w-5" />
               </div>
             )}
@@ -97,6 +102,67 @@ export default async function SettingsPage() {
             Logo warungmu — muncul di struk, header kasir, dan ikon browser.
           </p>
           <OutletLogoForm logoUrl={logoUrl} />
+        </section>
+
+        {/* Unduh log outlet (Task 35): GET form biasa ke route export —
+            owner otomatis di-scope ke outletnya sendiri di server, jadi
+            tidak ada parameter outlet yang bisa (perlu) diutak-atik. */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+            Log Aktivitas &amp; Analisa
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Unduh jejak audit outlet ini sebagai Excel: tabel log yang rapi
+            (bisa difilter), grafik tren periodik, aktivitas per jam, top
+            aksi, dan pivot harian — siap untuk analisa.
+          </p>
+          <form
+            method="get"
+            action="/api/logs/export"
+            className="mt-4 flex flex-wrap items-end gap-3"
+          >
+            <div>
+              <label
+                htmlFor="log-from"
+                className="block text-xs font-semibold uppercase tracking-wide text-slate-500"
+              >
+                Dari tanggal (WIB)
+              </label>
+              <input
+                id="log-from"
+                type="date"
+                name="from"
+                className={`${INPUT_CLASS} mt-1.5`}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="log-to"
+                className="block text-xs font-semibold uppercase tracking-wide text-slate-500"
+              >
+                Sampai tanggal (WIB)
+              </label>
+              <input
+                id="log-to"
+                type="date"
+                name="to"
+                className={`${INPUT_CLASS} mt-1.5`}
+              />
+            </div>
+            <button
+              type="submit"
+              className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Unduh Excel (.xlsx)
+            </button>
+          </form>
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+            Rentang kosong = semua waktu. Maksimal 10.000 baris per unduhan —
+            untuk penelusuran panjang, unduh per rentang bulan. Hanya event
+            outlet {outlet.name} yang ikut.
+          </p>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

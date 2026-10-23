@@ -29,7 +29,7 @@ export async function createStockMovementAction(
   formData: FormData,
 ): Promise<StockActionState> {
   const session = await auth();
-  if (!session?.user || session.user.role !== "OWNER") {
+  if (!session?.user || session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") {
     return { error: "Sesi tidak valid. Aksi ini hanya untuk pemilik." };
   }
 

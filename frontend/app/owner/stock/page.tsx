@@ -26,7 +26,7 @@ export default async function OwnerStockPage() {
   // (route segment "dynamic" config is not allowed there).
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "OWNER") redirect("/cashier");
+  if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") redirect("/cashier");
 
   // Owners may not be tied to an outlet; fall back to the first one,
   // mirroring the products page and dashboard resolution.

@@ -18,7 +18,7 @@ async function ownerActor(): Promise<{
   userId: string;
 } | null> {
   const session = await auth();
-  if (!session?.user || session.user.role !== "OWNER") return null;
+  if (!session?.user || session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") return null;
   const outlet = session.user.outletId
     ? await prisma.outlet.findUnique({
         where: { id: session.user.outletId },

@@ -56,7 +56,7 @@ async function requireOwnerOutletId(): Promise<{
   if (!session?.user) {
     throw new ProductActionError("Sesi sudah berakhir. Silakan login ulang.");
   }
-  if (session.user.role !== "OWNER") {
+  if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") {
     throw new ProductActionError("Hanya pemilik yang boleh mengubah produk.");
   }
   // Owners may not be tied to an outlet; fall back to the first one,

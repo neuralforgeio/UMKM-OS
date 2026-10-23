@@ -303,7 +303,7 @@ function StatCard({
 export default async function OwnerPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "OWNER") redirect("/cashier");
+  if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") redirect("/cashier");
 
   const outlet = session.user.outletId
     ? await prisma.outlet.findUnique({ where: { id: session.user.outletId } })

@@ -1,7 +1,8 @@
-// Konsol Developer (Fase A + B).
+// Konsol Developer (Fase A + B + penyempurnaan Task 35).
 // Super-user lintas outlet: ringkasan sistem, pintasan kelola akun &
-// log aktivitas, daftar outlet (klik = drill-down), dan 20 jejak audit
-// terbaru. Fase C menambah kelola akun oleh owner + Akun Saya.
+// log aktivitas, daftar outlet (klik = drill-down, tombol + = buat baru),
+// dan 20 jejak audit terbaru yang kini tampil dengan LABEL MANUSIAWI +
+// tingkat SUKSES/PERINGATAN/GAGAL — bukan lagi nama method saja.
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -19,6 +20,12 @@ import {
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatRupiah } from "@/lib/format";
+import {
+  LEVEL_BADGE,
+  actionLabel,
+  actionLevel,
+} from "@/lib/audit-labels";
+import { OutletCreateButton } from "./outlet-create-button";
 
 export const instant = false;
 
@@ -180,8 +187,8 @@ export default async function DevConsolePage() {
                   Log Aktivitas
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  Query jejak audit lengkap: filter aksi/outlet/aktor/tanggal
-                  + unduh CSV.
+                  Query jejak audit lengkap + filter tingkat & unduh Excel
+                  dengan grafik analisa.
                 </p>
               </div>
             </div>
@@ -213,12 +220,17 @@ export default async function DevConsolePage() {
         </section>
 
         <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">Outlet</h2>
-          <p className="mt-0.5 text-sm text-slate-500">
-            Setiap outlet punya produk, stok, dan akunnya sendiri — terpisah
-            secara data, satu database, satu pantauan. Klik nama outlet untuk
-            drill-down detail.
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold text-slate-900">Outlet</h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Setiap outlet punya produk, stok, dan akunnya sendiri — terpisah
+                secara data, satu database, satu pantauan. Klik nama outlet untuk
+                drill-down atau masuk mode maintenance.
+              </p>
+            </div>
+            <OutletCreateButton />
+          </div>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
@@ -262,7 +274,8 @@ export default async function DevConsolePage() {
                 {outlets.length === 0 && (
                   <tr>
                     <td colSpan={4} className="py-6 text-center text-slate-400">
-                      Belum ada outlet terdaftar.
+                      Belum ada outlet terdaftar — tekan "Outlet Baru" untuk
+                      membuat yang pertama.
                     </td>
                   </tr>
                 )}
@@ -277,17 +290,28 @@ export default async function DevConsolePage() {
             Jejak Audit Terbaru
           </h2>
           <p className="mt-0.5 text-sm text-slate-500">
-            Semua aksi tercatat: transaksi, refund, penyajian struk, stok,
-            produk, pengaturan, akun, dan login.{" "}
+            Semua aksi tercatat dengan tingkat keseriusan:{" "}
+            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+              SUKSES
+            </span>{" "}
+            selesai normal,{" "}
+            <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200">
+              PERINGATAN
+            </span>{" "}
+            aksi sensitif,{" "}
+            <span className="rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200">
+              GAGAL
+            </span>{" "}
+            percobaan yang error.{" "}
             <Link
               href="/dev/logs"
               className="font-semibold text-violet-700 hover:underline"
             >
-              Buka query penuh + unduh CSV →
+              Buka query penuh + unduh Excel →
             </Link>
           </p>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-[11px] uppercase tracking-wider text-slate-500">
                   <th className="pb-2 pr-4 font-semibold">Waktu (WIB)</th>
@@ -298,46 +322,52 @@ export default async function DevConsolePage() {
                 </tr>
               </thead>
               <tbody>
-                {auditEvents.map((e) => (
-                  <tr
-                    key={e.id}
-                    className="border-b border-slate-100 last:border-0 align-top"
-                  >
-                    <td className="whitespace-nowrap py-2.5 pr-4 text-xs text-slate-500">
-                      {formatWib(e.createdAt)}
-                    </td>
-                    <td className="py-2.5 pr-4">
-                      <span className="font-semibold text-slate-800">
-                        {e.actor?.name ?? "Sistem"}
-                      </span>
-                      {e.actor && (
-                        <span
-                          className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                            ROLE_BADGE[e.actor.role] ??
-                            "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {e.actor.role}
+                {auditEvents.map((e) => {
+                  const level = actionLevel(e.action);
+                  return (
+                    <tr
+                      key={e.id}
+                      className={`border-b border-slate-100 last:border-0 align-top ${
+                        level === "GAGAL" ? "bg-red-50/40" : ""
+                      }`}
+                    >
+                      <td className="whitespace-nowrap py-2.5 pr-4 text-xs text-slate-500">
+                        {formatWib(e.createdAt)}
+                      </td>
+                      <td className="py-2.5 pr-4">
+                        <span className="font-semibold text-slate-800">
+                          {e.actor?.name ?? "Sistem"}
                         </span>
-                      )}
-                    </td>
-                    <td className="py-2.5 pr-4 text-slate-500">
-                      {e.outlet?.name ?? "—"}
-                    </td>
-                    <td className="py-2.5 pr-4">
-                      <span
-                        className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
-                          e.action === "LOGIN_FAILED"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {e.action}
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-slate-700">{e.summary}</td>
-                  </tr>
-                ))}
+                        {e.actor && (
+                          <span
+                            className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              ROLE_BADGE[e.actor.role] ??
+                              "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {e.actor.role}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 pr-4 text-slate-500">
+                        {e.outlet?.name ?? "—"}
+                      </td>
+                      <td className="py-2.5 pr-4">
+                        {/* Label manusiawi + kode mentah di bawahnya:
+                            terbaca cepat DAN tetap bisa dicari. */}
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${LEVEL_BADGE[level]}`}
+                        >
+                          {actionLabel(e.action)}
+                        </span>
+                        <p className="mt-0.5 font-mono text-[10px] text-slate-400">
+                          {e.action}
+                        </p>
+                      </td>
+                      <td className="py-2.5 text-slate-700">{e.summary}</td>
+                    </tr>
+                  );
+                })}
                 {auditEvents.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-6 text-center text-slate-400">
@@ -352,8 +382,9 @@ export default async function DevConsolePage() {
         </section>
 
         <p className="mt-4 text-center text-xs text-slate-400">
-          Fase A + B aktif · Fase C (kelola kasir oleh owner + log CSV owner +
-          Akun Saya semua peran) menyusul setelah blok ini diverifikasi.
+          Fase A + B + penyempurnaan Task 35 aktif · Fase C (kelola kasir oleh
+          owner + Akun Saya semua peran) menyusul setelah blok ini
+          diverifikasi.
         </p>
       </div>
     </div>

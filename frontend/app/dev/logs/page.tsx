@@ -1,18 +1,26 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Download, ScrollText } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, ScrollText } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildLogWhere, logQueryString } from "@/lib/audit-query";
+import {
+  LEVEL_BADGE,
+  actionLabel,
+  actionLevel,
+} from "@/lib/audit-labels";
 import { LogsPagination } from "./logs-pagination";
 
 export const instant = false;
 
-// Query jejak audit penuh (Task 34, Fase B) — khusus DEVELOPER.
-// Pagination dan filter HIDUP DI URL (server-side): tabel audit tumbuh
-// tanpa batas (setiap transaksi/stok/login menambah baris), jadi tidak
-// seperti halaman produk yang memuat semua baris — di sini setiap halaman
-// hanya membaca 20 baris dari database.
+// Query jejak audit penuh (Task 34 Fase B, diperbarui Task 35) —
+// khusus DEVELOPER. Pagination dan filter HIDUP DI URL (server-side):
+// tabel audit tumbuh tanpa batas (setiap transaksi/stok/login menambah
+// baris), jadi tidak seperti halaman produk yang memuat semua baris —
+// di sini setiap halaman hanya membaca 20 baris dari database.
+// Task 35: kolom aksi kini label manusiawi + kode mentah, dengan
+// tingkat SUKSES/PERINGATAN/GAGAL (filter-able), dan unduhan berupa
+// EXCEL ber-grafik (bukan CSV polos).
 const PAGE_SIZE = 20;
 
 const ROLE_BADGE: Record<string, string> = {
@@ -53,9 +61,10 @@ export default async function DevLogsPage({
   const actor = one("actor") ?? "";
   const from = one("from") ?? "";
   const to = one("to") ?? "";
+  const level = one("level") ?? "";
   const page = Math.max(1, parseInt(one("page") ?? "1", 10) || 1);
 
-  const where = buildLogWhere({ q, action, outlet, actor, from, to });
+  const where = buildLogWhere({ q, action, outlet, actor, from, to, level });
 
   const [total, rows, actionOptions, outlets, actors] = await Promise.all([
     prisma.auditEvent.count({ where }),
@@ -86,6 +95,7 @@ export default async function DevLogsPage({
       select: { id: true, name: true },
     }),
     prisma.user.findMany({
+      where: { deletedAt: null },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
@@ -96,7 +106,7 @@ export default async function DevLogsPage({
 
   // Query string filter aktif — dipakai pagination (pertahankan filter)
   // dan tombol export (unduh hasil filter INI, bukan semua log).
-  const qs = logQueryString({ q, action, outlet, actor, from, to });
+  const qs = logQueryString({ q, action, outlet, actor, from, to, level });
 
   return (
     <div className="min-h-dvh bg-slate-100">
@@ -120,13 +130,14 @@ export default async function DevLogsPage({
             </p>
           </div>
           {/* Tautan <a> biasa ke route export: filter sama persis dengan
-              layar, jadi file yang terunduh = yang sedang dilihat. */}
+              layar, jadi file yang terunduh = yang sedang dilihat. Kini
+              berupa .xlsx: tabel rapi + grafik tren/periodik + pivot. */}
           <a
             href={`/api/logs/export${qs}`}
-            className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-violet-700"
+            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
           >
-            <Download className="h-4 w-4" />
-            Unduh CSV
+            <FileSpreadsheet className="h-4 w-4" />
+            Unduh Excel (+ Grafik)
           </a>
         </header>
 
@@ -150,9 +161,20 @@ export default async function DevLogsPage({
             <option value="">Semua aksi</option>
             {actionOptions.map((a) => (
               <option key={a.action} value={a.action}>
-                {a.action}
+                {actionLabel(a.action)} ({a.action})
               </option>
             ))}
+          </select>
+          <select
+            name="level"
+            defaultValue={level}
+            className={INPUT_CLASS}
+            aria-label="Filter tingkat"
+          >
+            <option value="">Semua tingkat</option>
+            <option value="SUKSES">SUKSES — selesai normal</option>
+            <option value="PERINGATAN">PERINGATAN — aksi sensitif</option>
+            <option value="GAGAL">GAGAL — ada error</option>
           </select>
           <select
             name="outlet"
@@ -221,7 +243,7 @@ export default async function DevLogsPage({
 
         <section className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-[11px] uppercase tracking-wider text-slate-500">
                   <th className="px-4 pb-2.5 font-semibold">Waktu (WIB)</th>
@@ -233,49 +255,55 @@ export default async function DevLogsPage({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className="border-b border-slate-100 last:border-0 align-top"
-                  >
-                    <td className="whitespace-nowrap px-4 py-2.5 text-xs text-slate-500">
-                      {formatWib(row.createdAt)}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className="font-semibold text-slate-800">
-                        {row.actor?.name ?? "Sistem"}
-                      </span>
-                      {row.actor && (
-                        <span
-                          className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${ROLE_BADGE[row.actor.role] ?? "bg-slate-100 text-slate-600"}`}
-                        >
-                          {row.actor.role}
+                {rows.map((row) => {
+                  const lvl = actionLevel(row.action);
+                  return (
+                    <tr
+                      key={row.id}
+                      className={`border-b border-slate-100 last:border-0 align-top ${
+                        lvl === "GAGAL" ? "bg-red-50/40" : ""
+                      }`}
+                    >
+                      <td className="whitespace-nowrap px-4 py-2.5 text-xs text-slate-500">
+                        {formatWib(row.createdAt)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className="font-semibold text-slate-800">
+                          {row.actor?.name ?? "Sistem"}
                         </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-500">
-                      {row.outlet?.name ?? "—"}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span
-                        className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
-                          row.action === "LOGIN_FAILED" ||
-                          row.action === "ACCOUNT_DELETE"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {row.action}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-[11px] text-slate-400">
-                      {row.entity ?? "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-700">
-                      {row.summary}
-                    </td>
-                  </tr>
-                ))}
+                        {row.actor && (
+                          <span
+                            className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${ROLE_BADGE[row.actor.role] ?? "bg-slate-100 text-slate-600"}`}
+                          >
+                            {row.actor.role}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-500">
+                        {row.outlet?.name ?? "—"}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {/* Label manusiawi berwarna tingkat + kode mentah:
+                            "Owner menonaktifkan kasir" terbaca sekali
+                            lihat, method aslinya tetap ada untuk pencarian. */}
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${LEVEL_BADGE[lvl]}`}
+                        >
+                          {actionLabel(row.action)}
+                        </span>
+                        <p className="mt-0.5 font-mono text-[10px] text-slate-400">
+                          {row.action}
+                        </p>
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-[11px] text-slate-400">
+                        {row.entity ?? "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-700">
+                        {row.summary}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {rows.length === 0 && (
                   <tr>
                     <td

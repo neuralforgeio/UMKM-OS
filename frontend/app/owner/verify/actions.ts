@@ -28,7 +28,7 @@ export type ServeQueueRow = {
 async function requireStaff() {
   const session = await auth();
   const u = session?.user;
-  if (!u || (u.role !== "OWNER" && u.role !== "KASIR")) return null;
+  if (!u || (u.role !== "OWNER" && u.role !== "KASIR" && u.role !== "DEVELOPER")) return null;
   return u;
 }
 

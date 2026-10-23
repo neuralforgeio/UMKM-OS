@@ -47,7 +47,7 @@ export default async function VerifyDetailPage({
 }) {
   const session = await auth();
   const user = session?.user;
-  if (!user || (user.role !== "OWNER" && user.role !== "KASIR")) redirect("/");
+  if (!user || (user.role !== "OWNER" && user.role !== "KASIR" && user.role !== "DEVELOPER")) redirect("/");
 
   const { id } = await params;
   const tx = await prisma.transaction.findUnique({

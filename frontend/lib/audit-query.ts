@@ -1,11 +1,15 @@
-// Pembangun filter query jejak audit (Task 34, Fase B).
+// Pembangun filter query jejak audit (Task 34 Fase B, diperbarui Task 35).
 //
 // Satu sumber kebenaran untuk DUA konsumen: halaman /dev/logs (query
-// penuh developer) dan route /api/logs/export (CSV owner + developer).
+// penuh developer) dan route /api/logs/export (Excel owner + developer).
 // Menyamakan perilaku di dua tempat = satu fungsi, bukan salin-tempel —
 // filter yang berbeda antara layar dan file unduhan adalah bug klasik
 // laporan keuangan/audit.
+// Task 35: filter "level" (SUKSES / PERINGATAN / GAGAL) memakai
+// definisi tingkat dari lib/audit-labels supaya UI, filter, dan file
+// tidak pernah berbeda pendapat.
 import { Prisma } from "@/lib/generated/prisma/client";
+import { warnActions } from "@/lib/audit-labels";
 
 // Batas aman satu export: menjaga respons tetap kecil dan memaksa
 // rentang tanggal dipakai untuk penelusuran besar (bukan "unduh semua
@@ -32,6 +36,8 @@ export type LogFilterInput = {
   actor?: string;
   from?: string;
   to?: string;
+  // "SUKSES" | "PERINGATAN" | "GAGAL" — selain itu diabaikan.
+  level?: string;
 };
 
 // Nilai kosong ("") atau "ALL" = filter tidak dipakai — datang dari
@@ -65,6 +71,22 @@ export function buildLogWhere(
     filters.push({ createdAt: { lte: wibEndOfDay(input.to) } });
   }
 
+  // Filter tingkat: turunkan jadi predikat kolom action — tidak ada
+  // kolom baru di database, definisinya murni dari nama aksi
+  // (berakhiran _FAILED = GAGAL; daftar warn = PERINGATAN).
+  if (input.level === "GAGAL") {
+    filters.push({ action: { endsWith: "_FAILED" } });
+  } else if (input.level === "PERINGATAN") {
+    filters.push({ action: { in: warnActions() } });
+  } else if (input.level === "SUKSES") {
+    filters.push({
+      action: {
+        not: { endsWith: "_FAILED" },
+        notIn: warnActions(),
+      },
+    });
+  }
+
   return filters.length > 0 ? { AND: filters } : {};
 }
 
@@ -78,6 +100,13 @@ export function logQueryString(input: LogFilterInput): string {
   if (isSet(input.actor)) qs.set("actor", input.actor);
   if (input.from && DATE_RE.test(input.from)) qs.set("from", input.from);
   if (input.to && DATE_RE.test(input.to)) qs.set("to", input.to);
+  if (
+    input.level === "SUKSES" ||
+    input.level === "PERINGATAN" ||
+    input.level === "GAGAL"
+  ) {
+    qs.set("level", input.level);
+  }
   const s = qs.toString();
   return s ? `?${s}` : "";
 }

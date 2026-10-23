@@ -21,7 +21,7 @@ async function requireOwner(): Promise<{ outletId: string; userId: string }> {
   if (!session?.user) {
     throw new HistoryActionError("Sesi sudah berakhir. Silakan login ulang.");
   }
-  if (session.user.role !== "OWNER") {
+  if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") {
     throw new HistoryActionError(
       "Hanya pemilik yang boleh mengakses riwayat transaksi.",
     );

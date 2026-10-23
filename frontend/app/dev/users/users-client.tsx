@@ -1,10 +1,13 @@
 "use client";
 
-// Tabel kelola akun lintas outlet (Task 34, Fase B).
+// Tabel kelola akun lintas outlet (Task 34 Fase B, diperbarui Task 35).
 // Filter (cari/peran/outlet/status) + pagination 20 baris berjalan di
 // klien mengikuti pola halaman produk — jumlah akun selalu kecil
 // (puluhan), jadi memuat semua baris sekali jauh lebih responsif
 // daripada query ulang server tiap ketik.
+// Task 35: akun terhapus TIDAK PERNAH dikirim ke komponen ini (server
+// memfilter deletedAt: null) — dari sudut pandang daftar, hapus =
+// selamanya; jejaknya hidup di /dev/logs.
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -20,6 +23,8 @@ import {
   X,
 } from "lucide-react";
 import { TablePagination } from "@/components/table-pagination";
+import { PasswordInput } from "@/components/password-input";
+import { isPasswordValid } from "@/lib/password-policy";
 import {
   deleteAccountSoft,
   resetAccountPassword,
@@ -48,13 +53,6 @@ function formatWibShort(iso: string | null): string {
 }
 
 function StatusBadge({ user }: { user: UserRow }) {
-  if (user.isDeleted) {
-    return (
-      <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-600">
-        Terhapus
-      </span>
-    );
-  }
   if (!user.isActive) {
     return (
       <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">
@@ -71,6 +69,8 @@ function StatusBadge({ user }: { user: UserRow }) {
 
 // Modal kecil: reset password. Terpisah dari form utama supaya aksi
 // sensitif ini selalu butuh langkah (dan niat) tersendiri.
+// Task 35: input kini type password + toggle lihat + checklist syarat
+// hidup; tombol aktif hanya saat semua syarat hijau.
 function ResetPasswordModal({
   user,
   onClose,
@@ -137,14 +137,11 @@ function ResetPasswordModal({
               {error}
             </p>
           )}
-          <input
-            type="text"
-            className={`${INPUT_CLASS} font-mono`}
+          <PasswordInput
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="password baru (8–72 karakter)"
-            maxLength={72}
-            autoComplete="off"
+            onChange={setPassword}
+            placeholder="password baru"
+            showChecklist
           />
           <p className="text-[11px] leading-relaxed text-slate-400">
             Password lama tidak perlu diketahui. Berlaku untuk login
@@ -162,7 +159,7 @@ function ResetPasswordModal({
           <button
             type="button"
             onClick={() => startAsync(handleSubmit)}
-            disabled={pending || password.length < 8}
+            disabled={pending || !isPasswordValid(password)}
             className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -174,8 +171,8 @@ function ResetPasswordModal({
   );
 }
 
-// Modal konfirmasi hapus (soft delete). Teks sengaja tegas: pengelola
-// harus paham bahwa yang hilang adalah aksesnya, bukan riwayatnya.
+// Modal konfirmasi hapus. Teks sengaja tegas dan menjelaskan akibat
+// persisnya: hilang dari daftar selamanya, email dibebaskan, jejak tetap.
 function DeleteAccountModal({
   user,
   onClose,
@@ -243,10 +240,11 @@ function DeleteAccountModal({
             </p>
           )}
           <p className="text-sm leading-relaxed text-slate-600">
-            Akun ditutup permanen untuk login: <b>{user.email}</b> tidak
-            bisa dipakai lagi dan sesinya diputus otomatis (maks. 5 menit).
-            Riwayat transaksi dan jejak audit atas nama akun ini{" "}
-            <b className="text-slate-900">tetap tercatat</b> — penghapusan
+            Akun dihapus <b className="text-slate-900">selamanya dari daftar</b>{" "}
+            — tidak bisa dibatalkan, tidak bisa di-pulihkan dari konsol.
+            Email <b>{user.email}</b> dibebaskan supaya bisa dipakai akun
+            baru. Riwayat transaksi dan jejak log atas nama akun ini{" "}
+            <b className="text-slate-900">tetap tersimpan</b> — penghapusan
             ini sendiri juga masuk log.
           </p>
           <div>
@@ -317,11 +315,8 @@ export function UsersClient({
         if (outlet === "__none__" ? user.outletId !== null : user.outletId !== outlet)
           return false;
       }
-      if (status === "ACTIVE" && (!user.isActive || user.isDeleted))
-        return false;
-      if (status === "INACTIVE" && (user.isActive || user.isDeleted))
-        return false;
-      if (status === "DELETED" && !user.isDeleted) return false;
+      if (status === "ACTIVE" && !user.isActive) return false;
+      if (status === "INACTIVE" && user.isActive) return false;
       if (!q) return true;
       return (
         user.name.toLowerCase().includes(q) ||
@@ -356,8 +351,7 @@ export function UsersClient({
     }
   }
 
-  const activeCount = users.filter((u) => u.isActive && !u.isDeleted).length;
-  const deletedCount = users.filter((u) => u.isDeleted).length;
+  const activeCount = users.filter((u) => u.isActive).length;
 
   return (
     <div className="min-h-dvh bg-slate-100">
@@ -368,8 +362,9 @@ export function UsersClient({
               Kelola Akun — semua outlet
             </p>
             <p className="mt-0.5 text-xs text-slate-500">
-              {users.length} akun · {activeCount} aktif · {deletedCount}{" "}
-              terhapus · rantai: developer → owner → kasir
+              {users.length} akun · {activeCount} aktif · rantai: developer →
+              owner → kasir · akun terhapus tidak lagi tampil (jejaknya ada
+              di log)
             </p>
           </div>
           <button
@@ -426,7 +421,6 @@ export function UsersClient({
             <option value="ALL">Semua status</option>
             <option value="ACTIVE">Aktif</option>
             <option value="INACTIVE">Nonaktif</option>
-            <option value="DELETED">Terhapus</option>
           </select>
         </section>
 
@@ -452,17 +446,14 @@ export function UsersClient({
                   const isSelf = user.id === currentUserId;
                   // Baris developer & baris sendiri hanya bisa DILIHAT —
                   // semua tombol modifikasinya mati (server juga menolak).
-                  const locked =
-                    user.role === "DEVELOPER" || (isSelf && !user.isDeleted);
+                  const locked = user.role === "DEVELOPER" || isSelf;
                   const lockTitle = isSelf
                     ? "Akun Anda sendiri — ubah lewat Akun Saya"
                     : "Akun developer dikelola lewat DEV_SEED_* di .env";
                   return (
                     <tr
                       key={user.id}
-                      className={`border-b border-slate-100 last:border-0 align-middle ${
-                        user.isDeleted ? "bg-red-50/40" : ""
-                      }`}
+                      className="border-b border-slate-100 last:border-0 align-middle"
                     >
                       <td className="px-4 py-2.5">
                         <p className="font-semibold text-slate-900">
@@ -554,8 +545,8 @@ export function UsersClient({
                           <button
                             type="button"
                             onClick={() => setDeleting(user)}
-                            disabled={locked || user.isDeleted}
-                            title={locked ? lockTitle : "Hapus akun (soft)"}
+                            disabled={locked}
+                            title={locked ? lockTitle : "Hapus akun permanen"}
                             aria-label={`Hapus ${user.name}`}
                             className="flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30"
                           >
@@ -591,7 +582,8 @@ export function UsersClient({
 
         <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400">
           <ShieldCheck className="h-3.5 w-3.5" />
-          Semua aksi di tabel ini tercatat di jejak audit (ACCOUNT_*).
+          Semua aksi di tabel ini tercatat di jejak audit (ACCOUNT_*), termasuk
+          yang gagal.
         </p>
       </div>
 

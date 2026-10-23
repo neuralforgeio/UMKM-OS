@@ -1,9 +1,21 @@
-// KONSOL VERIFIKASI STRUK v3 (dine-in) — dibuka KASIR/OWNER yang login.
+// KONSOL VERIFIKASI STRUK v3 (dine-in) — dibuka KASIR/OWNER yang login
+// (dan DEVELOPER saat mode maintenance, Task 35).
 // Nomor struk adalah ALAMAT, bukan kunci: pencarian hanya menampilkan
 // status + ATURAN KEPUTUSAN deterministik. Status penyajian dicatat
 // staf lewat Antrean Penyajian (satu arah, berjejak di HandoverEvent).
+//
+// Redesign Task 35: kartu statistik berikon + ring warna, pencarian
+// dengan ikon, kartu hasil dengan aksen warna kiri — logika query dan
+// aksi TIDAK berubah sama sekali.
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  AlertTriangle,
+  BadgeCheck,
+  Clock3,
+  ScanSearch,
+  UtensilsCrossed,
+} from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatRupiah } from "@/lib/format";
@@ -31,13 +43,21 @@ export default async function VerifyConsolePage({
 }) {
   const session = await auth();
   const user = session?.user;
-  if (!user || (user.role !== "OWNER" && user.role !== "KASIR")) redirect("/");
+  if (
+    !user ||
+    (user.role !== "OWNER" &&
+      user.role !== "KASIR" &&
+      user.role !== "DEVELOPER")
+  ) {
+    redirect("/");
+  }
 
   const sp = await searchParams;
   const rawQ = Array.isArray(sp.q) ? sp.q[0] : sp.q;
   const q = (rawQ ?? "").trim();
 
-  // Kasir only sees their outlet; an owner without one sees all.
+  // Kasir/developer-maintenance only sees their outlet; an owner without
+  // one sees all.
   const outletScope = user.outletId ? { outletId: user.outletId } : {};
 
   const todayRows = await prisma.transaction.findMany({
@@ -68,26 +88,40 @@ export default async function VerifyConsolePage({
       paymentMethod: t.paymentMethod,
     }));
 
-  const chips: { label: string; value: number; cls: string }[] = [
+  const chips: {
+    label: string;
+    value: number;
+    icon: typeof Clock3;
+    chip: string;
+    valueCls: string;
+  }[] = [
     {
       label: "Menunggu",
       value: queueRows.length,
-      cls: "bg-amber-100 text-amber-700",
+      icon: Clock3,
+      chip: "bg-amber-50 text-amber-600 ring-1 ring-amber-200",
+      valueCls: "text-amber-600",
     },
     {
       label: "Disajikan",
       value: todayRows.filter((t) => t.handoverStatus === "SERVED").length,
-      cls: "bg-teal-100 text-teal-700",
+      icon: UtensilsCrossed,
+      chip: "bg-teal-50 text-teal-600 ring-1 ring-teal-200",
+      valueCls: "text-teal-600",
     },
     {
       label: "Terverifikasi",
       value: todayRows.filter((t) => t.handoverStatus === "CONFIRMED").length,
-      cls: "bg-emerald-100 text-emerald-700",
+      icon: BadgeCheck,
+      chip: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200",
+      valueCls: "text-emerald-600",
     },
     {
       label: "Sengketa",
       value: todayRows.filter((t) => t.handoverStatus === "DISPUTED").length,
-      cls: "bg-red-100 text-red-700",
+      icon: AlertTriangle,
+      chip: "bg-red-50 text-red-600 ring-1 ring-red-200",
+      valueCls: "text-red-600",
     },
   ];
 
@@ -129,74 +163,115 @@ export default async function VerifyConsolePage({
     : null;
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-md bg-slate-50 p-4 pb-20">
-      <div className="mb-3 flex items-center justify-between">
+    <main className="mx-auto min-h-screen w-full max-w-md bg-slate-100 p-4 pb-24">
+      {/* Header: identitas + konteks hari ini. */}
+      <header className="mb-3 flex items-center justify-between gap-2">
         <Link
-          href={user.role === "KASIR" ? "/cashier" : "/owner"}
-          className="text-sm text-slate-500"
+          href={
+            user.role === "KASIR"
+              ? "/cashier"
+              : user.role === "DEVELOPER"
+                ? "/dev"
+                : "/owner"
+          }
+          className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:text-slate-900"
         >
           ← Kembali
         </Link>
-        <p className="text-sm font-semibold text-slate-700">
-          Konsol Verifikasi
-        </p>
-        <span className="w-10" />
-      </div>
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
+            <ScanSearch className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold leading-tight text-slate-900">
+              Konsol Verifikasi
+            </p>
+            <p className="text-[10px] leading-tight text-slate-500">
+              Status struk &amp; antrean penyajian hari ini
+            </p>
+          </div>
+        </div>
+      </header>
 
-      <form method="get" className="flex gap-2">
+      {/* Pencarian nomor struk. */}
+      <form method="get" className="relative flex gap-2">
         <input
           name="q"
           defaultValue={q}
           placeholder="Cari nomor struk (TRX-…)"
           autoComplete="off"
-          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-mono text-sm text-slate-900 outline-none transition placeholder:font-sans placeholder:text-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+          className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-3 font-mono text-sm text-slate-900 shadow-sm outline-none transition placeholder:font-sans placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
         />
+        <ScanSearch className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <button
           type="submit"
-          className="shrink-0 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+          className="shrink-0 rounded-2xl bg-slate-900 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-slate-700"
         >
           Cari
         </button>
       </form>
 
+      {/* Statistik hari ini: ikon + angka besar, ring warna sesuai status. */}
       <div className="mt-3 grid grid-cols-4 gap-2">
         {chips.map((c) => (
-          <div key={c.label} className={`rounded-xl p-2 text-center ${c.cls}`}>
-            <p className="text-lg font-bold leading-tight">{c.value}</p>
-            <p className="text-[10px] leading-tight">{c.label}</p>
+          <div
+            key={c.label}
+            className="rounded-2xl bg-white p-2.5 text-center shadow-sm"
+          >
+            <div
+              className={`mx-auto flex h-7 w-7 items-center justify-center rounded-xl ${c.chip}`}
+            >
+              <c.icon className="h-3.5 w-3.5" />
+            </div>
+            <p className={`mt-1.5 text-xl font-bold leading-none tabular-nums ${c.valueCls}`}>
+              {c.value}
+            </p>
+            <p className="mt-1 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+              {c.label}
+            </p>
           </div>
         ))}
       </div>
 
       {q && found && (
         <section className="mt-4 space-y-3">
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <p className="font-mono text-xs font-bold text-slate-900">
-              {found.code}
-            </p>
-            <p className="mt-0.5 text-xs text-slate-500">
-              {dtFmt.format(found.createdAt)} WIB · {foundItemCount} item ·{" "}
-              {formatRupiah(Math.round(Number(found.total)))}
-            </p>
-            <p className="text-[11px] text-slate-400">
-              Dibayar via{" "}
-              {PAYMENT_LABELS[found.paymentMethod] ?? found.paymentMethod}
-            </p>
+          {/* Kartu identitas struk. */}
+          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-mono text-sm font-bold text-slate-900">
+                {found.code}
+              </p>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                {PAYMENT_LABELS[found.paymentMethod] ?? found.paymentMethod}
+              </span>
+            </div>
+            <div className="mt-2 flex items-baseline justify-between gap-2 border-t border-dashed border-slate-200 pt-2">
+              <p className="text-xs text-slate-500">
+                {dtFmt.format(found.createdAt)} WIB · {foundItemCount} item
+              </p>
+              <p className="text-sm font-bold tabular-nums text-slate-900">
+                {formatRupiah(Math.round(Number(found.total)))}
+              </p>
+            </div>
           </div>
 
+          {/* Kartu status — aturan keputusan, kartu aksen kiri sesuai
+              bobot: merah = masalah, amber = perlu tindakan, hijau =
+              selesai, biru = baru. */}
           {found.status === "REFUNDED" ? (
-            <div className="rounded-2xl bg-slate-100 p-4 text-sm font-medium text-slate-600 shadow-sm">
-              Struk ini sudah DIREFUND. Uang dianggap kembali ke pembeli dan
-              stok telah dikembalikan.
+            <div className="rounded-2xl border-l-4 border-slate-400 bg-white p-4 text-sm font-medium text-slate-600 shadow-sm">
+              Struk ini sudah <b>DIREFUND</b>. Uang dianggap kembali ke
+              pembeli dan stok telah dikembalikan.
             </div>
           ) : found.handoverStatus === "SERVED" ? (
-            <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800 shadow-sm">
-              <p className="font-bold">
-                ✔ Tercatat disajikan{" "}
+            <div className="rounded-2xl border-l-4 border-emerald-500 bg-white p-4 text-sm text-slate-700 shadow-sm">
+              <p className="flex items-center gap-1.5 font-bold text-emerald-700">
+                <BadgeCheck className="h-4 w-4" />
+                Tercatat disajikan{" "}
                 {dtFmt.format(found.handoverConfirmedAt ?? found.createdAt)} WIB
                 {foundByName ? ` oleh ${foundByName}` : ""}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-emerald-700/80">
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
                 Aturan: klaim penggantian pesanan untuk struk ini DITOLAK —
                 penyerahan tercatat permanen (siapa + kapan) dan tidak bisa
                 dibatalkan.
@@ -209,12 +284,13 @@ export default async function VerifyConsolePage({
               </Link>
             </div>
           ) : found.handoverStatus === "CONFIRMED" ? (
-            <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800 shadow-sm">
-              <p className="font-bold">
-                ✔ Terverifikasi diterima pembeli{" "}
+            <div className="rounded-2xl border-l-4 border-emerald-600 bg-white p-4 text-sm text-slate-700 shadow-sm">
+              <p className="flex items-center gap-1.5 font-bold text-emerald-700">
+                <BadgeCheck className="h-4 w-4" />
+                Terverifikasi diterima pembeli{" "}
                 {dtFmt.format(found.handoverConfirmedAt ?? found.createdAt)} WIB
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-emerald-700/80">
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
                 Bukti terkuat: tanda tangan pembeli tersimpan permanen.
               </p>
               <Link
@@ -225,11 +301,12 @@ export default async function VerifyConsolePage({
               </Link>
             </div>
           ) : found.handoverStatus === "DISPUTED" ? (
-            <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-700 shadow-sm">
-              <p className="font-bold">
+            <div className="rounded-2xl border-l-4 border-red-500 bg-white p-4 text-sm text-red-700 shadow-sm">
+              <p className="flex items-center gap-1.5 font-bold">
+                <AlertTriangle className="h-4 w-4" />
                 Sengketa terbuka — pembeli membantah pernah menerima.
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-red-700/80">
+              <p className="mt-1 text-xs leading-relaxed text-red-600/80">
                 Selesaikan langsung dengan pembeli; seluruh jejak kejadian
                 tersedia di halaman detail.
               </p>
@@ -241,7 +318,7 @@ export default async function VerifyConsolePage({
               </Link>
             </div>
           ) : found.handoverStatus === "COURIER_CLAIMED" ? (
-            <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 shadow-sm">
+            <div className="rounded-2xl border-l-4 border-amber-500 bg-white p-4 text-sm text-amber-800 shadow-sm">
               <p className="font-bold">
                 Ditandai sudah diantar (klaim staf, tanpa tanda tangan).
               </p>
@@ -257,11 +334,12 @@ export default async function VerifyConsolePage({
               </Link>
             </div>
           ) : foundAgeMin >= 30 ? (
-            <div className="space-y-3 rounded-2xl bg-amber-50 p-4 shadow-sm">
-              <p className="text-sm font-bold text-amber-900">
+            <div className="space-y-3 rounded-2xl border-l-4 border-red-500 bg-white p-4 shadow-sm">
+              <p className="flex items-center gap-1.5 text-sm font-bold text-red-600">
+                <Clock3 className="h-4 w-4" />
                 Sudah {foundAgeMin} menit dan belum disajikan!
               </p>
-              <p className="text-xs leading-relaxed text-amber-800/80">
+              <p className="text-xs leading-relaxed text-slate-500">
                 Sajikan pesanan sekarang, atau tutup dengan alasan (mis. diambil
                 sendiri oleh pembeli) — alasan tercatat permanen untuk evaluasi
                 pola staf.
@@ -269,14 +347,15 @@ export default async function VerifyConsolePage({
               <ServeButton transactionId={found.id} withNote />
               <Link
                 href={`/owner/verify/${found.id}`}
-                className="block text-center text-xs font-bold text-amber-700 underline"
+                className="block text-center text-xs font-bold text-red-600 underline"
               >
                 Buka detail
               </Link>
             </div>
           ) : (
-            <div className="space-y-3 rounded-2xl bg-blue-50 p-4 shadow-sm">
-              <p className="text-sm font-bold text-blue-900">
+            <div className="space-y-3 rounded-2xl border-l-4 border-blue-500 bg-white p-4 shadow-sm">
+              <p className="flex items-center gap-1.5 text-sm font-bold text-blue-700">
+                <Clock3 className="h-4 w-4" />
                 Belum disajikan ({foundAgeMin} mnt lalu) — sajikan sekarang.
               </p>
               <ServeButton transactionId={found.id} />
@@ -292,9 +371,9 @@ export default async function VerifyConsolePage({
       )}
 
       {q && !found && (
-        <div className="mt-3 rounded-2xl bg-white p-5 text-center text-sm text-slate-400 shadow-sm">
-          Struk <span className="font-mono font-bold">{q}</span> tidak
-          ditemukan. Periksa lagi nomornya — formatnya TRX-tanggal-nomor,
+        <div className="mt-3 rounded-2xl bg-white p-5 text-center text-sm text-slate-400 shadow-sm ring-1 ring-slate-200">
+          Struk <span className="font-mono font-bold text-slate-600">{q}</span>{" "}
+          tidak ditemukan. Periksa lagi nomornya — formatnya TRX-tanggal-nomor,
           tercetak di bagian atas struk.
         </div>
       )}

@@ -9,7 +9,7 @@ export const instant = false;
 export default async function OwnerProductsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "OWNER") redirect("/cashier");
+  if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") redirect("/cashier");
 
   // Owners may not be tied to an outlet; fall back to the first one,
   // mirroring the cashier and dashboard resolution.

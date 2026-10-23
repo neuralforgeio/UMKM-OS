@@ -77,7 +77,7 @@ export async function createTransaction(input: {
   // Kasir is bound to one outlet; owner falls back to the first outlet.
   let outletId = sessionUser.outletId;
   if (!outletId) {
-    if (sessionUser.role !== "OWNER") {
+    if (sessionUser.role !== "OWNER" && sessionUser.role !== "DEVELOPER") {
       return {
         ok: false,
         error: "Akun kasir ini tidak terikat ke outlet mana pun.",
