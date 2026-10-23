@@ -1,0 +1,16 @@
+# Kredensial lokal — TIDAK PERNAH ikut ke dalam image (runtime env
+# disuntikkan docker-compose dari root .env).
+.env
+
+# Log harian lokal (di Docker dipasang sebagai volume gologs).
+logs/
+
+# Binary hasil `go build` lokal (Windows / Linux).
+*.exe
+umkm-os-backend
+
+# Editor / OS noise.
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

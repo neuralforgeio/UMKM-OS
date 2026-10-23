@@ -8,6 +8,12 @@ import (
 	"syscall"
 	"time"
 
+	// Data zona waktu tertanam di dalam binary: TZ=Asia/Jakarta
+	// (dipasang docker-compose) tetap berfungsi di image runtime
+	// minimal yang tidak membawa paket tzdata. Karena itu pula
+// "hari ini" di laporan mengikuti WIB, bukan UTC container.
+	_ "time/tzdata"
+
 	"github.com/go-chi/chi/v5"
 
 	"github.com/neuralforgeio/internal/config"

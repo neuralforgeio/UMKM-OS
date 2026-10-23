@@ -1,10 +1,29 @@
+# =====================================================================
+# UMKM OS — full stack dalam SATU perintah:  docker compose up --build
+#
+#   db         : PostgreSQL 18           -> host 5433 (tidak bentrok PG lokal 5432)
+#   migrate    : one-shot prisma migrate + seed (identitas outlet & akun
+#                demo) lalu selesai
+#   backend-go : REST API Go             -> host 8080 (login, kasir POS,
+#                produk/stok, transaksi, laporan dashboard, audit, log)
+#   backend    : FastAPI ML service      -> host 8000 (ramalan & saran restok)
+#   frontend   : Next.js                 -> host 3000 (UI)
+#
+# Seluruh nilai sensitif datang dari root .env (salin dari .env.example)
+# — tidak ada satu pun kredensial yang ditulis di file ini.
+# =====================================================================
+
 services:
   db:
     image: postgres:18-alpine
     environment:
+      TZ: Asia/Jakarta
       POSTGRES_USER: ${POSTGRES_USER:-umkm}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-umkmos}
+    # timezone eksplisit supaya CURRENT_DATE / to_char di query laporan
+    # mengikuti hari Jakarta, sama seperti PostgreSQL lokal (WIB).
+    command: ["postgres", "-c", "timezone=Asia/Jakarta"]
     ports:
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
@@ -25,18 +44,76 @@ services:
       target: builder
     command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts"
     environment:
+      TZ: Asia/Jakarta
       DATABASE_URL: "postgresql://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-umkmos}"
       # Akun developer bootstrap — nilai asli hanya di root .env (ter-gitignore).
       DEV_SEED_EMAIL: ${DEV_SEED_EMAIL:-}
       DEV_SEED_PASSWORD: ${DEV_SEED_PASSWORD:-}
+      # Password akun demo (busari@warung.id / rizky@warung.id): kosong
+      # berarti acak dan dicetak sekali di log service migrate.
+      SEED_OWNER_PASSWORD: ${SEED_OWNER_PASSWORD:-}
+      SEED_KASIR_PASSWORD: ${SEED_KASIR_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
     restart: "no"
 
+  # REST API Go — satu-satunya pemeriksa kredensial + pemilik schema
+  # kasir/laporan. Migrasi schema & seed akun berjalan saat boot, jadi
+  # setelah service healthy seluruh tabel siap dipakai service lain.
+  backend-go:
+    build: ./backend-go
+    environment:
+      TZ: Asia/Jakarta
+      PORT: "8080"
+      # CORS mengikuti port frontend di sisi HOST (browser selalu datang
+      # dari localhost). Panggilan server-ke-server dalam jaringan
+      # docker memakai http://backend-go:8080 dan tidak lewat CORS.
+      CLIENT_URL: http://localhost:${FRONTEND_PORT:-3000}
+      DATABASE_URL: "postgres://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-umkmos}?sslmode=disable"
+      # Satu secret root untuk dua penanda: cookie sesi NextAuth (AUTH_
+      # SECRET) dan token JWT backend-go — rotasi cukup satu tempat di
+      # root .env. Kalau kelak ingin terpisah, tambahkan baris
+      # JWT_SECRET=... di root .env lalu ganti nilai ini jadi ${JWT_SECRET}.
+      JWT_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      JWT_EXPIRES_H: "24"
+      # Akun owner awal (opsional): tanpa OWNER_PASSWORD, Go mencetak
+      # password acak 16 karakter SEKALI di `docker compose logs
+      # backend-go` saat database pertama kali dibuat.
+      OWNER_EMAIL: ${OWNER_EMAIL:-owner@umkm.local}
+      OWNER_PASSWORD: ${OWNER_PASSWORD:-}
+      # SINKRON kredensial developer: DEV_SEED_* dari root .env yang sama
+      # dengan service migrate juga dipakai backend-go, sehingga akun
+      # developer Prisma (konsol dev) dan Go (login) identik.
+      DEVELOPER_EMAIL: ${DEV_SEED_EMAIL:-}
+      DEVELOPER_PASSWORD: ${DEV_SEED_PASSWORD:-}
+      LOG_DIR: logs
+    ports:
+      - "8080:8080"
+    volumes:
+      # Log harian .log + .csv bertahan lintas rebuild container.
+      - gologs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    # Only active with "docker compose watch": saving any backend-go file
+    # rebuilds and restarts this service automatically. Inert during
+    # normal compose up, so the demo flow is untouched.
+    develop:
+      watch:
+        - action: rebuild
+          path: ./backend-go
+          ignore:
+            - logs
+            - .env
+
+  # FastAPI ML service — peramalan pendapatan & saran restock
+  # (membaca schema Go secara read-only).
   backend:
     build: ./backend
     environment:
+      TZ: Asia/Jakarta
       DEBUG: "false"
       DATABASE_URL: "postgresql+psycopg_async://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-umkmos}"
     ports:
@@ -44,10 +121,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      # Tabel transactions/products dibuat backend-go saat boot; menunggu
+      # healthy sekali ini membuat boot pertama bersih tanpa query gagal.
+      backend-go:
+        condition: service_healthy
     restart: unless-stopped
-    # Only active with "docker compose watch": saving any backend file
-    # rebuilds and restarts this service automatically. Inert during
-    # normal compose up, so the demo flow is untouched.
     develop:
       watch:
         - action: rebuild
@@ -60,9 +138,14 @@ services:
   frontend:
     build: ./frontend
     environment:
+      TZ: Asia/Jakarta
       HOSTNAME: 0.0.0.0
       DATABASE_URL: "postgresql://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-umkmos}"
-      BACKEND_URL: "http://backend:8000"
+      # Di dalam jaringan docker, frontend memanggil service lain lewat
+      # NAMA service (bukan localhost). Token Go tidak pernah sampai
+      # browser — semua panggilan dilakukan server-side.
+      API_URL: http://backend-go:8080
+      BACKEND_URL: http://backend:8000
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       AUTH_TRUST_HOST: "true"
     ports:
@@ -70,6 +153,8 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      backend-go:
+        condition: service_healthy
       backend:
         condition: service_started
     restart: unless-stopped
@@ -85,3 +170,4 @@ services:
 
 volumes:
   pgdata:
+  gologs:

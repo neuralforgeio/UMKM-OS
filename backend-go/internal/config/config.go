@@ -12,7 +12,7 @@ import (
 // owner & halaman peluncur (hari ini/kemarin, grafik 7 hari, metode
 // pembayaran, produk terlaris, stok menipis, transaksi terbaru) +
 // hardening seed owner (password acak bila OWNER_PASSWORD kosong).
-const AppVersion = "1.1.0"
+const AppVersion = "1.2.0"
 
 func init() {
         _ = godotenv.Load()
