@@ -161,6 +161,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         session.user.role = token.role as "OWNER" | "KASIR" | "DEVELOPER";
         session.user.outletId = token.outletId ?? null;
+        // Token backend-go untuk server action / server component yang
+        // memanggil API Go (produk POS, checkout, dll).
+        session.user.goToken = token.goToken;
       }
       return session;
     },
