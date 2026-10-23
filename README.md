@@ -1,237 +1,177 @@
-# UMKM OS
+# UMKM-OS
 
-**Sistem operasi digital untuk warung Indonesia** — aplikasi kasir (POS), dashboard
-pemilik dengan statistik penjualan, dan layanan machine learning untuk peramalan
-pendapatan 7 hari ke depan beserta saran restock. Seluruh stack berjalan dengan
-satu perintah `docker compose up -d`.
+> Sistem operasi untuk warung dan UMKM Indonesia — kasir (POS), manajemen stok, laporan penjualan, dan analitik dalam satu platform.
 
-Dibangun sebagai proyek portfolio dengan pendekaran full-stack modern:
-**Next.js 16 (App Router) + FastAPI + PostgreSQL 18 + Prisma 7**, dipisahkan
-dengan arsitektur baca/tulis yang tegas (lihat [Arsitektur](#arsitektur)).
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![backend-go](https://img.shields.io/badge/backend--go-v1.0.0-00ADD8?logo=go&logoColor=white)](#versi-komponen)
+[![frontend](https://img.shields.io/badge/frontend--next.js-v1.0.0--dev-black?logo=nextdotjs)](#versi-komponen)
+[![ml-service](https://img.shields.io/badge/ml--fastapi-v1.0.0--dev-009688?logo=python&logoColor=white)](#versi-komponen)
+[![Go](https://img.shields.io/badge/Go-1.27%2B-00ADD8?logo=go&logoColor=white)](backend-go/)
 
-![Next.js](https://img.shields.io/badge/Next.js%2016-000000?style=flat-square&logo=nextdotjs&logoColor=white)
-![React 19](https://img.shields.io/badge/React%2019-61DAFB?style=flat-square&logo=react&logoColor=000000)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL%2018-4169E1?style=flat-square&logo=postgresql&logoColor=white)
-![Prisma](https://img.shields.io/badge/Prisma%207-2D3748?style=flat-square&logo=prisma&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+## Tentang
 
-## Fitur
+UMKM-OS dibangun untuk benar-benar dipakai oleh penjual di lapangan — bukan sekadar proyek demo. Satu aplikasi untuk menggantikan buku catatan dan kasir manual: transaksi jadi cepat, stok terkontrol, dan pemilik usaha tahu persis warungnya sehat atau tidak lewat laporan harian.
 
-**Pemilik (Owner)**
-
-- Dashboard harian: omzet, jumlah transaksi, item terjual, rata-rata per struk
-- Grafik penjualan 7 hari + komposisi metode pembayaran (Tunai / QRIS / Debit)
-- Ramalan pendapatan 7 hari dengan pita ketidakpastian 80% — dihitung layanan ML FastAPI
-- Saran restock berbasis permintaan ramalan, bukan sekadar stok di bawah minimum
-- Produk terlaris mingguan, daftar stok kritis, riwayat transaksi terbaru
-
-**Kasir (POS)**
-
-- Pencatatan transaksi penjualan dengan kode struk unik per hari
-- Pembayaran Tunai / QRIS / Debit dengan perhitungan kembalian otomatis
-- Harga terkunci saat penjualan (snapshot `priceAtSale`) — struk lama tidak
-  berubah ketika harga produk naik
-
-**Akun demo (data seed)**
-
-| Peran  | Email             | Password    |
-| ------ | ----------------- | ----------- |
-| Pemilik | `busari@warung.id` | `owner12345` |
-| Kasir   | `rizky@warung.id`  | `kasir12345` |
+Prinsip utamanya: **satu sumber data untuk seluruh bisnis** (PostgreSQL), dengan backend Go yang cepat dan aman, frontend Next.js yang nyaman dipakai, dan layanan FastAPI untuk kecerdasan (peramalan & saran restock).
 
 ## Arsitektur
 
 ```mermaid
 flowchart LR
-    B["Browser"] --> F["Next.js 16 (frontend :3000)"]
-    F -- "Prisma 7 (tulis)" --> D[("PostgreSQL 18 (:5432)")]
-    F -- "fetch server-side" --> A["FastAPI (backend :8000)"]
-    A -- "SQLAlchemy (read-only)" --> D
+    U[Owner / Kasir]
+
+    subgraph FE["Frontend — Next.js + React"]
+        F["Dashboard Owner · Kasir POS · Produk & Stok · Pengaturan"]
+    end
+
+    subgraph BE["Backend — Go REST API"]
+        G["Auth JWT & Hak Akses · Produk & Stok · Transaksi · Laporan · Audit · Log Sistem"]
+    end
+
+    subgraph ML["ML Service — Python + FastAPI"]
+        M["Peramalan Penjualan · Saran Restock · Analitik"]
+    end
+
+    DB[("PostgreSQL — sumber data utama")]
+
+    U --> F
+    F -->|"REST /api/v1"| G
+    F -.->|"REST"| M
+    G --> DB
+    M -.-> DB
 ```
 
-Prinsip utama: **schema database dimiliki frontend**. Aplikasi Next.js adalah
-satu-satunya penulis data (lewat Prisma), sementara layanan FastAPI terhubung
-**read-only** untuk query analitik dan peramalan. Pola CQRS-lite ini memberi
-kepemilikan data yang jelas: tidak ada dua sisi yang sama-sama menulis, tidak
-ada risiko drift schema, dan jalur ML tidak pernah bisa merusak data transaksi.
+| Komponen   | Teknologi                    | Tanggung Jawab                                                   |
+| ---------- | ---------------------------- | ---------------------------------------------------------------- |
+| Frontend   | Next.js (App Router) + React | Dashboard pemilik, kasir, manajemen produk & stok                |
+| Backend    | Go (chi router + pgx + JWT)  | Autentikasi, izin akses, transaksi, produk, stok, laporan, audit |
+| Database   | PostgreSQL (Docker)          | Satu-satunya sumber data utama seluruh bisnis                    |
+| ML Service | Python + FastAPI             | Peramalan penjualan, saran restock, analitik                     |
 
-Konsekuensi praktisnya: browser tidak pernah memanggil FastAPI langsung —
-semua request ML berjalan server-to-server dari Next.js ke `BACKEND_URL`,
-sehingga CORS tidak relevan dan endpoint ML tidak terekspos ke publik.
+## Fitur
 
-## Tech Stack
+**Backend API v1.0.0 — sudah jalan:**
 
-| Layer        | Teknologi                                                                  |
-| ------------ | -------------------------------------------------------------------------- |
-| Frontend     | Next.js 16.4.2 (App Router, React 19, Turbopack), NextAuth v5, Tailwind CSS |
-| ORM frontend | Prisma 7.10.1 + driver adapter `@prisma/adapter-pg` (tanpa binary engine Rust) |
-| Backend ML   | FastAPI, SQLAlchemy 2 async (psycopg 3), Pydantic v2                        |
-| Database     | PostgreSQL 18                                                               |
-| Deployment   | Docker Compose — image multi-stage, Next.js standalone, non-root user       |
-| Testing      | pytest — 17 unit test layanan peramalan, tanpa perlu database               |
+- **Autentikasi & hak akses** — JWT, dua peran: `OWNER` (penuh) dan `CASHIER` (kasir), bcrypt untuk password, ganti password mandiri
+- **Manajemen pengguna** — owner membuat/mengedit/menonaktifkan akun kasir
+- **Produk & stok** — CRUD produk, SKU, kategori, harga & modal, stok minimum, riwayat pergerakan stok (`IN`/`OUT`/`ADJUST`), penyesuaian stok dengan row-lock
+- **Kasir (POS)** — keranjang multi-item, diskon, pembayaran `CASH`/`QRIS`/`DEBIT`, hitung kembalian, nomor struk unik (`TRX-YYYYMMDD-00001`), stok terkunci saat transaksi (aman untuk banyak kasir)
+- **Laporan** — dashboard ringkas, penjualan harian (30 hari) & bulanan (12 bulan), produk terlaris, produk stok menipis
+- **Audit log** — setiap aksi penting (login, CRUD, stok, transaksi) tercatat siapa-apa-kapan
+- **Log sistem** — log berwarna di console (info/sukses/warn/error/request) + file harian `.log` & `.csv` + API log khusus owner
+- **Graceful shutdown** — server berhenti dengan rapi saat Ctrl+C, tanpa proses mati paksa
 
-## Quick Start (Docker)
+**Roadmap:**
 
-Prasyarat: Docker. Tidak perlu Node, Python, maupun PostgreSQL di host.
+- [ ] Integrasi penuh frontend Next.js ke Go API (migrasi dari Prisma)
+- [ ] Multi-outlet — 1 owner banyak cabang, kasir terikat outlet, stok per outlet
+- [ ] ML Service FastAPI — peramalan penjualan & saran restock
+- [ ] Dockerfile backend-go + compose produksi
+- [ ] Halaman Settings → About dengan versi per komponen + penampil log sistem
 
-1. Salin template environment lalu isi dua nilai:
+## Versi Komponen
 
-   ```powershell
-   Copy-Item .env.example .env        # Windows
-   # cp .env.example .env             # Linux / macOS
-   ```
+Setiap komponen punya nomor versi sendiri (Semantic Versioning), independen satu sama lain:
 
-   Edit `.env` — ganti `AUTH_SECRET` dengan string acak, contoh generator:
+| Komponen               | Versi       | Status                    |
+| ---------------------- | ----------- | ------------------------- |
+| `backend-go`           | `1.0.0`     | aktif — development lokal |
+| `frontend` (Next.js)   | `1.0.0-dev` | migrasi berlangsung       |
+| `ml-service` (FastAPI) | `1.0.0-dev` | menyusul                  |
 
-   ```powershell
-   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-   # python -c "import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())"
-   ```
+**Kebijakan versi (dipatuhi ketat):**
 
-   `POSTGRES_PASSWORD` hanya untuk database demo — bebas diganti.
+- `PATCH` — perbaikan bug. Boleh lebih dari 10: `1.9.9 → 1.9.10 → ... → 1.9.103`
+- `MINOR` — penambahan fitur. Boleh lebih dari 10: `1.9.210 → 1.10.210 → ... → 1.38.210`
+- `MAJOR` — hanya untuk perombakan besar (UI, backend, bahasa pemrograman): `1.39.182 → 2.0.0`
 
-2. Nyalakan stack:
+Riwayat lengkap versi backend ada di [`backend-go/VERSIONS.csv`](backend-go/VERSIONS.csv) (bisa dibuka di Excel/Sheets), dan versi backend bisa dicek runtime lewat `GET /api/v1/version` — nanti ditampilkan di halaman Settings → About. **README ini hidup: setiap perubahan sekecil apapun (bug fix maupun fitur), README dan tabel versi ikut ter-update.**
 
-   ```powershell
-   docker compose up -d
-   ```
-
-   Urutan otomatis: `db` menunggu healthy → job `migrate` menjalankan
-   `prisma migrate deploy` + seed data demo → `backend` dan `frontend` start.
-
-3. Cek kesiapan lalu buka aplikasi:
-
-   ```powershell
-   docker compose ps     # migrate harus "Exited (0)", frontend "Up"
-   ```
-
-   Buka `http://localhost:3000` dan login dengan akun demo di atas.
-
-Catatan perilaku stack:
-
-- Service `migrate` tampil `Exited (0)` selamanya di `docker compose ps` — itu
-  normal: dia job sekali-jalan, bukan server.
-- Setiap `docker compose up -d` menjalankan ulang seed, sehingga **data demo
-  kembali ke kondisi awal** (deterministik — angkanya selalu identik).
-  Transaksi yang kamu buat lewat POS akan ter-reset. Reset penuh termasuk
-  volume: `docker compose down -v`.
-- Stack memakai port host 3000 (frontend), 8000 (backend), 5433 (db).
-
-## Menjalankan Tanpa Docker (Local Dev)
-
-Prasyarat: Node 24, Python 3.12, PostgreSQL lokal berjalan di `:5432`.
-
-Siapkan database (sekali, sebagai superuser):
-
-```sql
-CREATE USER umkm WITH PASSWORD 'umkmindo45';
-CREATE DATABASE umkmos OWNER umkm;
-```
-
-Backend — `backend/.env` (scheme `psycopg_async` wajib untuk engine async):
-
-```env
-DATABASE_URL=postgresql+psycopg_async://umkm:umkmindo45@localhost:5432/umkmos
-```
-
-```powershell
-cd backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1      # Windows
-pip install -r requirements.txt
-python run.py                   # http://localhost:8000
-```
-
-Frontend — `frontend/.env` (dibaca Prisma CLI dan seed) serta
-`frontend/.env.local` (dibaca Next.js):
-
-```env
-# frontend/.env
-DATABASE_URL="postgresql://umkm:umkmindo45@localhost:5432/umkmos"
-```
-
-```env
-# frontend/.env.local
-AUTH_SECRET=<hasil generator di atas>
-AUTH_TRUST_HOST=true
-```
-
-```powershell
-cd frontend
-npm ci
-npx prisma generate
-npx prisma migrate deploy
-npx tsx prisma/seed.ts          # isi data demo, membaca .env otomatis
-npm run dev                     # http://localhost:3000
-```
-
-Testing backend (tanpa database):
-
-```powershell
-cd backend
-pytest                          # 17 passed
-```
-
-Catatan: stack Docker dan dev lokal memakai port 3000/8000 yang sama —
-jalankan `docker compose down` sebelum menyalakan keduanya bersamaan.
-
-## Metode Peramalan
-
-Layanan ML meramalkan pendapatan per hari (demo memakai horizon 7 hari):
-
-- **Weekday-seasonal weighted average** — untuk tiap hari ramalan, diambil
-  hingga 4 sampel hari-minggu-yang-sama terbaru dari riwayat. Warung punya
-  pola mingguan yang kuat (akhir pekan ramai), jadi musiman per hari dalam
-  minggu adalah sinyal paling informatif.
-- **Bobot linear 1:2:3:4** — sampel terbaru berbobot paling besar, meredam
-  minggu-minggu anomali (misal hari besar yang hanya terjadi sekali).
-- **Pita prediksi 80%** — batas bawah/atas = titik ramalan ± z·σ dengan
-  z = 1.2816, ditampilkan sebagai area pada grafik dashboard.
-- **Cascade degenerasi** — hari tanpa penjualan di awal riwayat diabaikan;
-  jika tidak ada sampel same-weekday sama sekali, jatuh ke rata-rata
-  keseluruhan; jika riwayat kosong, ramalan bernilai nol.
-- **Integritas data** — input model berhenti di kemarin: hari berjalan tidak
-  masuk sebagai sampel karena penjualannya belum selesai.
-
-Saran restock memakai ramalan yang sama: kebutuhan N hari ke depan per produk
-dihitung dari permintaan ramalan, lalu dikurangi stok saat ini — hanya produk
-dengan selisih positif yang ditampilkan. Ini membedakannya dari alert stok
-minimum statis: produk bisa justru perlu restock lebih awal karena ramalan
-permintaannya tinggi.
-
-Kenapa bukan Holt-Winters? Dengan data demo 6 minggu, pola mingguan jauh lebih
-dominan daripada tren level, dan rata-rata berbobot per hari-minggu lebih
-mudah dijelaskan dan diuji — metode ini juga **murni fungsi Python tanpa
-database**, sehingga teruji 17 unit test secara deterministik.
-
-## Struktur Repo
+## Struktur Proyek
 
 ```
 umkm-os/
-├─ docker-compose.yml          # stack demo: db + migrate + backend + frontend
-├─ .env.example                # template environment untuk compose
-├─ backend/
-│  ├─ app/
-│  │  ├─ api/routes/           # endpoint health + forecast
-│  │  ├─ services/forecast.py  # layanan peramalan (murni, mudah diuji)
-│  │  ├─ models/               # model SQLAlchemy read-only
-│  │  ├─ schemas/              # skema respons Pydantic
-│  │  └─ core/                 # konfigurasi + koneksi database
-│  ├─ tests/                   # 17 unit test pytest
-│  └─ Dockerfile               # image produksi dua-stage
-└─ frontend/
-   ├─ app/                     # halaman: auth, kasir POS, dashboard owner
-   ├─ components/              # widget forecast, grafik SVG, kartu dashboard
-   ├─ lib/                     # prisma client, auth, format Rupiah, klien forecast
-   ├─ prisma/                  # schema, migrasi, seed data demo
-   └─ Dockerfile               # image standalone tiga-stage
+├── backend-go/              # REST API — Go v1.0.0
+│   ├── main.go              # entrypoint + graceful shutdown
+│   ├── VERSIONS.csv         # riwayat versi backend (spreadsheet)
+│   ├── logs/                # log harian .log + .csv (tidak masuk git)
+│   └── internal/
+│       ├── config/          # env + AppVersion (semver)
+│       ├── auth/            # JWT (HS256) + bcrypt
+│       ├── db/              # koneksi pgx + migrasi schema + seed owner
+│       ├── middleware/      # CORS, logger HTTP, recoverer, auth, role
+│       ├── logger/          # log berwarna + rotasi file harian
+│       └── handler/         # semua endpoint (auth, user, produk, transaksi, laporan, audit, log, versi)
+├── docker-compose.yaml      # PostgreSQL untuk development
+├── LICENSE                  # MIT
+└── README.md
 ```
 
-## API Backend
+## Menjalankan (Development)
 
-| Endpoint                                    | Fungsi                                             |
-| ------------------------------------------- | -------------------------------------------------- |
-| `GET /api/v1/health`                        | Health check layanan                               |
-| `GET /api/v1/forecast/revenue?days&horizon` | Riwayat harian + ramalan pendapatan                |
-| `GET /api/v1/forecast/products?limit`       | Produk + permintaan ramalan untuk saran restock    |
+**Prasyarat:** Docker (untuk PostgreSQL), Go 1.27+, dan nantinya Node.js untuk frontend.
+
+```powershell
+# 1. Nyalakan PostgreSQL (di root proyek)
+docker compose up -d
+
+# 2. Jalankan backend
+cd backend-go
+Copy-Item .env.example .env   # lalu sesuaikan DATABASE_URL & JWT_SECRET
+go mod tidy
+go run .
+
+# 3. Selesai (satu kali saja) — akun owner otomatis dibuat saat database kosong:
+#    email: owner@umkm.local   password: owner123
+#    Segera ganti password setelah login pertama!
+```
+
+Server backend jalan di `http://localhost:8080`. Tekan `Ctrl+C` untuk berhenti — server menutup semua koneksi dengan rapi sebelum benar-benar mati.
+
+**Variabel environment backend (`.env`):**
+
+| Variabel                         | Default                                                      | Keterangan                                           |
+| -------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------- |
+| `PORT`                           | `8080`                                                       | Port server API                                      |
+| `DATABASE_URL`                   | `postgres://umkm:umkm@localhost:5432/umkmos?sslmode=disable` | Koneksi PostgreSQL                                   |
+| `JWT_SECRET`                     | (wajib diganti)                                              | Kunci tanda tangan token — pakai string acak panjang |
+| `JWT_EXPIRES_H`                  | `24`                                                         | Umur token login (jam)                               |
+| `CLIENT_URL`                     | `http://localhost:3000`                                      | Asal frontend yang diizinkan CORS                    |
+| `OWNER_EMAIL` / `OWNER_PASSWORD` | `owner@umkm.local` / `owner123`                              | Akun owner awal (hanya dipakai saat database kosong) |
+| `LOG_DIR`                        | `logs`                                                       | Folder penyimpanan file log                          |
+
+## Dokumentasi API
+
+Base URL: `http://localhost:8080/api/v1` — semua response berbentuk `{"success": true, "data": ...}` atau `{"success": false, "error": {"message": ...}}`. Endpoint tertanda **(OWNER)** hanya bisa diakses pemilik.
+
+| Metode & Endpoint                              | Akses     | Fungsi                                                           |
+| ---------------------------------------------- | --------- | ---------------------------------------------------------------- |
+| `POST /auth/login`                             | publik    | Login, balas token JWT + data user                               |
+| `GET /auth/me`                                 | login     | Profil user yang login                                           |
+| `POST /auth/change-password`                   | login     | Ganti password sendiri                                           |
+| `GET/POST /users` · `PUT/DELETE /users/{id}`   | **OWNER** | Kelola akun (kasir/owner)                                        |
+| `GET /products`                                | login     | Daftar produk (filter: `search`, `category`, `low_stock`, `all`) |
+| `GET /products/{id}`                           | login     | Detail produk                                                    |
+| `POST/PUT/DELETE /products/{id}`               | **OWNER** | Kelola produk                                                    |
+| `POST /products/{id}/stock`                    | **OWNER** | Restock/koreksi stok (`IN`/`OUT`/`ADJUST`)                       |
+| `POST /transactions`                           | login     | Proses penjualan (keranjang, diskon, bayar, kembalian)           |
+| `GET /transactions` · `GET /transactions/{id}` | login     | Riwayat transaksi (kasir hanya miliknya)                         |
+| `GET /reports/dashboard`                       | login     | Statistik hari ini + transaksi terakhir                          |
+| `GET /reports/sales?period=daily\|monthly`     | **OWNER** | Grafik penjualan 30 hari / 12 bulan                              |
+| `GET /reports/top-products?days=30`            | **OWNER** | 10 produk terlaris                                               |
+| `GET /reports/low-stock`                       | **OWNER** | Produk yang perlu restock                                        |
+| `GET /audit-logs`                              | **OWNER** | Jejak aksi semua user                                            |
+| `GET /logs` · `GET /logs/{date}?level=&limit=` | **OWNER** | Log sistem harian (untuk halaman log)                            |
+| `GET /health` · `GET /version`                 | publik    | Health check & versi backend                                     |
+
+## Sistem Logging
+
+Backend mencatat segalanya, dua arah sekaligus:
+
+- **Console berwarna** — `OK` hijau (sukses), `INFO` cyan (informasi), `WARN` kuning (peringatan), `ERROR` merah (gagal), `HTTP` magenta (setiap request: status, method, path, durasi, **IP asli**, dan **user #id + nama** kalau login)
+- **File harian otomatis** di `backend-go/logs/` — rotasi per tanggal: `backend-YYYY-MM-DD.log` (mudah dibaca) + `backend-YYYY-MM-DD.csv` (siap dibuka di Excel/Google Sheets, kolom: timestamp, level, ip, user_id, user_name, method, path, status, duration_ms, message)
+- **Terbaca dari frontend** — endpoint `GET /api/v1/logs` (daftar tanggal) dan `GET /api/v1/logs/{date}` (isi log, bisa filter level) siap dipakai halaman penampil log
+
+## Lisensi
+
+Proyek ini dirilis di bawah [Lisensi MIT](LICENSE).

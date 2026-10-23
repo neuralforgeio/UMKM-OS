@@ -1,0 +1,2 @@
+version,tanggal,jenis,deskripsi,catatan
+1.0.0,2026-10-23,RILIS AWAL,"Auth JWT (owner & kasir), manajemen user, produk & stok, transaksi kasir dengan kunci stok (row-lock), laporan (dashboard, penjualan harian/bulanan, produk terlaris, stok menipis), audit log, endpoint /health dan /api/v1/version","Fase development lokal: sistem logging, graceful shutdown, file log harian (.log + .csv), dan endpoint log dibangun di bawah 1.0.0"
