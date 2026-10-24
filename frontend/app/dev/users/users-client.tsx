@@ -144,8 +144,8 @@ function ResetPasswordModal({
             showChecklist
           />
           <p className="text-[11px] leading-relaxed text-slate-400">
-            Password lama tidak perlu diketahui. Berlaku untuk login
-            berikutnya; sesi yang sedang berjalan tidak diputus.
+            Password lama tidak perlu diketahui. Berlaku untuk login berikutnya;
+            sesi yang sedang berjalan tidak diputus.
           </p>
         </div>
         <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-4">
@@ -241,11 +241,11 @@ function DeleteAccountModal({
           )}
           <p className="text-sm leading-relaxed text-slate-600">
             Akun dihapus <b className="text-slate-900">selamanya dari daftar</b>{" "}
-            — tidak bisa dibatalkan, tidak bisa di-pulihkan dari konsol.
-            Email <b>{user.email}</b> dibebaskan supaya bisa dipakai akun
-            baru. Riwayat transaksi dan jejak log atas nama akun ini{" "}
-            <b className="text-slate-900">tetap tersimpan</b> — penghapusan
-            ini sendiri juga masuk log.
+            — tidak bisa dibatalkan, tidak bisa di-pulihkan dari konsol. Email{" "}
+            <b>{user.email}</b> dibebaskan supaya bisa dipakai akun baru.
+            Riwayat transaksi dan jejak log atas nama akun ini{" "}
+            <b className="text-slate-900">tetap tersimpan</b> — penghapusan ini
+            sendiri juga masuk log.
           </p>
           <div>
             <label className="text-xs font-semibold text-slate-500">
@@ -299,9 +299,7 @@ export function UsersClient({
   const [page, setPage] = useState(1);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   // undefined = tertutup; null = modal buat; row = modal edit/reset/hapus.
-  const [editing, setEditing] = useState<UserRow | null | undefined>(
-    undefined,
-  );
+  const [editing, setEditing] = useState<UserRow | null | undefined>(undefined);
   const [resetting, setResetting] = useState<UserRow | null>(null);
   const [deleting, setDeleting] = useState<UserRow | null>(null);
   const [, startTransition] = useTransition();
@@ -312,7 +310,11 @@ export function UsersClient({
     return users.filter((user) => {
       if (role !== "ALL" && user.role !== role) return false;
       if (outlet !== "ALL") {
-        if (outlet === "__none__" ? user.outletId !== null : user.outletId !== outlet)
+        if (
+          outlet === "__none__"
+            ? user.outletId !== null
+            : user.outletId !== outlet
+        )
           return false;
       }
       if (status === "ACTIVE" && !user.isActive) return false;
@@ -353,18 +355,20 @@ export function UsersClient({
 
   const activeCount = users.filter((u) => u.isActive).length;
 
+  const outletLabel = outlet === "ALL" ? "Semua Outlet" : outlet === "__none__" ? "Tanpa Outlet" : outlets.find((o) => o.id === outlet)?.name ?? "Outlet"
+
   return (
     <div className="min-h-dvh bg-slate-100">
       <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:py-8">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-bold leading-tight text-slate-900">
-              Kelola Akun semua outlet
+              Kelola Akun - {outletLabel}
             </p>
             <p className="mt-0.5 text-xs text-slate-500">
               {users.length} akun · {activeCount} aktif · rantai: developer →
-              owner → kasir · akun terhapus tidak lagi tampil (jejaknya ada
-              di log)
+              owner → kasir · akun terhapus tidak lagi tampil (jejaknya ada di
+              log)
             </p>
           </div>
           <button
@@ -436,9 +440,7 @@ export function UsersClient({
                   <th className="px-4 pb-2.5 font-semibold">
                     Transaksi Terakhir
                   </th>
-                  <th className="px-4 pb-2.5 text-right font-semibold">
-                    Aksi
-                  </th>
+                  <th className="px-4 pb-2.5 text-right font-semibold">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -505,7 +507,9 @@ export function UsersClient({
                             onClick={() => setResetting(user)}
                             disabled={locked}
                             title={
-                              locked ? lockTitle : "Reset password (tanpa pw lama)"
+                              locked
+                                ? lockTitle
+                                : "Reset password (tanpa pw lama)"
                             }
                             aria-label={`Reset password ${user.name}`}
                             className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
@@ -601,10 +605,7 @@ export function UsersClient({
         />
       )}
       {deleting && (
-        <DeleteAccountModal
-          user={deleting}
-          onClose={() => setDeleting(null)}
-        />
+        <DeleteAccountModal user={deleting} onClose={() => setDeleting(null)} />
       )}
     </div>
   );
