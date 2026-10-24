@@ -162,7 +162,7 @@ export default async function HomePage() {
               Selamat datang, {displayName}
             </h1>
             <p className="mt-2 max-w-md text-sm leading-relaxed text-blue-100 sm:text-base">
-              Kasir, laporan, stok, dan foto produk warung — semuanya siap
+              Kasir, laporan, stok, dan foto produk warung semuanya siap
               dipakai dalam satu tempat.
             </p>
           </div>
