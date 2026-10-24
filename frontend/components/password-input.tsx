@@ -14,6 +14,7 @@ const INPUT_BASE =
 
 export function PasswordInput({
   id,
+  name,
   value,
   onChange,
   placeholder,
@@ -21,6 +22,10 @@ export function PasswordInput({
   showChecklist = false,
 }: {
   id?: string;
+  // v1.0.3: atribut name formulir — dipakai form Akun Saya yang mengirim
+  // FormData lewat server action (form lama memakai state terkontrol,
+  // prop ini tetap opsional supaya tidak merusak pemanggilan lama).
+  name?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -35,6 +40,7 @@ export function PasswordInput({
       <div className="relative">
         <input
           id={id}
+          name={name}
           // password -> text dan sebaliknya: nilai yang sama, tipe saja
           // yang berganti, jadi state tidak pernah hilang saat toggle.
           type={visible ? "text" : "password"}

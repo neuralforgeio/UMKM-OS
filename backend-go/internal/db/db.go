@@ -58,7 +58,7 @@ func migrate(ctx context.Context) error {
 			return err
 		}
 	}
-	logger.Success("[db] Schema siap (7 tabel + sequence + index)")
+	logger.Success("[db] Schema siap (8 tabel + sequence + index)")
 	return nil
 }
 
@@ -286,4 +286,42 @@ var migrations = []string{
 	`CREATE INDEX IF NOT EXISTS idx_stock_movements_tx ON stock_movements(transaction_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_product_images_product ON product_images(product_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC)`,
+
+	// ===== 6) Serah terima + verifikasi struk (v1.3.0) =====
+	// Kolom kunci di transactions: kode klaim (kunci interaktif pembeli)
+	// dan status penyajian/konfirmasi. Sebelumnya hidup di tabel PascalCase
+	// Prisma yang tidak pernah diisi checkout Go (split-brain).
+	`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS claim_code TEXT`,
+	`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS handover_status TEXT`,
+	`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS handover_confirmed_at TIMESTAMPTZ`,
+	`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS handover_confirmed_by BIGINT REFERENCES users(id)`,
+	// Soft delete akun (v1.3.0): baris tetap ada demi FK, daftar tak
+	// pernah menampilkannya lagi, email aslinya dibebaskan.
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+	// Unik sebagian (partial): banyak baris boleh NULL, kode terpakai
+	// tidak boleh kembar.
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_claim_code
+        ON transactions(claim_code) WHERE claim_code IS NOT NULL`,
+	`CREATE INDEX IF NOT EXISTS idx_transactions_handover_status
+        ON transactions(handover_status) WHERE handover_status IS NOT NULL`,
+	`CREATE INDEX IF NOT EXISTS idx_transactions_cashier ON transactions(cashier_id)`,
+	// Jejak serah terima — APPEND-ONLY, tidak pernah di-update/dihapus,
+	// tidak bisa dimanipulasi pihak mana pun. Inilah yang menang saat
+	// ada sengketa "saya tidak pernah terima".
+	`CREATE TABLE IF NOT EXISTS handover_events (
+        id BIGSERIAL PRIMARY KEY,
+        transaction_id BIGINT NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL CHECK (kind IN ('STAFF_SERVE','BUYER_CONFIRM','COURIER_CLAIM','BUYER_DISPUTE')),
+        method TEXT NOT NULL DEFAULT 'IN_APP' CHECK (method IN ('IN_APP','PUBLIC')),
+        actor_role TEXT,
+        actor_id BIGINT REFERENCES users(id),
+        buyer_name TEXT,
+        signature_data TEXT,
+        note TEXT,
+        user_agent TEXT,
+        ip TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+	`CREATE INDEX IF NOT EXISTS idx_handover_events_tx
+        ON handover_events(transaction_id, created_at)`,
 }

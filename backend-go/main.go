@@ -11,7 +11,7 @@ import (
 	// Data zona waktu tertanam di dalam binary: TZ=Asia/Jakarta
 	// (dipasang docker-compose) tetap berfungsi di image runtime
 	// minimal yang tidak membawa paket tzdata. Karena itu pula
-// "hari ini" di laporan mengikuti WIB, bukan UTC container.
+	// "hari ini" di laporan mengikuti WIB, bukan UTC container.
 	_ "time/tzdata"
 
 	"github.com/go-chi/chi/v5"
@@ -50,6 +50,13 @@ func main() {
 		// yang tidak bisa membawa header Authorization.
 		api.Get("/images/{id}", handler.ServeImage)
 
+		// Struk publik (v1.3.0): pembeli membuka QR dari HP TANPA login.
+		// Nomor struk = alamat baca; kode klaim 8 karakter = kunci
+		// interaksi (konfirmasi/bantah hanya lewat kode klaim).
+		api.Get("/public/receipt/{code}", handler.PublicReceipt)
+		api.Post("/public/receipt/{code}/confirm", handler.PublicConfirm)
+		api.Post("/public/receipt/{code}/dispute", handler.PublicDispute)
+
 		// Butuh login (OWNER, CASHIER, DEVELOPER)
 		api.Group(func(priv chi.Router) {
 			priv.Use(middleware.RequireAuth)
@@ -63,6 +70,13 @@ func main() {
 			priv.Post("/transactions", handler.CreateTransaction)
 			priv.Get("/transactions", handler.ListTransactions)
 			priv.Get("/transactions/{id}", handler.GetTransaction)
+
+			// Serah terima (v1.3.0): antrean penyajian + aksi staf
+			// (OWNER / CASHIER / DEVELOPER — semua peran yang jualan).
+			priv.Get("/queue", handler.ServeQueue)
+			priv.Post("/transactions/{id}/serve", handler.MarkServed)
+			priv.Post("/transactions/{id}/confirm", handler.ConfirmHandover)
+			priv.Post("/transactions/{id}/claim", handler.ClaimDelivered)
 
 			priv.Get("/reports/dashboard", handler.Dashboard)
 		})
@@ -94,6 +108,11 @@ func main() {
 			mgr.Get("/reports/sales", handler.SalesReport)
 			mgr.Get("/reports/top-products", handler.TopProducts)
 			mgr.Get("/reports/low-stock", handler.LowStock)
+			mgr.Get("/reports/profit", handler.Profit)
+
+			// Refund (v1.3.0): aksi paling sensitif — uang kembali +
+			// stok naik; hanya OWNER / DEVELOPER, atomik, berjejak.
+			mgr.Post("/transactions/{id}/refund", handler.RefundTransaction)
 
 			mgr.Get("/audit-logs", handler.ListAuditLogs)
 
