@@ -1,3 +1,4 @@
+// frontend/app/cashier/receipt-view.tsx
 "use client";
 
 import Link from "next/link";
@@ -100,9 +101,10 @@ export function ReceiptView({
   const router = useRouter();
   const createdAt = dateFmt.format(new Date(receipt.createdAt));
 
-  // Eceran serah-langsung (v3): one tap marks this receipt SERVED so it
-  // never lingers in the serve queue. The ledger write itself is the
-  // server action's job — this UI is strictly best-effort.
+  // Eceran serah-langsung (v1.3.0): one tap POSTs /transactions/{id}/serve
+  // on backend-go so this receipt never lingers in the serve queue. The
+  // handover_events + audit writes are Go's job — this UI is strictly
+  // best-effort.
   const [served, setServed] = useState(false);
   const [serveError, setServeError] = useState<string | null>(null);
   const [servePending, startServeTransition] = useTransition();
@@ -163,6 +165,17 @@ export function ReceiptView({
                   {PAYMENT_LABELS[receipt.paymentMethod]}
                 </dd>
               </div>
+              {/* v1.3.0: kode klaim = kunci interaktif pembeli. Ditampilkan
+                  di layar sukses supaya kasir bisa membacakannya saat pembeli
+                  takeaway menelepon tanpa membawa struk. */}
+              {receipt.claimCode && (
+                <div className="flex items-center justify-between gap-4 px-5 py-3.5">
+                  <dt className="text-sm text-slate-500">Kode klaim</dt>
+                  <dd className="font-mono text-sm font-bold tracking-widest text-slate-900">
+                    {receipt.claimCode}
+                  </dd>
+                </div>
+              )}
             </dl>
 
             <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -205,13 +218,13 @@ export function ReceiptView({
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-600 shadow-sm">
-              <p className="font-bold text-slate-800">
-                Pesanan diserahkan langsung?
-              </p>
+              <p className="font-bold text-slate-800">Serah terima pesanan</p>
               <p className="mt-0.5 leading-relaxed">
-                Untuk pesanan yang diserahkan seketika (makan di tempat /
-                bungkus), tandai sekarang supaya tidak menggantung di Antrean
-                Penyajian kasir.
+                Makan di tempat / eceran: tandai sekarang supaya tidak
+                menggantung di Antrean Penyajian kasir.
+                {receipt.claimCode
+                  ? " Takeaway / diantar: serahkan saja struknya — pembeli mengonfirmasi sendiri dari HP lewat QR dan kode klaim yang tercetak."
+                  : ""}
               </p>
               {served ? (
                 <p className="mt-2 rounded-lg bg-emerald-100 px-2.5 py-1.5 text-xs font-semibold text-emerald-800">
@@ -392,15 +405,39 @@ export function ReceiptView({
                 <Rule />
                 {receipt.qrSvg && (
                   <div className="flex flex-col items-center">
-                    {/* Server-rendered QR: the PUBLIC status page keyed by
-                        the receipt code — the buyer's phone shows the
-                        serving status without holding any secret. */}
+                    {/* Server-rendered QR (v1.3.0): when a claim code exists
+                        it encodes the INTERACTIVE buyer page — one scan and
+                        the takeaway buyer can confirm/dispute from their
+                        phone. QR dan kode klaim tercetak di kertas yang
+                        sama, jadi tingkat rahasianya identik. Legacy receipts
+                        without a claim code fall back to the read-only
+                        status page keyed by the receipt number (an address,
+                        not a secret). */}
                     <div
                       className="w-[84px] print:w-[19mm]"
                       dangerouslySetInnerHTML={{ __html: receipt.qrSvg }}
                     />
                     <p className="mt-1 text-[9px]">
-                      Scan utk cek status pesanan
+                      {receipt.claimCode
+                        ? "Scan utk cek/konfirmasi pesanan"
+                        : "Scan utk cek status pesanan"}
+                    </p>
+                  </div>
+                )}
+                {receipt.claimCode && (
+                  <div className="mt-2 text-center">
+                    {/* Fallback when the QR will not scan: the code is safe
+                        to read aloud over the phone — its alphabet has no
+                        ambiguous characters (no 0/O/1/I). Bigger than body
+                        text so it survives small thermal prints. */}
+                    <p className="text-[9px] font-bold uppercase tracking-[0.25em]">
+                      Kode klaim
+                    </p>
+                    <p className="mt-1 text-[14px] font-extrabold leading-none tracking-[0.3em]">
+                      {receipt.claimCode}
+                    </p>
+                    <p className="mt-1 text-[9px] leading-snug">
+                      Simpan sebagai bukti penerimaan pesanan
                     </p>
                   </div>
                 )}

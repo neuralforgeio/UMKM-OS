@@ -24,7 +24,7 @@ type GoTransaction = {
   id: number;
   receipt_no: string;
   // Kunci interaktif pembeli (v1.3.0) diteruskan ke struk supaya pembeli takeaway bisa konfirmasi / bantah di verify/{kode}
-  claimd_code: string | null
+  claim_code: string | null;
   created_at: string;
   payment_method: PaymentMethodValue;
   subtotal: number;
@@ -147,7 +147,7 @@ export async function createTransaction(input: {
   const receipt = {
     code: t.receipt_no,
     transactionId: String(t.id),
-    claimCode: t.claimd_code ?? null,
+    claimCode: t.claim_code ?? null,
     createdAt: t.created_at,
     paymentMethod: t.payment_method,
     subtotal: t.subtotal,
@@ -184,7 +184,7 @@ export async function createTransaction(input: {
     }).format(new Date(receipt.createdAt));
     const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
     const payload = appUrl
-      ? `${appUrl}/verify/${receipt.code}`
+      ? `${appUrl}/verify/${receipt.claimCode ?? receipt.code}`
       : [
           `STRUK ${outletName}`,
           receipt.code,
