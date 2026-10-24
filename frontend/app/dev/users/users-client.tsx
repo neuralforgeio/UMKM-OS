@@ -120,7 +120,7 @@ function ResetPasswordModal({
       <div className="relative flex w-full max-w-sm flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl">
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <p className="truncate text-sm font-bold text-slate-900">
-            Reset password — {user.name}
+            Reset password - {user.name}
           </p>
           <button
             type="button"
