@@ -187,20 +187,20 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 // OWNER di endpoint manajemen — restukturisasi 1.1.0 akan memisahkan
 // keduanya kembali bersama konsep outlet.
 func RequireRoleIn(roles ...string) func(http.Handler) http.Handler {
-        return func(next http.Handler) http.Handler {
-                return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-                        claims := User(r)
-                        if claims == nil {
-                                writeError(w, http.StatusForbidden, "Akses ditolak")
-                                return
-                        }
-                        for _, role := range roles {
-                                if claims.Role == role {
-                                        next.ServeHTTP(w, r)
-                                        return
-                                }
-                        }
-                        writeError(w, http.StatusForbidden, "Akses ditolak: khusus "+strings.Join(roles, "/"))
-                })
-        }
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims := User(r)
+			if claims == nil {
+				writeError(w, http.StatusForbidden, "Akses ditolak")
+				return
+			}
+			for _, role := range roles {
+				if claims.Role == role {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			writeError(w, http.StatusForbidden, "Akses ditolak: khusus "+strings.Join(roles, "/"))
+		})
+	}
 }
