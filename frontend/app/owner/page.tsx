@@ -469,7 +469,7 @@ export default async function OwnerPage() {
             )}
             <div className="min-w-0">
               <h1 className="truncate text-base font-bold leading-tight text-slate-900">
-                Laporan — {outlet.name}
+                Laporan - {outlet.name}
               </h1>
               <p className="truncate text-xs text-slate-500">
                 {session.user.name ?? "Pemilik"} · Pemilik

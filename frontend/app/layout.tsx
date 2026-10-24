@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "UMKM OS — Kasir & Intelijen Bisnis Warung",
+  title: "UMKM OS - Kasir & Intelijen Bisnis Warung",
   description: "Kasir, stok, dan laporan penjualan untuk warung Anda.",
   // The tab icon follows the warung's uploaded logo; before any
   // upload the route redirects to the default favicon.
