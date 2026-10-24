@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![backend-go](https://img.shields.io/badge/backend--go-v1.2.0-00ADD8?logo=go&logoColor=white)](#versi-komponen)
-[![frontend](https://img.shields.io/badge/frontend--next.js-v1.0.1-black?logo=nextdotjs)](#versi-komponen)
+[![frontend](https://img.shields.io/badge/frontend--next.js-v1.0.2-black?logo=nextdotjs)](#versi-komponen)
 [![ml-service](https://img.shields.io/badge/ml--fastapi-v1.0.0-009688?logo=python&logoColor=white)](#versi-komponen)
 [![Go](https://img.shields.io/badge/Go-1.27%2B-00ADD8?logo=go&logoColor=white)](backend-go/)
 
@@ -60,7 +60,7 @@ flowchart LR
 - **Audit log & log sistem** — setiap aksi penting tercatat; log harian `.log` + `.csv` + API log khusus owner
 - **Graceful shutdown** dan **Docker penuh** — binary statis + healthcheck, siap `docker compose up --build`
 
-**Frontend v1.0.1 — sudah jalan:** login via Go, kasir POS, kelola produk/stok/foto, dashboard owner + halaman peluncur (semua angka dari `/reports/dashboard`), widget Ramalan Pendapatan & Saran Restock (FastAPI), konsol developer. Identitas outlet (nama/logo) masih Prisma — pindah ke Go pada fase multi-outlet.
+**Frontend v1.0.2 — sudah jalan:** login via Go, kasir POS, kelola produk/stok/foto, dashboard owner + halaman peluncur (semua angka dari `/reports/dashboard`), widget Ramalan Pendapatan & Saran Restock (FastAPI), konsol developer. Identitas outlet (nama/logo) masih Prisma — pindah ke Go pada fase multi-outlet. Peluncur & dashboard owner kini tahan terhadap backend lama (guard bentuk respons `/reports/dashboard`).
 
 **Roadmap:**
 
@@ -77,7 +77,7 @@ Setiap komponen punya nomor versi sendiri (Semantic Versioning), independen satu
 | Komponen               | Versi   | Status                 |
 | ---------------------- | ------- | ---------------------- |
 | `backend-go`           | `1.2.0` | aktif — Docker + lokal |
-| `frontend` (Next.js)   | `1.0.1` | migrasi berlangsung    |
+| `frontend` (Next.js)   | `1.0.2` | migrasi berlangsung    |
 | `ml-service` (FastAPI) | `1.0.0` | aktif — baca schema Go |
 
 **Kebijakan versi (dipatuhi ketat):**

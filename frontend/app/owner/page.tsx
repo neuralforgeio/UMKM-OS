@@ -380,6 +380,11 @@ export default async function OwnerPage() {
   if (!dash.ok) {
     throw new Error(dash.message);
   }
+  if (!dash.data.today || !Array.isArray(dash.data.low_stock)) {
+    throw new Error(
+      "Backend lama masih berjalan di port 8080 (tanpa dashboard v1.1.0). Matikan proses 'go run .' yang lama, jalankan backend-go v1.1.0+ (lokal atau docker compose up -d), lalu muat ulang halaman ini.",
+    );
+  }
   const data = dash.data;
 
   // Grafik 7 hari: backend sudah mengirim gap-free tertua dulu, lengkap

@@ -46,7 +46,13 @@ export default async function HomePage() {
       today: { revenue: number; transactions: number; items_sold: number };
       low_stock: unknown[];
     }>(session.user.goToken, "/reports/dashboard");
-    if (dash.ok) {
+    // Bentuk respons diverifikasi SEBELUM dibaca: backend lama (pra
+    // v1.1.0) menjawab /reports/dashboard dengan kolom rata
+    // (today_revenue, low_stock_products) tanpa objek "today" — kartu
+    // statistik cukup dilewati, halaman peluncur tetap terbuka. Setelah
+    // proses lama dimatikan dan backend-go v1.1.0+ yang menjawab, kartu
+    // statistik muncul lagi sendirinya.
+    if (dash.ok && dash.data.today && Array.isArray(dash.data.low_stock)) {
       stats = {
         omzetToday: dash.data.today.revenue,
         trxToday: dash.data.today.transactions,
