@@ -64,6 +64,8 @@ export default async function DevLogsPage({
   const level = one("level") ?? "";
   const page = Math.max(1, parseInt(one("page") ?? "1", 10) || 1);
 
+  const actionTitle = action ? `${actionLabel(action)} (${action})` : "Semua Aksi"
+
   const where = buildLogWhere({ q, action, outlet, actor, from, to, level });
 
   const [total, rows, actionOptions, outlets, actors] = await Promise.all([
@@ -123,7 +125,7 @@ export default async function DevLogsPage({
           <div className="min-w-0">
             <h1 className="flex items-center gap-2 text-sm font-bold leading-tight text-slate-900">
               <ScrollText className="h-4 w-4 text-violet-600" />
-              Log Aktivitas (query penuh)
+              Log Aktivitas - {actionTitle}
             </h1>
             <p className="mt-0.5 text-xs text-slate-500">
               {total} baris cocok filter · maks 10.000 baris per unduhan
