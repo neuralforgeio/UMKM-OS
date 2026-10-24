@@ -77,7 +77,7 @@ Setiap komponen punya nomor versi sendiri (Semantic Versioning), independen satu
 | Komponen               | Versi   | Status                 |
 | ---------------------- | ------- | ---------------------- |
 | `backend-go`           | `1.2.0` | aktif — Docker + lokal |
-| `frontend` (Next.js)   | `1.0.2` | migrasi berlangsung    |
+| `frontend` (Next.js)   | `1.0.2` | migrasi berlangsung    | 
 | `ml-service` (FastAPI) | `1.0.0` | aktif — baca schema Go |
 
 **Kebijakan versi (dipatuhi ketat):**
