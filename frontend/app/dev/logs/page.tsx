@@ -123,7 +123,7 @@ export default async function DevLogsPage({
           <div className="min-w-0">
             <h1 className="flex items-center gap-2 text-sm font-bold leading-tight text-slate-900">
               <ScrollText className="h-4 w-4 text-violet-600" />
-              Log Aktivitas — query penuh
+              Log Aktivitas (query penuh)
             </h1>
             <p className="mt-0.5 text-xs text-slate-500">
               {total} baris cocok filter · maks 10.000 baris per unduhan

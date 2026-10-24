@@ -359,7 +359,7 @@ export function UsersClient({
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-bold leading-tight text-slate-900">
-              Kelola Akun — semua outlet
+              Kelola Akun semua outlet
             </p>
             <p className="mt-0.5 text-xs text-slate-500">
               {users.length} akun · {activeCount} aktif · rantai: developer →

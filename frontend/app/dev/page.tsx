@@ -130,7 +130,7 @@ export default async function DevConsolePage() {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold leading-tight text-slate-900">
-                UMKM OS — Konsol Developer
+                UMKM OS - Konsol Developer
               </p>
               <p className="truncate text-xs text-slate-500">
                 {session.user.name ?? "Developer"} · akses lintas outlet
@@ -167,7 +167,7 @@ export default async function DevConsolePage() {
               <div className="min-w-0">
                 <p className="text-sm font-bold text-slate-900">Kelola Akun</p>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  Buat owner & kasir, reset password, nonaktifkan, hapus —
+                  Buat owner & kasir, reset password, nonaktifkan, hapus -
                   semua outlet.
                 </p>
               </div>
@@ -224,7 +224,7 @@ export default async function DevConsolePage() {
             <div className="min-w-0">
               <h2 className="text-lg font-bold text-slate-900">Outlet</h2>
               <p className="mt-0.5 text-sm text-slate-500">
-                Setiap outlet punya produk, stok, dan akunnya sendiri — terpisah
+                Setiap outlet punya produk, stok, dan akunnya sendiri, terpisah
                 secara data, satu database, satu pantauan. Klik nama outlet untuk
                 drill-down atau masuk mode maintenance.
               </p>
