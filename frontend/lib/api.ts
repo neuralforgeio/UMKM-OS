@@ -20,10 +20,20 @@ export type GoResult<T> =
   | { ok: true; data: T }
   | { ok: false; status: number; message: string };
 
-export async function goFetch<T>(
-  token: string,
+// Header tambahan yang bisa diteruskan ke backend-go. Dipakai aksi
+// publik (goPublic) supaya jejak anti-fraud di handover_events mencatat
+// perangkat + IP PEMBELI asli, bukan User-Agent/IP server Next yang
+// tidak mengatakan apa-apa.
+export type GoInit = {
+  method?: string;
+  body?: string | FormData;
+  headers?: Record<string, string>;
+};
+
+async function goRequest<T>(
   path: string,
-  init?: { method?: string; body?: string | FormData },
+  init: GoInit | undefined,
+  authHeader: Record<string, string> | null,
 ): Promise<GoResult<T>> {
   let res: Response;
   try {
@@ -36,7 +46,8 @@ export async function goFetch<T>(
         ...(typeof init?.body === "string"
           ? { "Content-Type": "application/json" }
           : {}),
-        Authorization: `Bearer ${token}`,
+        ...(authHeader ?? {}),
+        ...(init?.headers ?? {}),
       },
       cache: "no-store",
     });
@@ -65,4 +76,25 @@ export async function goFetch<T>(
     };
   }
   return { ok: true, data: json.data as T };
+}
+
+export async function goFetch<T>(
+  token: string,
+  path: string,
+  init?: GoInit,
+): Promise<GoResult<T>> {
+  return goRequest<T>(path, init, { Authorization: `Bearer ${token}` });
+}
+
+// goPublic memanggil endpoint publik backend-go (v1.3.0): struk pembeli
+// di /public/receipt/* TANPA header Authorization — kode klaim adalah
+// satu-satunya kunci. Aksi publik HARUS meneruskan User-Agent +
+// X-Forwarded-For dari request browser via init.headers supaya jejak
+// perangkat pembeli tetap tercatat di sisi Go (r.UserAgent() dan
+// middleware.ClientIP membacanya dari request yang sampai ke Go).
+export async function goPublic<T>(
+  path: string,
+  init?: GoInit,
+): Promise<GoResult<T>> {
+  return goRequest<T>(path, init, null);
 }

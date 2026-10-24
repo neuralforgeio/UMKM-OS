@@ -1,16 +1,17 @@
 // HALAMAN PUBLIK (tanpa login) — dibuka pembeli dari QR / link di struk.
-// Dua mode:
-// 1. MODE BARU (v3, dine-in): /verify/TRX-… — nomor struk hanyalah
+// Sumber data: GET /api/v1/public/receipt/{code} (backend-go v1.3.0).
+// Dua mode, diputuskan oleh backend:
+// 1. MODE "readonly" (v3, dine-in): /verify/TRX-… — nomor struk hanyalah
 //    ALAMAT. Halaman READ-ONLY: pembeli hanya melihat status
 //    penyajian/verifikasi. Tidak ada tombol konfirmasi/bantahan —
 //    pembeli tidak memegang kunci apa pun; sengketa diselesaikan
-//    langsung di warung dengan jejak HandoverEvent.
-// 2. MODE LAMA (v2, struk cetak sebelum v3): /verify/KODE8 — kode
-//    verifikasi lama tetap berfungsi sebagai kunci interaktif (tanda
-//    tangan / bantah) supaya struk lama tidak hangus.
+//    langsung di warung dengan jejak handover_events.
+// 2. MODE "interactive" (v2 / struk takeaway): /verify/KODE8 — kode
+//    klaim 8 karakter adalah kunci interaktif (tanda tangan / bantah),
+//    dicetak di struk sebagai "Kode klaim".
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { goPublic } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import { BuyerConfirmForm, BuyerDisputeButton } from "./client";
 
@@ -28,6 +29,30 @@ const PAYMENT_LABELS: Record<string, string> = {
   DEBIT: "Debit",
 };
 
+// Bentuk respons GET /public/receipt/{code} (handover.go PublicReceipt).
+type PublicReceipt = {
+  mode: "readonly" | "interactive";
+  receipt_no: string;
+  claim_code: string | null;
+  outlet_name: string;
+  created_at: string;
+  items: {
+    product_name: string;
+    qty: number;
+    price: number;
+    subtotal: number;
+  }[];
+  total: number;
+  payment_method: string;
+  status: string;
+  handover_status: string | null;
+  handover_confirmed_at: string | null;
+  confirmed_by_name: string | null;
+  confirm_method: string | null;
+  buyer_name: string | null;
+  signature_data: string | null;
+};
+
 export default async function PublicVerifyPage({
   params,
 }: {
@@ -41,61 +66,51 @@ export default async function PublicVerifyPage({
   // bukan hasil cache basi.
   await headers();
 
-  // Receipt code first (v3 QR), then the legacy claim code (v2 QR).
-  const tx = await prisma.transaction.findUnique({
-    where: { code },
-    include: {
-      outlet: { select: { name: true } },
-      items: { include: { product: { select: { name: true } } } },
-      handoverEvents: { orderBy: { createdAt: "desc" } },
-    },
-  });
-  const legacy = tx
-    ? null
-    : await prisma.transaction.findUnique({
-        where: { claimCode: code },
-        include: {
-          outlet: { select: { name: true } },
-          items: { include: { product: { select: { name: true } } } },
-          handoverEvents: { orderBy: { createdAt: "desc" } },
-        },
-      });
+  const res = await goPublic<PublicReceipt>(
+    `/public/receipt/${encodeURIComponent(code)}`,
+  );
 
-  if (!tx && !legacy) {
+  if (!res.ok) {
+    // status 0 = backend-go tidak terjangkau — berbeda dari kode salah.
     return (
       <Shell>
         <p className="text-center text-sm text-slate-500">
-          Kode <span className="font-mono font-bold">{code || "—"}</span> tidak
-          dikenali. Pastikan sama persis dengan yang di struk / yang dibacakan
-          kurir.
+          {res.status === 0 ? (
+            "Sistem verifikasi sedang tidak bisa dijangkau. Muat ulang halaman ini beberapa saat lagi."
+          ) : (
+            <>
+              Kode <span className="font-mono font-bold">{code || "—"}</span>{" "}
+              tidak dikenali. Pastikan sama persis dengan yang di struk / yang
+              dibacakan kurir.
+            </>
+          )}
         </p>
       </Shell>
     );
   }
 
-  // ============ MODE BARU: read-only status viewer ============
-  if (tx) {
-    const status = tx.handoverStatus;
-    const confirmEvent = tx.handoverEvents.find(
-      (e) => e.kind === "BUYER_CONFIRM",
-    );
+  const tx = res.data;
+
+  // ============ MODE "readonly": read-only status viewer ============
+  if (tx.mode !== "interactive") {
+    const status = tx.handover_status;
     return (
       <Shell>
         <header className="text-center">
           <p className="text-xs uppercase tracking-widest text-slate-400">
-            {tx.outlet.name}
+            {tx.outlet_name}
           </p>
           <h1 className="mt-1 text-lg font-bold text-slate-900">
             Status Pesanan
           </h1>
           <p className="font-mono text-xs tracking-[0.3em] text-slate-400">
-            {tx.code}
+            {tx.receipt_no}
           </p>
         </header>
 
         <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
           <p className="text-xs text-slate-500">
-            {dtFmt.format(tx.createdAt)} WIB
+            {dtFmt.format(new Date(tx.created_at))} WIB
           </p>
           <ul className="mt-2 space-y-1">
             {tx.items.map((it, i) => (
@@ -104,10 +119,10 @@ export default async function PublicVerifyPage({
                 className="flex justify-between text-sm text-slate-700"
               >
                 <span>
-                  {it.product.name} × {it.quantity}
+                  {it.product_name} × {it.qty}
                 </span>
                 <span className="text-slate-500">
-                  {formatRupiah(Number(it.priceAtSale) * it.quantity)}
+                  {formatRupiah(it.subtotal)}
                 </span>
               </li>
             ))}
@@ -115,11 +130,11 @@ export default async function PublicVerifyPage({
           <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
             <span className="text-sm font-semibold text-slate-700">Total</span>
             <span className="text-lg font-bold text-slate-900">
-              {formatRupiah(Number(tx.total))}
+              {formatRupiah(tx.total)}
             </span>
           </div>
           <p className="mt-1 text-right text-[11px] text-slate-400">
-            Dibayar via {PAYMENT_LABELS[tx.paymentMethod] ?? tx.paymentMethod}
+            Dibayar via {PAYMENT_LABELS[tx.payment_method] ?? tx.payment_method}
           </p>
         </section>
 
@@ -133,8 +148,10 @@ export default async function PublicVerifyPage({
               ✔ Pesanan sudah disajikan
             </p>
             <p className="mt-1 text-xs text-emerald-700/80">
-              {dtFmt.format(tx.handoverConfirmedAt ?? tx.createdAt)} WIB ·
-              dicatat oleh staf saat penyerahan
+              {dtFmt.format(
+                new Date(tx.handover_confirmed_at ?? tx.created_at),
+              )}{" "}
+              WIB · dicatat oleh staf saat penyerahan
             </p>
           </section>
         ) : status === "CONFIRMED" ? (
@@ -143,12 +160,15 @@ export default async function PublicVerifyPage({
               ✔ Pesanan sudah diterima &amp; terverifikasi
             </p>
             <p className="mt-1 text-xs text-emerald-700/80">
-              {dtFmt.format(tx.handoverConfirmedAt ?? tx.createdAt)} WIB
+              {dtFmt.format(
+                new Date(tx.handover_confirmed_at ?? tx.created_at),
+              )}{" "}
+              WIB
             </p>
-            {confirmEvent?.signatureData && (
+            {tx.signature_data && (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
-                src={confirmEvent.signatureData}
+                src={tx.signature_data}
                 alt="Tanda tangan penerima"
                 className="mx-auto mt-3 rounded-lg border border-emerald-200 bg-white"
               />
@@ -178,134 +198,128 @@ export default async function PublicVerifyPage({
     );
   }
 
-  // ============ MODE LAMA: interaktif (kode = kunci) ============
-  if (legacy) {
-    const status = legacy.handoverStatus;
-    const confirmEvent = legacy.handoverEvents.find(
-      (e) => e.kind === "BUYER_CONFIRM",
-    );
-    return (
-      <Shell>
-        <header className="text-center">
-          <p className="text-xs uppercase tracking-widest text-slate-400">
-            {legacy.outlet.name}
-          </p>
-          <h1 className="mt-1 text-lg font-bold text-slate-900">
-            Bukti Serah Terima
-          </h1>
-          <p className="font-mono text-xs tracking-[0.3em] text-slate-400">
-            {code}
-          </p>
-        </header>
+  // ============ MODE "interactive": kode klaim = kunci ============
+  const status = tx.handover_status;
+  return (
+    <Shell>
+      <header className="text-center">
+        <p className="text-xs uppercase tracking-widest text-slate-400">
+          {tx.outlet_name}
+        </p>
+        <h1 className="mt-1 text-lg font-bold text-slate-900">
+          Bukti Serah Terima
+        </h1>
+        <p className="font-mono text-xs tracking-[0.3em] text-slate-400">
+          {code}
+        </p>
+      </header>
 
-        <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
-          <p className="text-xs text-slate-500">
-            {dtFmt.format(legacy.createdAt)} WIB
+      <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+        <p className="text-xs text-slate-500">
+          {dtFmt.format(new Date(tx.created_at))} WIB
+        </p>
+        <ul className="mt-2 space-y-1">
+          {tx.items.map((it, i) => (
+            <li key={i} className="flex justify-between text-sm text-slate-700">
+              <span>
+                {it.product_name} × {it.qty}
+              </span>
+              <span className="text-slate-500">
+                {formatRupiah(it.subtotal)}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+          <span className="text-sm font-semibold text-slate-700">Total</span>
+          <span className="text-lg font-bold text-slate-900">
+            {formatRupiah(tx.total)}
+          </span>
+        </div>
+        <p className="mt-1 text-right text-[11px] text-slate-400">
+          Dibayar via {PAYMENT_LABELS[tx.payment_method] ?? tx.payment_method}
+        </p>
+      </section>
+
+      {tx.status === "REFUNDED" ? (
+        <section className="mt-4 rounded-2xl bg-slate-100 p-4 text-center text-sm font-medium text-slate-600 shadow-sm">
+          Transaksi ini sudah direfund oleh warung.
+        </section>
+      ) : status === "CONFIRMED" ? (
+        <section className="mt-4 rounded-2xl bg-emerald-50 p-4 text-center shadow-sm">
+          <p className="text-sm font-bold text-emerald-700">
+            ✔ Pesanan sudah diterima
           </p>
-          <ul className="mt-2 space-y-1">
-            {legacy.items.map((it, i) => (
-              <li
-                key={i}
-                className="flex justify-between text-sm text-slate-700"
-              >
-                <span>
-                  {it.product.name} × {it.quantity}
-                </span>
-                <span className="text-slate-500">
-                  {formatRupiah(Number(it.priceAtSale) * it.quantity)}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-            <span className="text-sm font-semibold text-slate-700">Total</span>
-            <span className="text-lg font-bold text-slate-900">
-              {formatRupiah(Number(legacy.total))}
-            </span>
-          </div>
-          <p className="mt-1 text-right text-[11px] text-slate-400">
-            Dibayar via{" "}
-            {PAYMENT_LABELS[legacy.paymentMethod] ?? legacy.paymentMethod}
+          <p className="mt-1 text-xs text-emerald-700/80">
+            Terverifikasi{" "}
+            {dtFmt.format(new Date(tx.handover_confirmed_at ?? tx.created_at))}{" "}
+            WIB ·{" "}
+            {tx.confirm_method === "PUBLIC"
+              ? "dari HP pembeli"
+              : "di layar kurir"}
+          </p>
+          {tx.signature_data && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={tx.signature_data}
+              alt="Tanda tangan"
+              className="mx-auto mt-3 rounded-lg border border-emerald-200 bg-white"
+            />
+          )}
+          <p className="mt-3 text-[11px] text-emerald-700/70">
+            Simpan link ini — dia bukti milik kamu juga.
           </p>
         </section>
-
-        {status === "CONFIRMED" ? (
-          <section className="mt-4 rounded-2xl bg-emerald-50 p-4 text-center shadow-sm">
-            <p className="text-sm font-bold text-emerald-700">
-              ✔ Pesanan sudah diterima
-            </p>
-            <p className="mt-1 text-xs text-emerald-700/80">
-              Terverifikasi{" "}
-              {dtFmt.format(legacy.handoverConfirmedAt ?? legacy.createdAt)} WIB
-              ·{" "}
-              {confirmEvent?.method === "PUBLIC"
-                ? "dari HP pembeli"
-                : "di layar kurir"}
-            </p>
-            {confirmEvent?.signatureData && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={confirmEvent.signatureData}
-                alt="Tanda tangan"
-                className="mx-auto mt-3 rounded-lg border border-emerald-200 bg-white"
-              />
-            )}
-            <p className="mt-3 text-[11px] text-emerald-700/70">
-              Simpan link ini — dia bukti milik kamu juga.
-            </p>
-          </section>
-        ) : status === "DISPUTED" ? (
-          <section className="mt-4 space-y-3">
-            <div className="rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-700">
-              Pembantahan kamu sudah tercatat permanen dan terlihat di daftar
-              serah terima toko.
-            </div>
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <p className="mb-2 text-sm font-semibold text-slate-800">
-                Ternyata pesanan SUDAH kamu terima? Konfirmasi di sini:
-              </p>
-              <BuyerConfirmForm code={code} />
-            </div>
-          </section>
-        ) : status === "SERVED" ? (
-          <section className="mt-4 space-y-3">
-            <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700">
-              ✔ Pesanan sudah disajikan{" "}
-              {dtFmt.format(legacy.handoverConfirmedAt ?? legacy.createdAt)} WIB
-            </div>
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <p className="mb-2 text-sm font-semibold text-slate-800">
-                Ingin menambah tanda tanganmu sebagai bukti penerimaan?
-              </p>
-              <BuyerConfirmForm code={code} />
-            </div>
-          </section>
-        ) : status === "COURIER_CLAIMED" ? (
-          <section className="mt-4 space-y-3">
-            <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
-              Kurir sudah menandai pesanan ini <b>selesai diantar</b>. Apakah
-              sudah kamu terima dengan lengkap?
-            </div>
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <BuyerConfirmForm code={code} />
-              <div className="mt-3 border-t border-slate-100 pt-3">
-                <BuyerDisputeButton code={code} />
-              </div>
-            </div>
-          </section>
-        ) : (
-          <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+      ) : status === "DISPUTED" ? (
+        <section className="mt-4 space-y-3">
+          <div className="rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-700">
+            Pembantahan kamu sudah tercatat permanen dan terlihat di daftar
+            serah terima toko.
+          </div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
             <p className="mb-2 text-sm font-semibold text-slate-800">
-              Sudah menerima pesanan ini? Tanda tangan di bawah sebagai bukti:
+              Ternyata pesanan SUDAH kamu terima? Konfirmasi di sini:
             </p>
             <BuyerConfirmForm code={code} />
-          </section>
-        )}
-      </Shell>
-    );
-  }
-
-  return null;
+          </div>
+        </section>
+      ) : status === "SERVED" ? (
+        <section className="mt-4 space-y-3">
+          <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700">
+            ✔ Pesanan sudah disajikan{" "}
+            {dtFmt.format(new Date(tx.handover_confirmed_at ?? tx.created_at))}{" "}
+            WIB
+          </div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <p className="mb-2 text-sm font-semibold text-slate-800">
+              Ingin menambah tanda tanganmu sebagai bukti penerimaan?
+            </p>
+            <BuyerConfirmForm code={code} />
+          </div>
+        </section>
+      ) : status === "COURIER_CLAIMED" ? (
+        <section className="mt-4 space-y-3">
+          <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+            Kurir sudah menandai pesanan ini <b>selesai diantar</b>. Apakah
+            sudah kamu terima dengan lengkap?
+          </div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <BuyerConfirmForm code={code} />
+            <div className="mt-3 border-t border-slate-100 pt-3">
+              <BuyerDisputeButton code={code} />
+            </div>
+          </div>
+        </section>
+      ) : (
+        <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+          <p className="mb-2 text-sm font-semibold text-slate-800">
+            Sudah menerima pesanan ini? Tanda tangan di bawah sebagai bukti:
+          </p>
+          <BuyerConfirmForm code={code} />
+        </section>
+      )}
+    </Shell>
+  );
 }
 
 function Shell({ children }: { children: ReactNode }) {

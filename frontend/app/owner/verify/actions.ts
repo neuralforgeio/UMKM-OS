@@ -1,15 +1,18 @@
 "use server";
-// Aksi verifikasi struk v3 untuk staf yang LOGIN (owner / kasir).
-// Dine-in: inti = MARK SERVED — status penyajian dicatat satu arah,
-// berjejak (siapa + kapan + perangkat) di HandoverEvent (append-only).
-// Alat v2 (tanda tangan pembeli / klaim kurir) tetap tersedia sebagai
-// bukti kuat untuk skenario online / takeaway.
+// Aksi verifikasi struk v3 untuk staf yang LOGIN (owner / kasir /
+// developer) — kini sepenuhnya ke backend-go v1.3.0:
+//   GET  /api/v1/queue                      -> antrean penyajian
+//   POST /api/v1/transactions/{id}/serve    -> mark served (dine-in)
+//   POST /api/v1/transactions/{id}/confirm  -> tanda tangan pembeli in-app
+//   POST /api/v1/transactions/{id}/claim    -> klaim kurir (tanpa ttd)
+// Seluruh transisi status, jejak handover_events, dan audit_logs
+// dikelola atomik oleh Go; file ini jembatan tipis + penerusan
+// identitas perangkat staf.
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { isValidSignatureData, startOfTodayWIB } from "@/lib/handover";
-import { audit } from "@/lib/audit";
+import { goFetch } from "@/lib/api";
+import { isValidSignatureData } from "@/lib/handover";
 
 export type HandoverActionResult = { ok: true } | { ok: false; error: string };
 
@@ -30,72 +33,74 @@ async function requireStaff() {
   const u = session?.user;
   if (
     !u ||
+    !u.goToken ||
     (u.role !== "OWNER" && u.role !== "KASIR" && u.role !== "DEVELOPER")
   )
     return null;
-  return u;
+  // goToken di-narrow di sini supaya pemanggil mendapat tipe string,
+  // bukan string | undefined dari augmentasi sesi next-auth.
+  return { goToken: u.goToken };
 }
 
-async function requestMeta() {
+// Identitas staf diteruskan ke backend-go lewat header supaya jejak di
+// handover_events mencatat perangkat + IP asli operator (Go membacanya
+// dari r.UserAgent() dan middleware.ClientIP).
+async function staffHeaders(): Promise<Record<string, string>> {
   const h = await headers();
+  const fwd: Record<string, string> = {};
+  const ua = h.get("user-agent");
+  if (ua) fwd["User-Agent"] = ua;
   const ip =
     h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     h.get("x-real-ip") ||
     undefined;
-  return { userAgent: h.get("user-agent") ?? undefined, ip };
+  if (ip) fwd["X-Forwarded-For"] = ip;
+  return fwd;
 }
 
-function revalidateAll(txId: string, claimCode: string | null) {
+function revalidateAll(txId: string) {
   revalidatePath("/owner/verify");
   revalidatePath(`/owner/verify/${txId}`);
-  if (claimCode) revalidatePath(`/verify/${claimCode}`);
+  revalidatePath("/cashier");
+  revalidatePath("/owner");
+  revalidatePath("/owner/transactions");
 }
 
+// Bentuk baris GET /queue (handover.go ServeQueue).
+type GoQueueRow = {
+  id: number;
+  receipt_no: string;
+  claim_code: string | null;
+  created_at: string;
+  item_count: number;
+  total: number;
+  payment_method: string;
+};
+
 /**
- * ANTREAN PENYAJIAN (anti-lupa): transaksi HARI INI (WIB) outlet staf
- * yang masih COMPLETED dan belum punya aktivitas serah terima apa pun.
- * Dipanggil dari server render halaman kasir/konsol DAN di-poll ringan
- * oleh komponen klien tiap 30 detik.
+ * ANTREAN PENYAJIAN (anti-lupa): transaksi HARI INI (WIB) yang masih
+ * COMPLETED dan belum punya aktivitas serah terima apa pun — dihitung
+ * oleh backend-go sesuai zona waktu warung. Dipanggil dari server render
+ * halaman kasir/konsol DAN di-poll ringan oleh komponen klien tiap 30
+ * detik.
  */
 export async function getServeQueue(): Promise<ServeQueueRow[]> {
   try {
     const staff = await requireStaff();
     if (!staff) return [];
-    const outletId =
-      staff.outletId ??
-      (
-        await prisma.outlet.findFirst({
-          select: { id: true },
-        })
-      )?.id;
-    if (!outletId) return [];
 
-    const rows = await prisma.transaction.findMany({
-      where: {
-        outletId,
-        status: "COMPLETED",
-        createdAt: { gte: startOfTodayWIB() },
-        handoverStatus: null,
-      },
-      orderBy: { createdAt: "asc" },
-      take: 30,
-      select: {
-        id: true,
-        code: true,
-        createdAt: true,
-        total: true,
-        paymentMethod: true,
-        items: { select: { quantity: true } },
-      },
+    const res = await goFetch<GoQueueRow[]>(staff.goToken, "/queue", {
+      headers: await staffHeaders(),
     });
+    if (!res.ok) return [];
 
-    return rows.map((r) => ({
-      id: r.id,
-      code: r.code,
-      createdAtIso: r.createdAt.toISOString(),
-      itemCount: r.items.reduce((sum, i) => sum + i.quantity, 0),
-      totalRupiah: Math.round(Number(r.total)),
-      paymentMethod: r.paymentMethod,
+    return res.data.map((r) => ({
+      id: String(r.id),
+      code: r.receipt_no,
+      createdAtIso: r.created_at,
+      itemCount: r.item_count,
+      totalRupiah: Math.round(r.total),
+      paymentMethod: r.payment_method,
     }));
   } catch (e) {
     console.error("getServeQueue:", e);
@@ -103,119 +108,45 @@ export async function getServeQueue(): Promise<ServeQueueRow[]> {
   }
 }
 
+function requireTxId(
+  transactionId: string,
+): { error: string } | { id: string } {
+  if (typeof transactionId !== "string" || !/^\d+$/.test(transactionId)) {
+    return { error: "ID transaksi tidak valid." };
+  }
+  return { id: transactionId };
+}
+
 /**
  * MARK SERVED (pintu utama v3 dine-in): pesanan diserahkan/disajikan.
- * SATU ARAH — tidak ada tombol batal; jejak HandoverEvent STAFF_SERVE
- * berisi siapa, kapan, dan perangkat apa. Hanya berlaku dari status
- * kosong (belum ada aktivitas serah terima).
+ * SATU ARAH — tidak ada tombol batal; jejak STAFF_SERVE berisi siapa,
+ * kapan, dan perangkat apa. Hanya berlaku dari status kosong (belum ada
+ * aktivitas serah terima). Pesan error Go sudah ramah-staf dan spesifik
+ * per status — diteruskan apa adanya.
  */
 export async function markServed(input: {
   transactionId: string;
   note?: string;
 }): Promise<HandoverActionResult> {
-  try {
-    const staff = await requireStaff();
-    if (!staff)
-      return { ok: false, error: "Harus login sebagai owner atau kasir." };
-    if (typeof input.transactionId !== "string" || !input.transactionId) {
-      return { ok: false, error: "ID transaksi tidak valid." };
-    }
+  const staff = await requireStaff();
+  if (!staff)
+    return { ok: false, error: "Harus login sebagai owner atau kasir." };
+  const tx = requireTxId(input.transactionId);
+  if ("error" in tx) return { ok: false, error: tx.error };
 
-    const tx = await prisma.transaction.findUnique({
-      where: { id: input.transactionId },
-      select: {
-        id: true,
-        code: true,
-        outletId: true,
-        claimCode: true,
-        status: true,
-        handoverStatus: true,
-      },
-    });
-    if (!tx) {
-      // Struk era backend-go (id numerik) hidup di tabel Go, bukan tabel
-      // Prisma — dia memang tidak pernah masuk Antrean Penyajian, jadi
-      // tidak ada yang perlu ditandai. Sukses sunyi supaya tombol
-      // "Sudah Diserahkan" tetap konsisten sampai ledger penyajian ikut
-      // pindah ke backend-go (fase berikutnya).
-      if (/^\d+$/.test(input.transactionId)) return { ok: true };
-      return { ok: false, error: "Transaksi tidak ditemukan." };
-    }
-    if (staff.outletId && tx.outletId !== staff.outletId) {
-      return { ok: false, error: "Transaksi ini bukan milik outlet Anda." };
-    }
-    if (tx.status === "REFUNDED") {
-      return { ok: false, error: "Transaksi ini sudah direfund." };
-    }
-    if (tx.handoverStatus === "SERVED") {
-      return { ok: false, error: "Pesanan ini sudah tercatat disajikan." };
-    }
-    if (tx.handoverStatus === "CONFIRMED") {
-      return {
-        ok: false,
-        error: "Sudah terverifikasi diterima pembeli — tidak perlu ditandai.",
-      };
-    }
-    if (tx.handoverStatus === "COURIER_CLAIMED") {
-      return {
-        ok: false,
-        error: "Status: diklaim kurir. Buka detail transaksi untuk mengelola.",
-      };
-    }
-    if (tx.handoverStatus === "DISPUTED") {
-      return {
-        ok: false,
-        error: "Ada pembantahan pembeli — selesaikan dulu sengketanya.",
-      };
-    }
+  const res = await goFetch<{ message: string }>(
+    staff.goToken,
+    `/transactions/${tx.id}/serve`,
+    {
+      method: "POST",
+      body: JSON.stringify({ note: (input.note ?? "").trim().slice(0, 200) }),
+      headers: await staffHeaders(),
+    },
+  );
+  if (!res.ok) return { ok: false, error: res.message };
 
-    const note = (input.note ?? "").trim().slice(0, 200) || null;
-    const meta = await requestMeta();
-
-    await prisma.$transaction([
-      prisma.handoverEvent.create({
-        data: {
-          transactionId: tx.id,
-          kind: "STAFF_SERVE",
-          method: "IN_APP",
-          actorRole: staff.role,
-          actorId: staff.id,
-          note,
-          userAgent: meta.userAgent,
-          ip: meta.ip,
-        },
-      }),
-      prisma.transaction.update({
-        where: { id: tx.id },
-        data: {
-          handoverStatus: "SERVED",
-          handoverConfirmedAt: new Date(),
-          handoverConfirmedBy: staff.id,
-        },
-      }),
-    ]);
-
-    // Jejak ganda: HandoverEvent = bukti detail per struk, AuditEvent =
-    // aliran aktivitas lintas aksi untuk konsol developer & CSV owner.
-    await audit({
-      actorId: staff.id,
-      outletId: tx.outletId,
-      action: "HANDOVER_SERVE",
-      entity: `transaction:${tx.id}`,
-      summary: `Struk ${tx.code} ditandai sudah disajikan`,
-      meta: { code: tx.code },
-    });
-
-    revalidateAll(tx.id, tx.claimCode);
-    revalidatePath(`/verify/${tx.code}`);
-    revalidatePath("/cashier");
-    revalidatePath("/owner");
-    revalidatePath("/owner/transactions");
-    return { ok: true };
-  } catch (e) {
-    console.error("markServed:", e);
-    return { ok: false, error: "Gagal menandai penyajian. Coba lagi." };
-  }
+  revalidateAll(tx.id);
+  return { ok: true };
 }
 
 /**
@@ -228,81 +159,32 @@ export async function confirmHandoverInApp(input: {
   buyerName?: string;
   signatureData: string;
 }): Promise<HandoverActionResult> {
-  try {
-    const staff = await requireStaff();
-    if (!staff)
-      return { ok: false, error: "Harus login sebagai owner atau kasir." };
-
-    if (!isValidSignatureData(input.signatureData)) {
-      return { ok: false, error: "Tanda tangan pembeli belum digambar." };
-    }
-
-    const tx = await prisma.transaction.findUnique({
-      where: { id: input.transactionId },
-      select: {
-        id: true,
-        // code dipakai ringkasan audit di bawah — Prisma select menentukan
-        // bentuk hasil query, jadi kolom harus ikut di-select agar tx.code
-        // ada (markServed sudah benar; dua fungsi ini sebelumnya lupa).
-        code: true,
-        outletId: true,
-        claimCode: true,
-        handoverStatus: true,
-      },
-    });
-    if (!tx) return { ok: false, error: "Transaksi tidak ditemukan." };
-    if (staff.outletId && tx.outletId !== staff.outletId) {
-      return { ok: false, error: "Transaksi ini bukan milik outlet Anda." };
-    }
-    if (tx.handoverStatus === "CONFIRMED") {
-      return {
-        ok: false,
-        error: "Transaksi ini sudah terverifikasi sebelumnya.",
-      };
-    }
-
-    const buyerName = (input.buyerName ?? "").trim().slice(0, 40) || null;
-    const meta = await requestMeta();
-
-    await prisma.$transaction([
-      prisma.handoverEvent.create({
-        data: {
-          transactionId: tx.id,
-          kind: "BUYER_CONFIRM",
-          method: "IN_APP",
-          actorRole: staff.role,
-          actorId: staff.id,
-          buyerName,
-          signatureData: input.signatureData,
-          userAgent: meta.userAgent,
-          ip: meta.ip,
-        },
-      }),
-      prisma.transaction.update({
-        where: { id: tx.id },
-        data: {
-          handoverStatus: "CONFIRMED",
-          handoverConfirmedAt: new Date(),
-          handoverConfirmedBy: staff.id,
-        },
-      }),
-    ]);
-
-    await audit({
-      actorId: staff.id,
-      outletId: tx.outletId,
-      action: "HANDOVER_CONFIRM",
-      entity: `transaction:${tx.id}`,
-      summary: `Struk ${tx.code} dikonfirmasi diterima pembeli${buyerName ? ` (${buyerName})` : ""} — tanda tangan digital`,
-      meta: { code: tx.code },
-    });
-
-    revalidateAll(tx.id, tx.claimCode);
-    return { ok: true };
-  } catch (e) {
-    console.error("confirmHandoverInApp:", e);
-    return { ok: false, error: "Gagal menyimpan konfirmasi. Coba lagi." };
+  // Pemeriksaan cepat untuk UX; Go memvalidasi ulang secara otoritatif.
+  if (!isValidSignatureData(input.signatureData)) {
+    return { ok: false, error: "Tanda tangan pembeli belum digambar." };
   }
+  const staff = await requireStaff();
+  if (!staff)
+    return { ok: false, error: "Harus login sebagai owner atau kasir." };
+  const tx = requireTxId(input.transactionId);
+  if ("error" in tx) return { ok: false, error: tx.error };
+
+  const res = await goFetch<{ message: string }>(
+    staff.goToken,
+    `/transactions/${tx.id}/confirm`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        buyer_name: (input.buyerName ?? "").trim().slice(0, 40),
+        signature_data: input.signatureData,
+      }),
+      headers: await staffHeaders(),
+    },
+  );
+  if (!res.ok) return { ok: false, error: res.message };
+
+  revalidateAll(tx.id);
+  return { ok: true };
 }
 
 /**
@@ -314,78 +196,23 @@ export async function claimDelivered(input: {
   transactionId: string;
   note?: string;
 }): Promise<HandoverActionResult> {
-  try {
-    const staff = await requireStaff();
-    if (!staff)
-      return { ok: false, error: "Harus login sebagai owner atau kasir." };
+  const staff = await requireStaff();
+  if (!staff)
+    return { ok: false, error: "Harus login sebagai owner atau kasir." };
+  const tx = requireTxId(input.transactionId);
+  if ("error" in tx) return { ok: false, error: tx.error };
 
-    const tx = await prisma.transaction.findUnique({
-      where: { id: input.transactionId },
-      select: {
-        id: true,
-        // code dipakai ringkasan audit di bawah — Prisma select menentukan
-        // bentuk hasil query, jadi kolom harus ikut di-select agar tx.code
-        // ada (markServed sudah benar; dua fungsi ini sebelumnya lupa).
-        code: true,
-        outletId: true,
-        claimCode: true,
-        handoverStatus: true,
-      },
-    });
-    if (!tx) return { ok: false, error: "Transaksi tidak ditemukan." };
-    if (staff.outletId && tx.outletId !== staff.outletId) {
-      return { ok: false, error: "Transaksi ini bukan milik outlet Anda." };
-    }
-    if (tx.handoverStatus === "CONFIRMED") {
-      return {
-        ok: false,
-        error: "Sudah terverifikasi pembeli — tidak perlu klaim kurir.",
-      };
-    }
-    if (tx.handoverStatus === "COURIER_CLAIMED") {
-      return { ok: false, error: "Sudah pernah diklaim kurir sebelumnya." };
-    }
-    if (tx.handoverStatus === "DISPUTED") {
-      return {
-        ok: false,
-        error:
-          "Pembeli sedang membantah pesanan ini — selesaikan dulu dengan pembeli.",
-      };
-    }
+  const res = await goFetch<{ message: string }>(
+    staff.goToken,
+    `/transactions/${tx.id}/claim`,
+    {
+      method: "POST",
+      body: JSON.stringify({ note: (input.note ?? "").trim().slice(0, 200) }),
+      headers: await staffHeaders(),
+    },
+  );
+  if (!res.ok) return { ok: false, error: res.message };
 
-    const meta = await requestMeta();
-    await prisma.$transaction([
-      prisma.handoverEvent.create({
-        data: {
-          transactionId: tx.id,
-          kind: "COURIER_CLAIM",
-          method: "IN_APP",
-          actorRole: staff.role,
-          actorId: staff.id,
-          note: (input.note ?? "").trim().slice(0, 200) || null,
-          userAgent: meta.userAgent,
-          ip: meta.ip,
-        },
-      }),
-      prisma.transaction.update({
-        where: { id: tx.id },
-        data: { handoverStatus: "COURIER_CLAIMED" },
-      }),
-    ]);
-
-    await audit({
-      actorId: staff.id,
-      outletId: tx.outletId,
-      action: "HANDOVER_CLAIM",
-      entity: `transaction:${tx.id}`,
-      summary: `Struk ${tx.code} diklaim sudah diantar (tanpa tanda tangan pembeli)`,
-      meta: { code: tx.code },
-    });
-
-    revalidateAll(tx.id, tx.claimCode);
-    return { ok: true };
-  } catch (e) {
-    console.error("claimDelivered:", e);
-    return { ok: false, error: "Gagal menyimpan klaim. Coba lagi." };
-  }
+  revalidateAll(tx.id);
+  return { ok: true };
 }

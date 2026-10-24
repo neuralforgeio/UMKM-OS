@@ -23,6 +23,8 @@ const DISCOUNT_MODES: DiscountInput["mode"][] = ["RP", "PERCENT"];
 type GoTransaction = {
   id: number;
   receipt_no: string;
+  // Kunci interaktif pembeli (v1.3.0) diteruskan ke struk supaya pembeli takeaway bisa konfirmasi / bantah di verify/{kode}
+  claimd_code: string | null
   created_at: string;
   payment_method: PaymentMethodValue;
   subtotal: number;
@@ -145,6 +147,7 @@ export async function createTransaction(input: {
   const receipt = {
     code: t.receipt_no,
     transactionId: String(t.id),
+    claimCode: t.claimd_code ?? null,
     createdAt: t.created_at,
     paymentMethod: t.payment_method,
     subtotal: t.subtotal,

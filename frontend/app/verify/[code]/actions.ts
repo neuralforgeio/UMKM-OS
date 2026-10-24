@@ -1,8 +1,12 @@
 "use server";
-// Aksi dari HP PEMBELI (tanpa login) — kode verifikasi adalah kuncinya.
+// Aksi dari HP PEMBELI (tanpa login) — kode klaim adalah kuncinya.
+// Seluruh logika (validasi tanda tangan, transisi status, jejak
+// HandoverEvent, audit) sudah di backend-go v1.3.0
+// (POST /api/v1/public/receipt/{code}/confirm|dispute); file ini hanya
+// jembatan tipis + penerusan identitas perangkat pembeli.
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { goPublic } from "@/lib/api";
 import { isValidSignatureData } from "@/lib/handover";
 
 export type PublicActionResult = { ok: true } | { ok: false; error: string };
@@ -11,19 +15,27 @@ function normalizeCode(raw: string) {
   return raw.trim().toUpperCase();
 }
 
-async function requestMeta() {
+// Identitas PEMBELI diteruskan ke backend-go lewat header supaya jejak
+// anti-fraud di handover_events mencatat perangkat + IP asli pembeli
+// (Go membacanya dari r.UserAgent() dan middleware.ClientIP, yang
+// memprioritaskan X-Forwarded-For).
+async function buyerHeaders(): Promise<Record<string, string>> {
   const h = await headers();
+  const fwd: Record<string, string> = {};
+  const ua = h.get("user-agent");
+  if (ua) fwd["User-Agent"] = ua;
   const ip =
     h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     h.get("x-real-ip") ||
     undefined;
-  return { userAgent: h.get("user-agent") ?? undefined, ip };
+  if (ip) fwd["X-Forwarded-For"] = ip;
+  return fwd;
 }
 
-function revalidateAll(txId: string, code: string) {
-  revalidatePath(`/verify/${code}`);
+function revalidateStaffViews() {
   revalidatePath("/owner/verify");
-  revalidatePath(`/owner/verify/${txId}`);
+  revalidatePath("/owner/transactions");
+  revalidatePath("/cashier");
 }
 
 /** Konfirmasi KUAT dari HP pembeli: tanda tangan + nama + waktu + perangkat. */
@@ -32,52 +44,32 @@ export async function confirmByCode(input: {
   buyerName?: string;
   signatureData: string;
 }): Promise<PublicActionResult> {
-  try {
-    if (!isValidSignatureData(input.signatureData)) {
-      return { ok: false, error: "Tanda tangan belum digambar." };
-    }
-    const code = normalizeCode(input.code);
-    const tx = await prisma.transaction.findUnique({
-      where: { claimCode: code },
-      select: { id: true, handoverStatus: true },
-    });
-    if (!tx) return { ok: false, error: "Kode tidak dikenali." };
-    if (tx.handoverStatus === "CONFIRMED") {
-      return { ok: false, error: "Pesanan ini sudah terverifikasi sebelumnya." };
-    }
-
-    const buyerName = (input.buyerName ?? "").trim().slice(0, 40) || null;
-    const meta = await requestMeta();
-
-    await prisma.$transaction([
-      prisma.handoverEvent.create({
-        data: {
-          transactionId: tx.id,
-          kind: "BUYER_CONFIRM",
-          method: "PUBLIC",
-          actorRole: "BUYER",
-          buyerName,
-          signatureData: input.signatureData,
-          userAgent: meta.userAgent,
-          ip: meta.ip,
-        },
-      }),
-      prisma.transaction.update({
-        where: { id: tx.id },
-        data: {
-          handoverStatus: "CONFIRMED",
-          handoverConfirmedAt: new Date(),
-          handoverConfirmedBy: null, // konfirmasi publik — bukan oleh staf
-        },
-      }),
-    ]);
-
-    revalidateAll(tx.id, code);
-    return { ok: true };
-  } catch (e) {
-    console.error("confirmByCode:", e);
-    return { ok: false, error: "Gagal menyimpan konfirmasi. Coba lagi." };
+  // Pemeriksaan cepat untuk UX (tanpa round-trip); Go tetap memvalidasi
+  // ulang secara otoritatif di sisi server.
+  if (!isValidSignatureData(input.signatureData)) {
+    return { ok: false, error: "Tanda tangan belum digambar." };
   }
+  const code = normalizeCode(input.code);
+  if (!code) return { ok: false, error: "Kode tidak dikenali." };
+
+  const res = await goPublic<{ message: string }>(
+    `/public/receipt/${encodeURIComponent(code)}/confirm`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        buyer_name: (input.buyerName ?? "").trim().slice(0, 40),
+        signature_data: input.signatureData,
+      }),
+      headers: await buyerHeaders(),
+    },
+  );
+  if (!res.ok) return { ok: false, error: res.message };
+
+  // Halaman /verify/[code] itu dinamis (no-store), jadi router.refresh()
+  // di klien sudah cukup untuk pembeli — revalidasi ini untuk konsol
+  // staf yang menampilkan status serah terima.
+  revalidateStaffViews();
+  return { ok: true };
 }
 
 /** Pembeli membantah: "saya tidak pernah terima". Tercatat permanen. */
@@ -85,46 +77,21 @@ export async function disputeByCode(input: {
   code: string;
   reason?: string;
 }): Promise<PublicActionResult> {
-  try {
-    const code = normalizeCode(input.code);
-    const tx = await prisma.transaction.findUnique({
-      where: { claimCode: code },
-      select: { id: true, handoverStatus: true },
-    });
-    if (!tx) return { ok: false, error: "Kode tidak dikenali." };
-    if (tx.handoverStatus === "DISPUTED") {
-      return { ok: false, error: "Pembantahan ini sudah tercatat." };
-    }
-    if (tx.handoverStatus === "CONFIRMED") {
-      return {
-        ok: false,
-        error: "Pesanan ini sudah terverifikasi diterima. Hubungi toko langsung.",
-      };
-    }
+  const code = normalizeCode(input.code);
+  if (!code) return { ok: false, error: "Kode tidak dikenali." };
 
-    const meta = await requestMeta();
-    await prisma.$transaction([
-      prisma.handoverEvent.create({
-        data: {
-          transactionId: tx.id,
-          kind: "BUYER_DISPUTE",
-          method: "PUBLIC",
-          actorRole: "BUYER",
-          note: (input.reason ?? "").trim().slice(0, 200) || null,
-          userAgent: meta.userAgent,
-          ip: meta.ip,
-        },
+  const res = await goPublic<{ message: string }>(
+    `/public/receipt/${encodeURIComponent(code)}/dispute`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        reason: (input.reason ?? "").trim().slice(0, 200),
       }),
-      prisma.transaction.update({
-        where: { id: tx.id },
-        data: { handoverStatus: "DISPUTED" },
-      }),
-    ]);
+      headers: await buyerHeaders(),
+    },
+  );
+  if (!res.ok) return { ok: false, error: res.message };
 
-    revalidateAll(tx.id, code);
-    return { ok: true };
-  } catch (e) {
-    console.error("disputeByCode:", e);
-    return { ok: false, error: "Gagal mencatat pembantahan. Coba lagi." };
-  }
+  revalidateStaffViews();
+  return { ok: true };
 }

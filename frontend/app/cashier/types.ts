@@ -70,6 +70,12 @@ export type Receipt = {
   // directly" action on the success screen to mark the order SERVED
   // (handover ledger v3) without typing anything.
   transactionId: string;
+  // Kode klaim 8 karakter dari backend-go (v1.3.0): kunci INTERAKTIF
+  // pembeli — dicetak di struk sebagai "Kode klaim" supaya pembeli
+  // takeaway bisa konfirmasi/bantah di /verify/{kode}. Nomor struk
+  // (field `code` di atas) hanyalah alamat baca-saja. Null hanya pada
+  // transaksi era lama; struk tetap terbit tanpa blok kode klaim.
+  claimCode: string | null;
   // Receipt QR as an inline SVG string, generated server-side by the
   // checkout action (QRCode.toString type "svg"). Empty string = QR
   // generation failed; the receipt itself is still valid and renders
