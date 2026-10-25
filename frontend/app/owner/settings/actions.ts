@@ -2,31 +2,36 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { audit } from "@/lib/audit";
+import { goFetch } from "@/lib/api";
+import { getOutletContext } from "@/lib/outlet-context";
 
 export type SettingsActionState = { ok: boolean; message: string };
 
 const ALLOWED_LOGO_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
-const MAX_LOGO_BYTES = 900 * 1024;
+// Batas frontend 3 MB — sama dengan validasi backend-go (maxImageBytes).
+const MAX_LOGO_BYTES = 3 * 1024 * 1024;
 
 // Settings are OWNER-only; the guard runs again inside every action so
 // a spoofed form post can never touch the branding.
-// Sekaligus mengembalikan id aktor — setiap mutasi kini berjejak audit.
+// v2.0.0: seluruh mutasi menulis ke backend-go (audit tercatat di sana);
+// tabel Prisma tidak pernah disentuh lagi.
 async function ownerActor(): Promise<{
-  outletId: string;
-  userId: string;
+  outletId: number;
+  goToken: string;
 } | null> {
   const session = await auth();
-  if (!session?.user || session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") return null;
-  const outlet = session.user.outletId
-    ? await prisma.outlet.findUnique({
-        where: { id: session.user.outletId },
-        select: { id: true },
-      })
-    : await prisma.outlet.findFirst({ select: { id: true } });
+  if (
+    !session?.user ||
+    (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER") ||
+    !session.user.goToken
+  ) {
+    return null;
+  }
+  // Outlet konteks: ikatan akun (owner) atau cookie dev_outlet (developer
+  // mode maintenance — ditempelkan goFetch secara otomatis).
+  const outlet = await getOutletContext();
   if (!outlet) return null;
-  return { outletId: outlet.id, userId: session.user.id };
+  return { outletId: outlet.id, goToken: session.user.goToken };
 }
 
 function revalidateBranding() {
@@ -57,20 +62,16 @@ export async function updateOutletProfile(
     return { ok: false, message: "Nama warung maksimal 60 karakter." };
   if (address.length > 120)
     return { ok: false, message: "Alamat maksimal 120 karakter." };
-  if (phone.length > 30)
-    return { ok: false, message: "Nomor telepon maksimal 30 karakter." };
-  await prisma.outlet.update({
-    where: { id: actor.outletId },
-    data: { name, address: address || null, phone: phone || null },
+  if (phone.length > 32)
+    return { ok: false, message: "Nomor telepon maksimal 32 karakter." };
+
+  const res = await goFetch(actor.goToken, `/outlets/${actor.outletId}`, {
+    method: "PUT",
+    body: JSON.stringify({ name, address, phone }),
   });
-  await audit({
-    actorId: actor.userId,
-    outletId: actor.outletId,
-    action: "SETTINGS_UPDATE",
-    entity: `outlet:${actor.outletId}`,
-    summary: `Profil warung diperbarui — nama: ${name}`,
-    meta: { name, phone: phone || null },
-  });
+  if (!res.ok) {
+    return { ok: false, message: res.message };
+  }
   revalidateBranding();
   return { ok: true, message: "Profil warung tersimpan." };
 }
@@ -94,26 +95,20 @@ export async function uploadOutletLogo(
     return { ok: false, message: "Format harus PNG, JPEG, atau WebP." };
   }
   if (file.size > MAX_LOGO_BYTES) {
-    return { ok: false, message: "Ukuran logo maksimal 900 KB." };
+    return { ok: false, message: "Ukuran logo maksimal 3 MB." };
   }
-  const bytes = Buffer.from(await file.arrayBuffer());
-  await prisma.outlet.update({
-    where: { id: actor.outletId },
-    data: {
-      logoData: bytes,
-      logoMimeType: file.type,
-      // New version -> new ?v= in every URL -> zero stale caches.
-      logoVersion: { increment: 1 },
-    },
+
+  // Teruskan sebagai multipart ke backend-go — batas tipe/ukuran divalidasi
+  // ulang di sana dan versi logo naik otomatis (cache-bust ?v= semua URL).
+  const payload = new FormData();
+  payload.set("file", file);
+  const res = await goFetch(actor.goToken, `/outlets/${actor.outletId}/logo`, {
+    method: "POST",
+    body: payload,
   });
-  await audit({
-    actorId: actor.userId,
-    outletId: actor.outletId,
-    action: "SETTINGS_UPDATE",
-    entity: `outlet:${actor.outletId}`,
-    summary: "Logo warung diperbarui",
-    meta: { bytes: file.size, mimeType: file.type },
-  });
+  if (!res.ok) {
+    return { ok: false, message: res.message };
+  }
   revalidateBranding();
   return { ok: true, message: "Logo tersimpan." };
 }
@@ -129,21 +124,12 @@ export async function removeOutletLogo(
       message: "Hanya pemilik yang boleh mengubah pengaturan.",
     };
   }
-  await prisma.outlet.update({
-    where: { id: actor.outletId },
-    data: {
-      logoData: null,
-      logoMimeType: null,
-      logoVersion: { increment: 1 },
-    },
+  const res = await goFetch(actor.goToken, `/outlets/${actor.outletId}/logo`, {
+    method: "DELETE",
   });
-  await audit({
-    actorId: actor.userId,
-    outletId: actor.outletId,
-    action: "SETTINGS_UPDATE",
-    entity: `outlet:${actor.outletId}`,
-    summary: "Logo warung dihapus",
-  });
+  if (!res.ok) {
+    return { ok: false, message: res.message };
+  }
   revalidateBranding();
   return { ok: true, message: "Logo dihapus." };
 }

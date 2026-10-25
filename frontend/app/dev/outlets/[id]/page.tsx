@@ -12,7 +12,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import { enterMaintenance } from "@/app/dev/maintenance-actions";
 import { AuroraBackground } from "@/components/aurora-background";
@@ -28,6 +28,47 @@ function formatWib(date: Date): string {
   }).format(date);
 }
 
+// Bentuk respons backend-go untuk drill-down (lihat internal/handler).
+type GoOutlet = {
+  id: number;
+  name: string;
+  address: string;
+  phone: string;
+  is_active: boolean;
+  user_count: number;
+  created_at: string;
+};
+type GoDrillProduct = {
+  id: number;
+  name: string;
+  sku: string | null;
+  category: string;
+  price: number;
+  stock: number;
+  min_stock: number;
+  unit: string;
+  is_active: boolean;
+};
+type GoDrillUser = {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+};
+type GoDrillTransaction = {
+  id: number;
+  receipt_no: string;
+  cashier_name: string;
+  total: number;
+  status: string;
+  created_at: string;
+};
+type GoDrillDashboard = {
+  today: { revenue: number; transactions: number };
+  low_stock: unknown[];
+};
+
 // Drill-down outlet (Task 34 Fase B) — data bisnis READ-ONLY by design:
 // developer MEMBACA untuk memantau, mengubah hanya lewat jalurnya
 // masing-masing (produk/stok oleh owner outlet, akun oleh /dev/users).
@@ -35,7 +76,9 @@ function formatWib(date: Date): string {
 // owner & POS kasir outlet ini "menjadi stafnya" — memakai cookie
 // dev_outlet yang disuntikkan ke sesi (lihat lib/auth.ts), keluar
 // kapan saja lewat banner amber.
-// v1.6.0: design aurora + glass sadar tema — logika data tidak berubah.
+// v1.6.0: design aurora + glass sadar tema.
+// v2.0.0: seluruh data dari backend-go ter-scope ?outlet_id= — outlet
+// baru juga bisa di-drill-down, bukan cuma tabel Prisma lama.
 export default async function DevOutletDetailPage({
   params,
 }: {
@@ -44,91 +87,43 @@ export default async function DevOutletDetailPage({
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (session.user.role !== "DEVELOPER") redirect("/");
+  if (!session.user.goToken) {
+    throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
+  }
+  const goToken = session.user.goToken;
 
   const { id } = await params;
-  const outlet = await prisma.outlet.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      name: true,
-      address: true,
-      phone: true,
-      isActive: true,
-      createdAt: true,
-    },
-  });
-  if (!outlet) notFound();
+  const outletId = Number(id);
+  if (!Number.isInteger(outletId) || outletId <= 0) notFound();
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const [products, users, transactions, todayAgg, lowStockCount] =
+  // Outlet + data bisnisnya, semuanya ter-scope ?outlet_id= (DEVELOPER
+  // wajib eksplisit — inilah aturan scoping backend-go v1.5.0).
+  const [outletRes, productsRes, usersRes, transactionsRes, dashRes] =
     await Promise.all([
-      prisma.product.findMany({
-        where: { outletId: outlet.id },
-        orderBy: [{ isActive: "desc" }, { name: "asc" }],
-        take: 200,
-        select: {
-          id: true,
-          name: true,
-          sku: true,
-          price: true,
-          stock: true,
-          minStock: true,
-          unit: true,
-          isActive: true,
-          category: { select: { name: true } },
-        },
-      }),
-      prisma.user.findMany({
-        // Task 35: akun terhapus tidak pernah tampil di sini — dari
-        // sudut pandang daftar, hapus = selamanya.
-        where: { outletId: outlet.id, deletedAt: null },
-        orderBy: [{ role: "asc" }, { name: "asc" }],
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-          isActive: true,
-        },
-      }),
-      prisma.transaction.findMany({
-        where: { outletId: outlet.id },
-        orderBy: { createdAt: "desc" },
-        take: 10,
-        select: {
-          id: true,
-          code: true,
-          createdAt: true,
-          total: true,
-          status: true,
-          paymentMethod: true,
-          cashier: { select: { name: true } },
-        },
-      }),
-      prisma.transaction.aggregate({
-        where: {
-          outletId: outlet.id,
-          status: "COMPLETED",
-          createdAt: { gte: startOfToday },
-        },
-        _count: true,
-        _sum: { total: true },
-      }),
-      prisma.product.count({
-        where: {
-          outletId: outlet.id,
-          isActive: true,
-          stock: { lte: prisma.product.fields.minStock },
-        },
-      }),
+      goFetch<GoOutlet>(goToken, `/outlets/${outletId}`),
+      goFetch<GoDrillProduct[]>(goToken, `/products?all=true&outlet_id=${outletId}`),
+      goFetch<GoDrillUser[]>(goToken, `/users?outlet_id=${outletId}`),
+      goFetch<GoDrillTransaction[]>(goToken, `/transactions?limit=10&outlet_id=${outletId}`),
+      goFetch<GoDrillDashboard>(goToken, `/reports/dashboard?outlet_id=${outletId}`),
     ]);
+  // Outlet tidak ada / sudah terhapus -> 404 (pola notFound bawaan).
+  if (!outletRes.ok) notFound();
+  // Halaman inti super-user gagal keras bila backend mati — tidak ada
+  // grid kosong yang terlihat normal.
+  if (!productsRes.ok) {
+    throw new Error(productsRes.message);
+  }
+  const outlet = outletRes.data;
+  // Data pelengkap gagal = tabel kosong yang jujur, bukan halaman mati.
+  const products = productsRes.data.slice(0, 200);
+  const users = usersRes.ok ? usersRes.data : [];
+  const transactions = transactionsRes.ok ? transactionsRes.data : [];
+  const todayRevenue = dashRes.ok ? dashRes.data.today.revenue : 0;
+  const todayCount = dashRes.ok ? dashRes.data.today.transactions : 0;
+  const lowStockCount = dashRes.ok ? dashRes.data.low_stock.length : 0;
 
-  const omzetToday = todayAgg._sum.total
-    ? parseFloat(todayAgg._sum.total.toString())
-    : 0;
-  const activeUsers = users.filter((u) => u.isActive).length;
+  const omzetToday = todayRevenue;
+  const activeUsers = users.filter((u) => u.is_active).length;
 
   const statCards = [
     {
@@ -217,9 +212,9 @@ export default async function DevOutletDetailPage({
               {outlet.name}
             </h1>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              {outlet.address ?? "alamat belum diisi"}
+              {outlet.address || "alamat belum diisi"}
               {outlet.phone ? ` · ${outlet.phone}` : ""}
-              {!outlet.isActive && (
+              {!outlet.is_active && (
                 <span className="ml-2 rounded-full border border-slate-400/20 bg-slate-400/10 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
                   nonaktif
                 </span>
@@ -248,7 +243,7 @@ export default async function DevOutletDetailPage({
             kembali.
           </p>
           <div className="mt-3 flex flex-wrap gap-2.5">
-            <form action={enterMaintenance.bind(null, outlet.id, "owner")}>
+            <form action={enterMaintenance.bind(null, String(outlet.id), "owner")}>
               <button
                 type="submit"
                 className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98]"
@@ -257,7 +252,7 @@ export default async function DevOutletDetailPage({
                 Buka Konsol Owner
               </button>
             </form>
-            <form action={enterMaintenance.bind(null, outlet.id, "cashier")}>
+            <form action={enterMaintenance.bind(null, String(outlet.id), "cashier")}>
               <button
                 type="submit"
                 className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98]"
@@ -312,7 +307,7 @@ export default async function DevOutletDetailPage({
               </thead>
               <tbody>
                 {products.map((p) => {
-                  const low = p.isActive && p.stock <= p.minStock;
+                  const low = p.is_active && p.stock <= p.min_stock;
                   return (
                     <tr
                       key={p.id}
@@ -320,17 +315,17 @@ export default async function DevOutletDetailPage({
                     >
                       <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
                         {p.name}
-                        {!p.isActive && (
+                        {!p.is_active && (
                           <span className="ml-2 rounded-full border border-slate-400/20 bg-slate-400/10 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
                             arsip
                           </span>
                         )}
                         <p className="font-mono text-[11px] font-medium tracking-wide text-slate-400 uppercase dark:text-slate-500">
-                          {p.sku}
+                          {p.sku ?? "—"}
                         </p>
                       </td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                        {p.category?.name ?? "—"}
+                        {p.category || "—"}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-600 dark:text-slate-300">
                         {formatRupiah(Math.round(Number(p.price)))}
@@ -345,7 +340,7 @@ export default async function DevOutletDetailPage({
                           </span>
                         ) : (
                           <span className="text-xs text-slate-400 dark:text-slate-500">
-                            {p.isActive ? "aman" : "—"}
+                            {p.is_active ? "aman" : "—"}
                           </span>
                         )}
                       </td>
@@ -409,7 +404,7 @@ export default async function DevOutletDetailPage({
                         {u.role}
                       </td>
                       <td className="px-4 py-3">
-                        {u.isActive ? (
+                        {u.is_active ? (
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                             aktif
@@ -443,7 +438,7 @@ export default async function DevOutletDetailPage({
               Transaksi Terbaru
             </h2>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              Hari ini: {todayAgg._count} transaksi ·{" "}
+              Hari ini: {todayCount} transaksi ·{" "}
               {formatRupiah(omzetToday)}
             </p>
             <div className="mt-3 overflow-x-auto">
@@ -465,7 +460,7 @@ export default async function DevOutletDetailPage({
                       className="border-b border-slate-200/60 transition-colors last:border-0 hover:bg-slate-100/60 dark:border-slate-800/50 dark:hover:bg-slate-800/30"
                     >
                       <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">
-                        {t.code}
+                        {t.receipt_no}
                         {t.status === "REFUNDED" && (
                           <span className="ml-2 rounded-full border border-rose-500/25 bg-rose-500/10 px-2 py-0.5 font-sans text-[10px] font-bold text-rose-600 dark:text-rose-400">
                             refund
@@ -473,10 +468,10 @@ export default async function DevOutletDetailPage({
                         )}
                       </td>
                       <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500 dark:text-slate-400">
-                        {formatWib(t.createdAt)}
+                        {formatWib(new Date(t.created_at))}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">
-                        {t.cashier?.name ?? "—"}
+                        {t.cashier_name || "—"}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-600 dark:text-slate-300">
                         {formatRupiah(Math.round(Number(t.total)))}

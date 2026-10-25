@@ -5,8 +5,8 @@ import ForecastSection from "@/components/forecast/forecast-section";
 import { AuroraBackground } from "@/components/aurora-background";
 import { ThemeHeaderActions } from "@/components/theme-header-actions";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { goFetch } from "@/lib/api";
+import { getOutletContext, outletLogoUrl } from "@/lib/outlet-context";
 import { formatRupiah } from "@/lib/format";
 
 export const instant = false;
@@ -360,17 +360,14 @@ export default async function OwnerPage() {
     throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
   }
 
-  // Identitas outlet (nama & logo) masih dari Prisma — menyusul pindah
-  // ke backend-go pada fase multi-outlet, sama seperti halaman peluncur.
-  const outlet = session.user.outletId
-    ? await prisma.outlet.findUnique({ where: { id: session.user.outletId } })
-    : await prisma.outlet.findFirst();
+  // v2.0.0: identitas outlet (nama & logo) dari backend-go — owner
+  // melihat outlet ikatannya sendiri; developer mode maintenance dari
+  // cookie dev_outlet.
+  const outlet = await getOutletContext();
   if (!outlet) redirect("/");
 
   // Cache-busted logo URL; null keeps the default storefront tile.
-  const logoUrl = outlet.logoMimeType
-    ? `/api/outlet/logo?v=${outlet.logoVersion}`
-    : null;
+  const logoUrl = outletLogoUrl(outlet);
 
   // Satu panggilan untuk seluruh dashboard. Backend mati = halaman gagal
   // dengan pesan yang jelas (pola yang sama dengan halaman kelola produk)

@@ -10,8 +10,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { auth, signOut } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { goFetch } from "@/lib/api";
+import { getOutletContext } from "@/lib/outlet-context";
 import { formatRupiah } from "@/lib/format";
 import { LiveClock } from "@/components/live-clock";
 import { AuroraBackground } from "@/components/aurora-background";
@@ -25,9 +25,10 @@ export default async function HomePage() {
   // Developer punya konsol sendiri lintas outlet - halaman peluncur ini berbasis satu outlet dan tidak relevan untuk super-user
   if (session.user.role === "DEVELOPER") redirect("/dev");
 
-  const outlet = session.user.outletId
-    ? await prisma.outlet.findUnique({ where: { id: session.user.outletId } })
-    : await prisma.outlet.findFirst();
+  // v2.0.0: identitas outlet dari backend-go (GET /my/outlet) — outlet
+  // pemilik/kasir mengikuti ikatan akunnya masing-masing, bukan lagi
+  // baris pertama tabel Prisma yang beku.
+  const outlet = await getOutletContext();
 
   const isOwner = session.user.role === "OWNER";
   const displayName = session.user.name ?? "Pengguna";

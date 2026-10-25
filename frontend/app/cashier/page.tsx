@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { goFetch } from "@/lib/api";
+import { getOutletContext, outletLogoUrl } from "@/lib/outlet-context";
 import { PosClient } from "./pos-client";
 import type { PosProduct } from "./types";
 import { getServeQueue } from "@/app/owner/verify/actions";
@@ -30,37 +30,26 @@ export default async function CashierPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  // Era backend-go v1.0.0 (belum multi-outlet): akun kasir dibuat tanpa
-  // outlet, jadi kasir memakai outlet pertama sama seperti owner.
-  // Developer dalam mode maintenance tetap punya outletId via cookie
-  // dev_outlet — tanpa mode aktif dia dilempar balik ke /dev.
-  const outletId = session.user.outletId;
-  if (!outletId && session.user.role === "DEVELOPER") redirect("/");
+  // Developer hanya boleh membuka kasir lewat mode maintenance (cookie
+  // dev_outlet terisi) — tanpa mode aktif dia dilempar balik ke konsol.
+  if (session.user.role === "DEVELOPER" && !session.user.outletId) {
+    redirect("/dev");
+  }
 
-  // Select only the identity fields the client needs — the logo BYTES
-  // stay on the server; the client gets a cache-busted URL instead.
-  const outletSelect = {
-    id: true,
-    name: true,
-    address: true,
-    phone: true,
-    logoMimeType: true,
-    logoVersion: true,
-  } as const;
-  const outlet = outletId
-    ? await prisma.outlet.findUnique({
-        where: { id: outletId },
-        select: outletSelect,
-      })
-    : await prisma.outlet.findFirst({ select: outletSelect });
-  if (!outlet) redirect("/");
+  // v2.0.0: identitas outlet dari backend-go — kasir menjual untuk outlet
+  // ikatannya sendiri; developer dalam mode maintenance mendapat outlet
+  // dari cookie dev_outlet (ditempelkan goFetch otomatis).
+  const outlet = await getOutletContext();
+  if (!outlet) {
+    throw new Error(
+      "Identitas outlet tidak terbaca dari backend — pastikan backend-go berjalan, lalu muat ulang halaman ini.",
+    );
+  }
   const outletInfo = {
     name: outlet.name,
     address: outlet.address,
     phone: outlet.phone,
-    logoUrl: outlet.logoMimeType
-      ? `/api/outlet/logo?v=${outlet.logoVersion}`
-      : null,
+    logoUrl: outletLogoUrl(outlet),
   };
 
   // Produk kini dari backend-go — satu sumber kebenaran yang sama dengan

@@ -3,6 +3,8 @@
 // Dipakai server component & server action — token selalu berasal dari
 // sesi (session.user.goToken), tidak pernah dari browser.
 
+import { cookies } from "next/headers";
+
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
 
 export const API_BASE = `${API_URL}/api/v1`;
@@ -78,12 +80,33 @@ async function goRequest<T>(
   return { ok: true, data: json.data as T };
 }
 
+// withOutletParam (v2.0.0 multi-outlet): menempelkan ?outlet_id= ke path
+// saat mode maintenance developer aktif (cookie dev_outlet berisi id
+// outlet Go). Backend MENGABAIKAN parameter ini untuk OWNER/KASIR (scope
+// selalu diambil dari ikatan akun di database) dan hanya memakainya
+// untuk DEVELOPER — jadi menempelkannya selalu aman, tidak bisa dipakai
+// pemalsuan di sisi browser untuk menyamar jadi outlet lain.
+// Fungsi murni (tanpa next/headers) supaya bisa dites vitest langsung.
+export function withOutletParam(path: string, devOutlet: string | null | undefined): string {
+  if (!devOutlet || !/^\d+$/.test(devOutlet)) return path;
+  return path + (path.includes("?") ? "&" : "?") + `outlet_id=${devOutlet}`;
+}
+
 export async function goFetch<T>(
   token: string,
   path: string,
   init?: GoInit,
 ): Promise<GoResult<T>> {
-  return goRequest<T>(path, init, { Authorization: `Bearer ${token}` });
+  let scoped = path;
+  try {
+    // Server action / server component selalu punya cookie store; konteks
+    // lain (mis. route handler tanpa cookie) dilewati tanpa efek.
+    const store = await cookies();
+    scoped = withOutletParam(path, store.get("dev_outlet")?.value);
+  } catch {
+    // Tanpa akses cookie — kirim path apa adanya.
+  }
+  return goRequest<T>(scoped, init, { Authorization: `Bearer ${token}` });
 }
 
 // goPublic memanggil endpoint publik backend-go (v1.3.0): struk pembeli

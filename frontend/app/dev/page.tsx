@@ -5,7 +5,10 @@
 // tingkat SUKSES/PERINGATAN/GAGAL.
 // v1.6.0: design aurora + glassmorphism ala konsol Kelola Akun, kini
 // SADAR TEMA (terang/gelap/sistem) + toggle tema & pintu /settings di
-// topbar. Logika data Prisma TIDAK berubah sedikit pun.
+// topbar.
+// v2.0.0: seluruh data dari backend-go (GET /reports/by-outlet +
+// GET /audit-logs) — tabel Prisma tidak disentuh lagi; outlet baru
+// langsung tampil di sini.
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -21,7 +24,7 @@ import {
   Users,
 } from "lucide-react";
 import { auth, signOut } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import {
   LEVEL_BADGE,
@@ -34,12 +37,6 @@ import { OutletCreateButton } from "./outlet-create-button";
 
 export const instant = false;
 
-const ROLE_BADGE: Record<string, string> = {
-  OWNER: "bg-blue-500/15 text-blue-700 dark:text-blue-300",
-  KASIR: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-  DEVELOPER: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
-};
-
 function formatWib(date: Date): string {
   return new Intl.DateTimeFormat("id-ID", {
     dateStyle: "short",
@@ -48,71 +45,57 @@ function formatWib(date: Date): string {
   }).format(date);
 }
 
+// Bentuk baris statistik per-outlet (backend-go GET /reports/by-outlet).
+type GoOutletStat = {
+  outlet_id: number;
+  name: string;
+  address: string;
+  is_active: boolean;
+  user_count: number;
+  products: number;
+  low_stock: number;
+  trx_today: number;
+  omzet_today: number;
+};
+
+// Bentuk baris audit (backend-go GET /audit-logs).
+type GoAuditRow = {
+  id: number;
+  user_id: number | null;
+  user_name: string;
+  action: string;
+  entity: string;
+  entity_id: string;
+  detail: string;
+  created_at: string;
+};
+
 export default async function DevConsolePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   // Hanya DEVELOPER boleh melihat konsol ini — owner & kasir punya
   // halamannya sendiri dan tidak boleh membaca data lintas outlet.
   if (session.user.role !== "DEVELOPER") redirect("/");
-
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const [
-    outlets,
-    activeUsers,
-    todayAgg,
-    lowStockCount,
-    omzetByOutlet,
-    auditEvents,
-  ] = await Promise.all([
-    prisma.outlet.findMany({
-      select: {
-        id: true,
-        name: true,
-        address: true,
-        isActive: true,
-        _count: { select: { products: true } },
-      },
-      orderBy: { name: "asc" },
-    }),
-    prisma.user.count({ where: { isActive: true, deletedAt: null } }),
-    prisma.transaction.aggregate({
-      where: { status: "COMPLETED", createdAt: { gte: startOfToday } },
-      _sum: { total: true },
-      _count: true,
-    }),
-    prisma.product.count({
-      where: {
-        isActive: true,
-        stock: { lte: prisma.product.fields.minStock },
-      },
-    }),
-    prisma.transaction.groupBy({
-      by: ["outletId"],
-      where: { status: "COMPLETED", createdAt: { gte: startOfToday } },
-      _sum: { total: true },
-    }),
-    prisma.auditEvent.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      include: {
-        actor: { select: { name: true, role: true } },
-        outlet: { select: { name: true } },
-      },
-    }),
-  ]);
-
-  const omzetToday = todayAgg._sum.total
-    ? parseFloat(todayAgg._sum.total.toString())
-    : 0;
-  const omzetMap = new Map<string, number>();
-  for (const row of omzetByOutlet) {
-    omzetMap.set(
-      row.outletId,
-      row._sum.total ? parseFloat(row._sum.total.toString()) : 0,
-    );
+  if (!session.user.goToken) {
+    throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
   }
+
+  // v2.0.0: statistik per-outlet + 20 jejak audit terbaru, semuanya dari
+  // backend-go. Konsol super-user gagal keras bila backend mati — tidak
+  // ada angka lama yang bisa tertukar dengan kondisi sekarang.
+  const [statsRes, auditRes] = await Promise.all([
+    goFetch<GoOutletStat[]>(session.user.goToken, "/reports/by-outlet"),
+    goFetch<{ rows: GoAuditRow[] }>(session.user.goToken, "/audit-logs?limit=20"),
+  ]);
+  if (!statsRes.ok) {
+    throw new Error(statsRes.message);
+  }
+  const outlets = statsRes.data;
+  const auditRows = auditRes.ok ? auditRes.data.rows : [];
+
+  const activeUsers = outlets.reduce((sum, o) => sum + o.user_count, 0);
+  const omzetToday = outlets.reduce((sum, o) => sum + o.omzet_today, 0);
+  const lowStockCount = outlets.reduce((sum, o) => sum + o.low_stock, 0);
 
   const statCards = [
     {
@@ -295,30 +278,30 @@ export default async function DevConsolePage() {
               <tbody>
                 {outlets.map((o) => (
                   <tr
-                    key={o.id}
+                    key={o.outlet_id}
                     className="border-b border-slate-200/60 transition-colors last:border-0 hover:bg-slate-100/60 dark:border-slate-800/50 dark:hover:bg-slate-800/30"
                   >
                     <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
                       <Link
-                        href={`/dev/outlets/${o.id}`}
+                        href={`/dev/outlets/${o.outlet_id}`}
                         className="transition hover:text-violet-700 hover:underline dark:hover:text-violet-400"
                       >
                         {o.name}
                       </Link>
-                      {!o.isActive && (
+                      {!o.is_active && (
                         <span className="ml-2 rounded-full border border-slate-400/20 bg-slate-400/10 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
                           nonaktif
                         </span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                      {o.address ?? "—"}
+                      {o.address || "—"}
                     </td>
                     <td className="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-300">
-                      {o._count.products}
+                      {o.products}
                     </td>
                     <td className="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-300">
-                      {formatRupiah(omzetMap.get(o.id) ?? 0)}
+                      {formatRupiah(o.omzet_today)}
                     </td>
                   </tr>
                 ))}
@@ -365,18 +348,17 @@ export default async function DevConsolePage() {
             </Link>
           </p>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200/80 bg-slate-100/70 text-left text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-400">
                   <th className="px-4 py-3 font-semibold">Waktu (WIB)</th>
                   <th className="px-4 py-3 font-semibold">Aktor</th>
-                  <th className="px-4 py-3 font-semibold">Outlet</th>
                   <th className="px-4 py-3 font-semibold">Aksi</th>
                   <th className="px-4 py-3 font-semibold">Ringkasan</th>
                 </tr>
               </thead>
               <tbody>
-                {auditEvents.map((e) => {
+                {auditRows.map((e) => {
                   const level = actionLevel(e.action);
                   return (
                     <tr
@@ -388,25 +370,12 @@ export default async function DevConsolePage() {
                       }`}
                     >
                       <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500 dark:text-slate-400">
-                        {formatWib(e.createdAt)}
+                        {formatWib(new Date(e.created_at))}
                       </td>
                       <td className="px-4 py-3">
                         <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {e.actor?.name ?? "Sistem"}
+                          {e.user_name || "Sistem"}
                         </span>
-                        {e.actor && (
-                          <span
-                            className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                              ROLE_BADGE[e.actor.role] ??
-                              "bg-slate-400/10 text-slate-600 dark:text-slate-300"
-                            }`}
-                          >
-                            {e.actor.role}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                        {e.outlet?.name ?? "—"}
                       </td>
                       <td className="px-4 py-3">
                         {/* Label manusiawi + kode mentah di bawahnya:
@@ -421,15 +390,15 @@ export default async function DevConsolePage() {
                         </p>
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                        {e.summary}
+                        {e.detail || "—"}
                       </td>
                     </tr>
                   );
                 })}
-                {auditEvents.length === 0 && (
+                {auditRows.length === 0 && (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={4}
                       className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
                     >
                       Belum ada aksi tercatat — jalankan satu transaksi di
@@ -443,9 +412,8 @@ export default async function DevConsolePage() {
         </section>
 
         <p className="mt-4 text-center text-xs text-slate-400 dark:text-slate-500">
-          Fase A + B + penyempurnaan Task 35 aktif · Fase C (kelola kasir oleh
-          owner + Akun Saya semua peran) menyusul setelah blok ini
-          diverifikasi.
+          Multi-outlet v2.0.0 aktif: produk, transaksi, dan antrean tiap
+          outlet terpisah — dashboard &amp; POS mengikuti outlet akun.
         </p>
       </div>
     </div>

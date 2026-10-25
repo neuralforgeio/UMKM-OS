@@ -78,7 +78,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const json = (await res.json()) as GoEnvelope<{
           token?: string;
-          user?: { id?: number; name?: string; email?: string; role?: string };
+          user?: {
+            id?: number;
+            name?: string;
+            email?: string;
+            role?: string;
+            outlet_id?: number | null;
+          };
         }>;
         const goToken = json.data?.token;
         const user = json.data?.user;
@@ -98,10 +104,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name ?? "",
           email: user.email ?? "",
           role,
-          // Go v1.0.0 belum punya konsep outlet: halaman yang butuh konteks
-          // outlet sudah punya fallback masing-masing (prisma findFirst),
-          // dan developer mengisinya lewat cookie dev_outlet.
-          outletId: null,
+          // v2.0.0 multi-outlet: ikatan outlet akun dari backend-go —
+          // id NUMERIK tabel outlets (bukan lagi cuid Prisma yang selalu
+          // null di era single-outlet).
+          outletId:
+            typeof user.outlet_id === "number" && user.outlet_id > 0
+              ? String(user.outlet_id)
+              : null,
           goToken,
         };
       },
@@ -144,6 +153,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               name?: string;
               email?: string;
               role?: string;
+              outlet_id?: number | null;
             }>;
             const freshRole = json.data?.role;
             if (
@@ -158,8 +168,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     ? "DEVELOPER"
                     : "OWNER";
             }
-            // outletId TIDAK disinkronkan dari Go (belum ada konsep outlet
-            // di sana) — biarkan nilai token apa adanya.
+            // v2.0.0: ikatan outlet disinkronkan segar — re-bind akun di
+            // konsol dev berlaku maksimal 5 menit tanpa login ulang.
+            // (Developer tetap di-suntik ulang lewat cookie dev_outlet
+            // setelah blok ini — mode maintenance selalu menang.)
+            if (token.role !== "DEVELOPER") {
+              token.outletId =
+                typeof json.data?.outlet_id === "number" &&
+                json.data.outlet_id > 0
+                  ? String(json.data.outlet_id)
+                  : null;
+            }
           }
         } catch {
           // Backend tidak terjangkau: biarkan sesi tetap hidup — warung

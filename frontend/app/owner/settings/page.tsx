@@ -4,7 +4,7 @@ import { FileSpreadsheet, Settings } from "lucide-react";
 import { AuroraBackground } from "@/components/aurora-background";
 import { ThemeHeaderActions } from "@/components/theme-header-actions";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getOutletContext, outletLogoUrl } from "@/lib/outlet-context";
 import { OutletLogoForm, OutletProfileForm } from "./settings-forms";
 
 export const instant = false;
@@ -16,26 +16,17 @@ export default async function SettingsPage() {
     redirect("/cashier");
   }
 
-  // Select only identity fields — the logo BYTES never leave the
-  // server; the client gets a cache-busted URL instead.
-  const outletSelect = {
-    name: true,
-    address: true,
-    phone: true,
-    logoMimeType: true,
-    logoVersion: true,
-  } as const;
-  const outlet = session.user.outletId
-    ? await prisma.outlet.findUnique({
-        where: { id: session.user.outletId },
-        select: outletSelect,
-      })
-    : await prisma.outlet.findFirst({ select: outletSelect });
-  if (!outlet) redirect("/");
+  // v2.0.0: identitas outlet dari backend-go — pengaturan mengedit outlet
+  // IKATAN akun pemanggil, bukan lagi baris pertama tabel Prisma yang
+  // diam-diam dipakai bersama semua outlet.
+  const outlet = await getOutletContext();
+  if (!outlet) {
+    throw new Error(
+      "Identitas outlet tidak terbaca dari backend — pastikan backend-go berjalan, lalu muat ulang halaman ini.",
+    );
+  }
 
-  const logoUrl = outlet.logoMimeType
-    ? `/api/outlet/logo?v=${outlet.logoVersion}`
-    : null;
+  const logoUrl = outletLogoUrl(outlet);
 
   const INPUT_CLASS =
     "w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20";

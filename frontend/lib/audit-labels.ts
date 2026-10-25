@@ -18,6 +18,10 @@ const WARN_ACTIONS: string[] = [
   "STOCK_ADJUST",
   "DEV_MAINTENANCE_ENTER",
   "DEV_MAINTENANCE_EXIT",
+  // Varian kode backend-go (v2.0.0):
+  "REFUND_TRANSACTION",
+  "DELETE_USER",
+  "PUBLIC_BUYER_DISPUTE",
 ];
 
 export function actionLevel(action: string): LogLevel {
@@ -62,6 +66,35 @@ const ACTION_LABELS: Record<string, string> = {
   OUTLET_CREATE: "Outlet baru dibuat",
   DEV_MAINTENANCE_ENTER: "Developer masuk mode maintenance",
   DEV_MAINTENANCE_EXIT: "Developer keluar mode maintenance",
+
+  // ===== Kode aksi backend-go (audit_logs, v2.0.0) =====
+  LOGIN: "Login berhasil",
+  CHANGE_PASSWORD: "Password diganti",
+  CREATE_TRANSACTION: "Transaksi dibuat",
+  REFUND_TRANSACTION: "Transaksi di-refund",
+  CREATE_PRODUCT: "Produk dibuat",
+  UPDATE_PRODUCT: "Produk diubah",
+  DELETE_PRODUCT: "Produk diarsipkan",
+  PRODUCT_ACTIVATE: "Produk diaktifkan kembali",
+  PRODUCT_ARCHIVE: "Produk diarsipkan",
+  ADD_IMAGE: "Foto produk ditambahkan",
+  DELETE_IMAGE: "Foto produk dihapus",
+  SET_THUMB: "Thumbnail produk diganti",
+  MOVE_IMAGE: "Urutan foto digeser",
+  CREATE_USER: "Akun dibuat",
+  UPDATE_USER: "Akun diubah",
+  DELETE_USER: "Akun dihapus permanen",
+  CREATE_OUTLET: "Outlet baru dibuat",
+  UPDATE_OUTLET: "Pengaturan outlet diperbarui",
+  UPLOAD_OUTLET_LOGO: "Logo outlet diunggah",
+  DELETE_OUTLET_LOGO: "Logo outlet dihapus",
+  OUTLET_CREATE_FAILED: "Gagal: pembuatan outlet ditolak",
+  OUTLET_UPDATE_FAILED: "Gagal: perubahan outlet ditolak",
+  CREATE_USER_FAILED: "Gagal: pembuatan akun ditolak",
+  UPDATE_USER_FAILED: "Gagal: perubahan akun ditolak",
+  DELETE_USER_FAILED: "Gagal: penghapusan akun ditolak",
+  PUBLIC_BUYER_CONFIRM: "Pembeli konfirmasi terima (kode klaim)",
+  PUBLIC_BUYER_DISPUTE: "Pembeli membantah struk (kode klaim)",
 };
 
 // Label aksi yang belum terdaftar: dicantumkan apa adanya supaya aksi baru

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { goFetch } from "@/lib/api";
+import { getOutletContext } from "@/lib/outlet-context";
 import { ProductsClient } from "./products-client";
 import type { CategoryOption, ProductRow, UnitOption } from "./types";
 
@@ -35,9 +35,9 @@ export default async function OwnerProductsPage() {
   }
   const goToken = session.user.goToken;
 
-  // Nama outlet untuk header masih dari tabel outlet Prisma — ikut
-  // pindah ke backend-go saat fase multi-outlet.
-  const outlet = await prisma.outlet.findFirst({ select: { name: true } });
+  // v2.0.0: nama outlet header dari backend-go (GET /my/outlet) — kelola
+  // produk ter-scope ke outlet konteks pemanggil.
+  const outlet = await getOutletContext();
 
   // Produk (termasuk terarsip) + permintaan 30 hari terakhir, keduanya
   // dari backend-go — satu sumber kebenaran yang sama dengan kasir.

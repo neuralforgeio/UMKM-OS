@@ -4,8 +4,8 @@ import QRCode from "qrcode";
 import { formatThousands } from "@/lib/format";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { goFetch } from "@/lib/api";
+import { getOutletContext } from "@/lib/outlet-context";
 import type {
   CheckoutResult,
   DiscountInput,
@@ -112,14 +112,10 @@ export async function createTransaction(input: {
     return { ok: false, error: discountRp.error };
   }
 
-  // Nama outlet masuk payload QR struk — sementara masih dari Prisma
-  // (backend-go belum punya konsep outlet; ikut pindah saat multi-outlet).
-  const outletName =
-    (
-      await prisma.outlet.findFirst({
-        select: { name: true },
-      })
-    )?.name ?? "Warung";
+  // Nama outlet masuk payload QR struk — v2.0.0 dari backend-go
+  // (GET /my/outlet, ter-scope ke outlet kasir yang sedang jualan).
+  const outletCtx = await getOutletContext();
+  const outletName = outletCtx?.name ?? "Warung";
 
   const result = await goFetch<{ transaction: GoTransaction; items: GoItem[] }>(
     goToken,
