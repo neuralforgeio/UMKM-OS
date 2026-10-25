@@ -2,8 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, FileSpreadsheet, ScrollText } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { buildLogWhere, logQueryString } from "@/lib/audit-query";
+import { goFetch } from "@/lib/api";
+import { buildLogQuery, logQueryString } from "@/lib/audit-query";
 import {
   LEVEL_BADGE,
   actionLabel,
@@ -26,6 +26,8 @@ export const instant = false;
 // EXCEL ber-grafik (bukan CSV polos).
 // v1.6.0: design aurora + glass sadar tema (terang/gelap/sistem) —
 // logika query & pagination tidak berubah sama sekali.
+// v2.1.0: data dari GET /audit-logs backend-go (ber-outlet sejak
+// backend-go v1.6.0 — kolom Outlet kini hidup, bukan data beku Prisma).
 const PAGE_SIZE = 20;
 
 const ROLE_BADGE: Record<string, string> = {
@@ -33,6 +35,30 @@ const ROLE_BADGE: Record<string, string> = {
   KASIR: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
   DEVELOPER: "bg-violet-500/15 text-violet-700 dark:text-violet-300",
 };
+
+// Bentuk baris audit dari backend-go (audit.go AuditLog).
+type GoAuditRow = {
+  id: number;
+  user_id: number | null;
+  user_name: string;
+  user_role: string;
+  outlet_id: number | null;
+  outlet_name: string;
+  action: string;
+  entity: string;
+  entity_id: string;
+  detail: string;
+  created_at: string;
+};
+
+type GoAuditResponse = {
+  rows: GoAuditRow[];
+  total: number;
+  actions: string[];
+};
+
+type GoOutletOption = { id: number; name: string };
+type GoUserOption = { id: number; name: string; role: string };
 
 function formatWib(date: Date): string {
   return new Intl.DateTimeFormat("id-ID", {
@@ -50,6 +76,8 @@ export default async function DevLogsPage({
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (session.user.role !== "DEVELOPER") redirect("/");
+  if (!session.user.goToken) redirect("/login");
+  const token = session.user.goToken;
 
   const sp = await searchParams;
   const one = (key: string): string | undefined => {
@@ -70,49 +98,42 @@ export default async function DevLogsPage({
     ? `${actionLabel(action)} (${action})`
     : "Semua Aksi";
 
-  const where = buildLogWhere({ q, action, outlet, actor, from, to, level });
+  // Filter + paginasi diteruskan ke backend-go dalam satu panggilan;
+  // total untuk jumlah halaman, actions untuk dropdown filter.
+  const filterInput = { q, action, outlet, actor, from, to, level };
+  const query = buildLogQuery(filterInput);
+  query.set("limit", String(PAGE_SIZE));
+  query.set("offset", String((page - 1) * PAGE_SIZE));
 
-  const [total, rows, actionOptions, outlets, actors] = await Promise.all([
-    prisma.auditEvent.count({ where }),
-    prisma.auditEvent.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: PAGE_SIZE,
-      skip: (page - 1) * PAGE_SIZE,
-      select: {
-        id: true,
-        createdAt: true,
-        action: true,
-        entity: true,
-        summary: true,
-        actor: { select: { name: true, role: true } },
-        outlet: { select: { name: true } },
-      },
-    }),
-    // Daftar aksi yang BENAR-BENAR pernah terjadi — dropdown filter tidak
-    // pernah menawarkan aksi hantu yang tidak ada datanya.
-    prisma.auditEvent.findMany({
-      distinct: ["action"],
-      select: { action: true },
-      orderBy: { action: "asc" },
-    }),
-    prisma.outlet.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
-    prisma.user.findMany({
-      where: { deletedAt: null },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
+  // Daftar aksi yang BENAR-BENAR pernah terjadi + daftar outlet & aktor
+  // untuk dropdown — semuanya dari Go, bukan tabel beku era Prisma.
+  const [logsRes, outletsRes, usersRes] = await Promise.all([
+    goFetch<GoAuditResponse>(token, `/audit-logs?${query.toString()}`),
+    goFetch<GoOutletOption[]>(token, "/outlets"),
+    goFetch<GoUserOption[]>(token, "/users"),
   ]);
+  if (!logsRes.ok) throw new Error(logsRes.message);
+
+  const total = logsRes.data.total;
+  const rows = logsRes.data.rows ?? [];
+  const actionOptions = logsRes.data.actions ?? [];
+  const outlets = outletsRes.ok
+    ? [...(outletsRes.data ?? [])].sort((a, b) =>
+        a.name.localeCompare(b.name, "id-ID"),
+      )
+    : [];
+  const actors = usersRes.ok
+    ? [...(usersRes.data ?? [])]
+        .filter((u) => u.name)
+        .sort((a, b) => a.name.localeCompare(b.name, "id-ID"))
+    : [];
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
 
   // Query string filter aktif — dipakai pagination (pertahankan filter)
   // dan tombol export (unduh hasil filter INI, bukan semua log).
-  const qs = logQueryString({ q, action, outlet, actor, from, to, level });
+  const qs = logQueryString(filterInput);
 
   return (
     <div className="relative min-h-dvh bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
@@ -209,8 +230,8 @@ export default async function DevLogsPage({
           <SelectInput name="action" defaultValue={action} aria-label="Filter aksi">
             <option value="">Semua aksi</option>
             {actionOptions.map((a) => (
-              <option key={a.action} value={a.action}>
-                {actionLabel(a.action)} ({a.action})
+              <option key={a} value={a}>
+                {actionLabel(a)} ({a})
               </option>
             ))}
           </SelectInput>
@@ -291,6 +312,9 @@ export default async function DevLogsPage({
               <tbody>
                 {rows.map((row) => {
                   const lvl = actionLevel(row.action);
+                  const entityLabel = row.entity_id
+                    ? `${row.entity}:${row.entity_id}`
+                    : row.entity;
                   return (
                     <tr
                       key={row.id}
@@ -301,22 +325,22 @@ export default async function DevLogsPage({
                       }`}
                     >
                       <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500 dark:text-slate-400">
-                        {formatWib(row.createdAt)}
+                        {formatWib(new Date(row.created_at))}
                       </td>
                       <td className="px-4 py-3">
                         <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {row.actor?.name ?? "Sistem"}
+                          {row.user_name || "Sistem"}
                         </span>
-                        {row.actor && (
+                        {row.user_role && (
                           <span
-                            className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${ROLE_BADGE[row.actor.role] ?? "bg-slate-400/10 text-slate-600 dark:text-slate-300"}`}
+                            className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${ROLE_BADGE[row.user_role] ?? "bg-slate-400/10 text-slate-600 dark:text-slate-300"}`}
                           >
-                            {row.actor.role}
+                            {row.user_role}
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                        {row.outlet?.name ?? "—"}
+                        {row.outlet_name || "—"}
                       </td>
                       <td className="px-4 py-3">
                         {/* Label manusiawi berwarna tingkat + kode mentah:
@@ -332,10 +356,10 @@ export default async function DevLogsPage({
                         </p>
                       </td>
                       <td className="px-4 py-3 font-mono text-[11px] text-slate-400 dark:text-slate-500">
-                        {row.entity ?? "—"}
+                        {entityLabel || "—"}
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                        {row.summary}
+                        {row.detail}
                       </td>
                     </tr>
                   );

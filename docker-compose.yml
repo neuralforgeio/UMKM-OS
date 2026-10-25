@@ -2,15 +2,18 @@
 # UMKM OS — full stack dalam SATU perintah:  docker compose up --build
 #
 #   db         : PostgreSQL 18           -> host 5433 (tidak bentrok PG lokal 5432)
-#   migrate    : one-shot prisma migrate + seed (identitas outlet & akun
-#                demo) lalu selesai
 #   backend-go : REST API Go             -> host 8080 (login, kasir POS,
-#                produk/stok, transaksi, laporan dashboard, audit, log)
+#                produk/stok, transaksi, laporan dashboard, audit, log —
+#                PEMILIK TUNGGAL schema: migrasi berjalan saat boot)
 #   backend    : FastAPI ML service      -> host 8000 (ramalan & saran restok)
 #   frontend   : Next.js                 -> host 3000 (UI)
 #
 # Seluruh nilai sensitif datang dari root .env (salin dari .env.example)
 # — tidak ada satu pun kredensial yang ditulis di file ini.
+#
+# v2.1.0: service "migrate" (prisma migrate + seed era demo) sudah
+# PENSIUN — tidak ada lagi tabel PascalCase yang di-reseed tiap compose
+# up; backend-go memigrasi dan men-drop tabel-tabel beku itu otomatis.
 # =====================================================================
 
 services:
@@ -34,29 +37,6 @@ services:
       timeout: 3s
       retries: 12
     restart: unless-stopped
-
-  # One-shot job: applies migrations and seeds demo data inside the
-  # docker network. Reuses the cached builder stage of the frontend
-  # image, so a plain "docker compose up" needs no host Node at all.
-  migrate:
-    build:
-      context: ./frontend
-      target: builder
-    command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts"
-    environment:
-      TZ: Asia/Jakarta
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-umkmos}"
-      # Akun developer bootstrap — nilai asli hanya di root .env (ter-gitignore).
-      DEV_SEED_EMAIL: ${DEV_SEED_EMAIL:-}
-      DEV_SEED_PASSWORD: ${DEV_SEED_PASSWORD:-}
-      # Password akun demo (busari@warung.id / rizky@warung.id): kosong
-      # berarti acak dan dicetak sekali di log service migrate.
-      SEED_OWNER_PASSWORD: ${SEED_OWNER_PASSWORD:-}
-      SEED_KASIR_PASSWORD: ${SEED_KASIR_PASSWORD:-}
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: "no"
 
   # REST API Go — satu-satunya pemeriksa kredensial + pemilik schema
   # kasir/laporan. Migrasi schema & seed akun berjalan saat boot, jadi
@@ -83,8 +63,7 @@ services:
       OWNER_EMAIL: ${OWNER_EMAIL:-owner@umkm.local}
       OWNER_PASSWORD: ${OWNER_PASSWORD:-}
       # SINKRON kredensial developer: DEV_SEED_* dari root .env yang sama
-      # dengan service migrate juga dipakai backend-go, sehingga akun
-      # developer Prisma (konsol dev) dan Go (login) identik.
+      # dipakai backend-go untuk akun developer-nya (login konsol dev).
       DEVELOPER_EMAIL: ${DEV_SEED_EMAIL:-}
       DEVELOPER_PASSWORD: ${DEV_SEED_PASSWORD:-}
       LOG_DIR: logs
@@ -140,10 +119,10 @@ services:
     environment:
       TZ: Asia/Jakarta
       HOSTNAME: 0.0.0.0
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-umkmos}"
       # Di dalam jaringan docker, frontend memanggil service lain lewat
-      # NAMA service (bukan localhost). Token Go tidak pernah sampai
-      # browser — semua panggilan dilakukan server-side.
+      # NAMA service (bukan localhost). Token Go tidak pernah sampai ke
+      # browser — semua panggilan dilakukan server-side. Frontend TIDAK
+      # punya kredensial database sejak v2.1.0 (era Go murni).
       API_URL: http://backend-go:8080
       BACKEND_URL: http://backend:8000
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
@@ -151,8 +130,6 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
-      migrate:
-        condition: service_completed_successfully
       backend-go:
         condition: service_healthy
       backend:

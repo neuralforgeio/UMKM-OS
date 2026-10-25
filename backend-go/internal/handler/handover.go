@@ -114,11 +114,23 @@ type QueueRow struct {
 // (WIB) yang masih COMPLETED dan belum punya aktivitas serah terima apa
 // pun. Dipanggil saat render halaman kasir/konsol + di-poll tiap 30 dtk.
 // v1.5.0: antrean ter-scope ke outlet konteks pemanggil.
+// v1.6.0: query dipindah ke loadServeQueue supaya bisa dipakai bersama
+// oleh GET /verify/today tanpa salin-tempel.
 func ServeQueue(w http.ResponseWriter, r *http.Request) {
         outletID, ok := resolveScopeOutlet(w, r)
         if !ok {
                 return
         }
+        list, err := loadServeQueue(r, outletID)
+        if err != nil {
+                Err(w, http.StatusInternalServerError, "Gagal mengambil antrean penyajian")
+                return
+        }
+        OK(w, list)
+}
+
+// Badan query antrean penyajian — milik bersama /queue dan /verify/today.
+func loadServeQueue(r *http.Request, outletID int64) ([]QueueRow, error) {
         rows, err := db.Pool.Query(r.Context(), `
     SELECT t.id, t.receipt_no, t.claim_code, t.created_at,
            COALESCE((SELECT SUM(ti.qty) FROM transaction_items ti WHERE ti.transaction_id = t.id), 0),
@@ -128,8 +140,7 @@ func ServeQueue(w http.ResponseWriter, r *http.Request) {
     ORDER BY t.created_at ASC
     LIMIT 30`, startOfTodayWIB(), outletID)
         if err != nil {
-                Err(w, http.StatusInternalServerError, "Gagal mengambil antrean penyajian")
-                return
+                return nil, err
         }
         defer rows.Close()
 
@@ -138,16 +149,11 @@ func ServeQueue(w http.ResponseWriter, r *http.Request) {
                 var row QueueRow
                 if err := rows.Scan(&row.ID, &row.ReceiptNo, &row.ClaimCode, &row.CreatedAt,
                         &row.ItemCount, &row.Total, &row.PaymentMethod); err != nil {
-                        Err(w, http.StatusInternalServerError, "Gagal membaca antrean penyajian")
-                        return
+                        return nil, err
                 }
                 list = append(list, row)
         }
-        if err := rows.Err(); err != nil {
-                Err(w, http.StatusInternalServerError, "Gagal membaca antrean penyajian")
-                return
-        }
-        OK(w, list)
+        return list, rows.Err()
 }
 
 // Body longgar untuk semua aksi serah terima — field tidak wajib.

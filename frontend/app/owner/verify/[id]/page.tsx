@@ -2,11 +2,14 @@
 // v3: jalur utama dine-in = tombol "Sudah Disajikan" (satu arah,
 // berjejak); tanda tangan pembeli tetap tersedia sebagai bukti kuat
 // untuk takeaway/online. Kode & QR selalu ada di sini untuk itu.
+// v2.1.0: data dari GET /transactions/{id} backend-go (ringkasan + item
+// + jejak serah terima). Scope outlet ditegakkan Go di SQL — kasir
+// outlet lain otomatis mendapat 404 -> halaman ini ikut notFound().
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import QRCode from "qrcode";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import { buildVerifyUrl } from "@/lib/handover";
 import { AuroraBackground } from "@/components/aurora-background";
@@ -42,6 +45,37 @@ const KIND_LABEL: Record<string, string> = {
   BUYER_DISPUTE: "Pembantahan pembeli",
 };
 
+// Bentuk respons GET /transactions/{id} (backend-go).
+type GoDetailResponse = {
+  transaction: {
+    id: number;
+    receipt_no: string;
+    created_at: string;
+    total: number;
+    payment_method: string;
+    status: string;
+    claim_code: string | null;
+    handover_status: string | null;
+    handover_confirmed_at: string | null;
+    handover_confirmed_by_name: string | null;
+  };
+  items: {
+    product_name: string;
+    qty: number;
+    price: number;
+  }[];
+  events: {
+    id: number;
+    kind: string;
+    method: string;
+    actor_role: string | null;
+    buyer_name: string | null;
+    signature_data: string | null;
+    note: string | null;
+    created_at: string;
+  }[];
+};
+
 export default async function VerifyDetailPage({
   params,
 }: {
@@ -50,21 +84,21 @@ export default async function VerifyDetailPage({
   const session = await auth();
   const user = session?.user;
   if (!user || (user.role !== "OWNER" && user.role !== "KASIR" && user.role !== "DEVELOPER")) redirect("/");
+  if (!user.goToken) redirect("/login");
 
   const { id } = await params;
-  const tx = await prisma.transaction.findUnique({
-    where: { id },
-    include: {
-      outlet: { select: { name: true } },
-      items: { include: { product: { select: { name: true } } } },
-      handoverEvents: { orderBy: { createdAt: "desc" } },
-    },
-  });
-  if (!tx || !tx.claimCode) notFound();
-  // Kasir outlet lain tidak boleh melihat transaksi ini.
-  if (user.outletId && tx.outletId !== user.outletId) notFound();
+  // ID numerik Go; selain itu pasti tidak ada di backend.
+  if (!/^\d+$/.test(id)) notFound();
 
-  const code = tx.claimCode;
+  const res = await goFetch<GoDetailResponse>(
+    user.goToken,
+    `/transactions/${id}`,
+  );
+  if (!res.ok) notFound();
+  const tx = res.data.transaction;
+  if (!tx || !tx.claim_code) notFound();
+
+  const code = tx.claim_code;
   const verifyUrl = buildVerifyUrl(code);
   const qrSvg = await QRCode.toString(verifyUrl, {
     type: "svg",
@@ -72,20 +106,16 @@ export default async function VerifyDetailPage({
     width: 180,
   });
 
-  const status = tx.handoverStatus;
-  const st = status ? STATUS_STYLE[status] : null;
-  const confirmEvent = tx.handoverEvents.find(
-    (e) => e.kind === "BUYER_CONFIRM",
-  );
-  // Who recorded the serve/confirmation on the staff side (v3 audit).
-  const actorName = tx.handoverConfirmedBy
-    ? ((
-        await prisma.user.findUnique({
-          where: { id: tx.handoverConfirmedBy },
-          select: { name: true },
-        })
-      )?.name ?? null)
+  const createdAt = new Date(tx.created_at);
+  const confirmedAt = tx.handover_confirmed_at
+    ? new Date(tx.handover_confirmed_at)
     : null;
+  const status = tx.handover_status;
+  const st = status ? STATUS_STYLE[status] : null;
+  const confirmEvent = res.data.events.find((e) => e.kind === "BUYER_CONFIRM");
+  // Siapa yang mencatat penyajian/konfirmasi di sisi staf (audit v3) —
+  // dibawa Go sebagai handover_confirmed_by_name.
+  const actorName = tx.handover_confirmed_by_name;
 
   return (
     // Shell aurora (v1.8.0): detail bukti serah terima ikut tema pengguna.
@@ -107,14 +137,14 @@ export default async function VerifyDetailPage({
         <div className="flex items-center justify-between gap-2">
           <div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {dtFmt.format(tx.createdAt)} WIB
+              {dtFmt.format(createdAt)} WIB
             </p>
             <p className="text-lg font-bold text-slate-800 dark:text-slate-200">
-              {formatRupiah(Number(tx.total))}
+              {formatRupiah(tx.total)}
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {tx.items.length} item ·{" "}
-              {PAYMENT_LABELS[tx.paymentMethod] ?? tx.paymentMethod}
+              {res.data.items.length} item ·{" "}
+              {PAYMENT_LABELS[tx.payment_method] ?? tx.payment_method}
             </p>
           </div>
           {st && (
@@ -126,12 +156,12 @@ export default async function VerifyDetailPage({
           )}
         </div>
         <ul className="mt-3 space-y-1 border-t border-slate-100 dark:border-slate-800/60 pt-3">
-          {tx.items.map((it, i) => (
+          {res.data.items.map((it, i) => (
             <li key={i} className="flex justify-between text-xs text-slate-600 dark:text-slate-400">
               <span>
-                {it.product.name} × {it.quantity}
+                {it.product_name} × {it.qty}
               </span>
-              <span>{formatRupiah(Number(it.priceAtSale) * it.quantity)}</span>
+              <span>{formatRupiah(it.price * it.qty)}</span>
             </li>
           ))}
         </ul>
@@ -165,7 +195,7 @@ export default async function VerifyDetailPage({
           <div className="space-y-2 text-center">
             <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
               ✔ Tercatat disajikan{" "}
-              {dtFmt.format(tx.handoverConfirmedAt ?? tx.createdAt)} WIB
+              {dtFmt.format(confirmedAt ?? createdAt)} WIB
               {actorName ? ` oleh ${actorName}` : ""}
             </p>
             <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
@@ -177,12 +207,12 @@ export default async function VerifyDetailPage({
           <div className="space-y-3 text-center">
             <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
               ✔ Terverifikasi{" "}
-              {dtFmt.format(tx.handoverConfirmedAt ?? tx.createdAt)} WIB
+              {dtFmt.format(confirmedAt ?? createdAt)} WIB
             </p>
-            {confirmEvent?.signatureData && (
+            {confirmEvent?.signature_data && (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
-                src={confirmEvent.signatureData}
+                src={confirmEvent.signature_data}
                 alt="Tanda tangan pembeli"
                 className="mx-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
               />
@@ -190,8 +220,8 @@ export default async function VerifyDetailPage({
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
               Metode:{" "}
               {confirmEvent?.method === "PUBLIC" ? "HP pembeli" : "layar kurir"}
-              {confirmEvent?.buyerName
-                ? ` · a.n. ${confirmEvent.buyerName}`
+              {confirmEvent?.buyer_name
+                ? ` · a.n. ${confirmEvent.buyer_name}`
                 : ""}
             </p>
           </div>
@@ -202,7 +232,7 @@ export default async function VerifyDetailPage({
               diterima, minta pembeli tanda tangan di bawah (atau konfirmasi
               lewat QR/link di atas).
             </p>
-            <ConfirmInAppForm transactionId={tx.id} />
+            <ConfirmInAppForm transactionId={String(tx.id)} />
           </div>
         ) : status === "COURIER_CLAIMED" ? (
           <div className="space-y-4">
@@ -210,7 +240,7 @@ export default async function VerifyDetailPage({
               Sudah diklaim kurir tanpa tanda tangan. Kalau pembeli sekarang ada
               di depan kamu, minta dia tanda tangan di bawah untuk bukti kuat.
             </p>
-            <ConfirmInAppForm transactionId={tx.id} />
+            <ConfirmInAppForm transactionId={String(tx.id)} />
           </div>
         ) : (
           <div className="space-y-4">
@@ -218,19 +248,19 @@ export default async function VerifyDetailPage({
               <p className="mb-2 text-xs font-bold text-blue-900">
                 Dine-in / bungkus — pesanan diserahkan sekarang?
               </p>
-              <ServeButton transactionId={tx.id} />
+              <ServeButton transactionId={String(tx.id)} />
             </div>
             <div>
               <p className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
                 Konfirmasi di layar ini (bukti terkuat — tanda tangan pembeli)
               </p>
-              <ConfirmInAppForm transactionId={tx.id} />
+              <ConfirmInAppForm transactionId={String(tx.id)} />
             </div>
             <div className="border-t border-slate-100 dark:border-slate-800/60 pt-3">
               <p className="mb-2 text-xs font-medium text-slate-500 dark:text-slate-400">
                 Pesanan diantar (online) tanpa tanda tangan?
               </p>
-              <ClaimDeliveredButton transactionId={tx.id} />
+              <ClaimDeliveredButton transactionId={String(tx.id)} />
             </div>
           </div>
         )}
@@ -242,19 +272,19 @@ export default async function VerifyDetailPage({
           Jejak kejadian
         </p>
         <ol className="space-y-2">
-          {tx.handoverEvents.map((e) => (
+          {res.data.events.map((e) => (
             <li key={e.id} className="flex gap-2 text-xs">
               <span className="shrink-0 font-mono text-slate-400 dark:text-slate-500">
-                {dtFmt.format(e.createdAt)}
+                {dtFmt.format(new Date(e.created_at))}
               </span>
               <span className="text-slate-700 dark:text-slate-300">
                 {KIND_LABEL[e.kind] ?? e.kind}
-                {e.actorRole ? ` · ${e.actorRole}` : ""}
+                {e.actor_role ? ` · ${e.actor_role}` : ""}
                 {e.note ? ` — "${e.note}"` : ""}
               </span>
             </li>
           ))}
-          {tx.handoverEvents.length === 0 && (
+          {res.data.events.length === 0 && (
             <li className="text-xs text-slate-400 dark:text-slate-500">Belum ada aktivitas.</li>
           )}
         </ol>

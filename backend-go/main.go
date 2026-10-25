@@ -87,6 +87,12 @@ func main() {
                         priv.Post("/transactions/{id}/confirm", handler.ConfirmHandover)
                         priv.Post("/transactions/{id}/claim", handler.ClaimDelivered)
 
+                        // Konsol verifikasi (v1.6.0): statistik hari ini +
+                        // pencarian struk outlet-wide — kasir boleh mencari
+                        // struk kasir lain di shiftnya (bukan hanya miliknya).
+                        priv.Get("/verify/today", handler.VerifyToday)
+                        priv.Get("/verify/lookup", handler.VerifyLookup)
+
                         priv.Get("/reports/dashboard", handler.Dashboard)
                 })
 
@@ -137,11 +143,16 @@ func main() {
                         // Log sistem (untuk dibaca di frontend nanti)
                         mgr.Get("/logs", handler.ListLogFiles)
                         mgr.Get("/logs/{date}", handler.ReadLogFile)
+
+                        // Jejak audit (v1.4.0 developer; v1.6.0 owner ikut
+                        // membaca — ter-scope paksa ke outletnya untuk export
+                        // spreadsheet dari Pengaturan).
+                        mgr.Get("/audit-logs", handler.ListAuditLogs)
                 })
 
-                // Khusus DEVELOPER (v1.4.0): membuat outlet, jejak masuk/keluar
-                // mode maintenance, dan QUERY audit log — pemilik melihat jejak
-                // lewat export spreadsheet, bukan konsol query.
+                // Khusus DEVELOPER (v1.4.0): membuat outlet dan jejak masuk/keluar
+                // mode maintenance. Query audit log pindah ke grup mgr sejak
+                // v1.6.0 (owner ikut membaca, ter-scope ke outletnya).
                 api.Group(func(dev chi.Router) {
                         dev.Use(middleware.RequireAuth)
                         dev.Use(middleware.RequireRoleIn("DEVELOPER"))
@@ -149,7 +160,6 @@ func main() {
                         dev.Post("/outlets", handler.CreateOutlet)
                         dev.Post("/outlets/{id}/maintenance-session", handler.EnterMaintenanceSession)
                         dev.Delete("/outlets/{id}/maintenance-session", handler.ExitMaintenanceSession)
-                        dev.Get("/audit-logs", handler.ListAuditLogs)
                 })
         })
 

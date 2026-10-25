@@ -63,6 +63,10 @@ type TransactionItemResponse struct {
         ID          int64  `json:"id"`
         ProductID   int64  `json:"product_id"`
         ProductName string `json:"product_name"`
+        // Satuan JUAL saat ini (dari tabel products, bukan snapshot) —
+        // dipakai panel detail riwayat; sama dengan semantik era Prisma
+        // yang juga membaca relasi product.unit segar. v1.6.0.
+        Unit        string `json:"unit"`
         Price       int64  `json:"price"`
         Qty         int    `json:"qty"`
         Subtotal    int64  `json:"subtotal"`
@@ -166,6 +170,7 @@ func CreateTransaction(w http.ResponseWriter, r *http.Request) {
         type itemRow struct {
                 ProductID int64
                 Name      string
+                Unit      string
                 Price     int64
                 Qty       int
                 Subtotal  int64
@@ -185,9 +190,9 @@ func CreateTransaction(w http.ResponseWriter, r *http.Request) {
                 var stock int
                 var active bool
                 if err := tx.QueryRow(ctx,
-                        `SELECT id, name, price, stock, is_active FROM products WHERE id = $1 AND outlet_id = $2 FOR UPDATE`,
+                        `SELECT id, name, COALESCE(unit, 'pcs'), price, stock, is_active FROM products WHERE id = $1 AND outlet_id = $2 FOR UPDATE`,
                         it.ProductID, outletID,
-                ).Scan(&row.ProductID, &row.Name, &row.Price, &stock, &active); err != nil {
+                ).Scan(&row.ProductID, &row.Name, &row.Unit, &row.Price, &stock, &active); err != nil {
                         Err(w, http.StatusBadRequest, fmt.Sprintf("Produk ID %d tidak ditemukan di outlet ini", it.ProductID))
                         return
                 }
@@ -272,7 +277,7 @@ func CreateTransaction(w http.ResponseWriter, r *http.Request) {
         itemRes := make([]TransactionItemResponse, 0, len(items))
         for _, row := range items {
                 itemRes = append(itemRes, TransactionItemResponse{
-                        ProductID: row.ProductID, ProductName: row.Name,
+                        ProductID: row.ProductID, ProductName: row.Name, Unit: row.Unit,
                         Price: row.Price, Qty: row.Qty, Subtotal: row.Subtotal,
                 })
         }
@@ -420,8 +425,10 @@ func GetTransaction(w http.ResponseWriter, r *http.Request) {
 
         items := []TransactionItemResponse{}
         rows, err := db.Pool.Query(r.Context(), `
-    SELECT id, product_id, product_name, price, qty, subtotal
-    FROM transaction_items WHERE transaction_id = $1 ORDER BY product_name ASC, id ASC`, id)
+    SELECT ti.id, ti.product_id, ti.product_name, COALESCE(p.unit, 'pcs'), ti.price, ti.qty, ti.subtotal
+    FROM transaction_items ti
+    LEFT JOIN products p ON p.id = ti.product_id
+    WHERE ti.transaction_id = $1 ORDER BY ti.product_name ASC, ti.id ASC`, id)
         if err != nil {
                 Err(w, http.StatusInternalServerError, "Gagal mengambil item transaksi")
                 return
@@ -429,7 +436,7 @@ func GetTransaction(w http.ResponseWriter, r *http.Request) {
         defer rows.Close()
         for rows.Next() {
                 var it TransactionItemResponse
-                if err := rows.Scan(&it.ID, &it.ProductID, &it.ProductName, &it.Price, &it.Qty, &it.Subtotal); err != nil {
+                if err := rows.Scan(&it.ID, &it.ProductID, &it.ProductName, &it.Unit, &it.Price, &it.Qty, &it.Subtotal); err != nil {
                         Err(w, http.StatusInternalServerError, "Gagal membaca item transaksi")
                         return
                 }

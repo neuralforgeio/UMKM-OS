@@ -41,15 +41,14 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Build-time placeholders, overridden per environment at runtime:
-#  - DATABASE_URL: every DB page is dynamic (instant = false) and the
-#    pg pool connects lazily, so no real database is reachable at build.
+# Build-time placeholder, overridden per environment at runtime:
 #  - AUTH_SECRET: next-auth v5 throws MissingSecret when NODE_ENV is
 #    production during prerender — a placeholder satisfies that check;
 #    the real secret is injected by compose at runtime.
-ARG DATABASE_URL=postgresql://placeholder:placeholder@db:5432/placeholder
+# (v2.1.0: tidak ada lagi DATABASE_URL build-arg — frontend era Go
+#  murni tidak punya kredensial database; seluruh halaman dinamis dan
+#  datanya datang dari backend-go saat runtime.)
 ARG AUTH_SECRET=build-time-placeholder
-ENV DATABASE_URL=${DATABASE_URL}
 ENV AUTH_SECRET=${AUTH_SECRET}
 RUN npm run build
 FROM node:24-bookworm-slim AS runner

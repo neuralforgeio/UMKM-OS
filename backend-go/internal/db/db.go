@@ -407,4 +407,29 @@ var migrations = []string{
         ) WHERE outlet_id IS NULL`,
         `CREATE INDEX IF NOT EXISTS idx_products_outlet ON products(outlet_id)`,
         `CREATE INDEX IF NOT EXISTS idx_transactions_outlet ON transactions(outlet_id)`,
+
+        // ===== 9) Audit ber-outlet (v1.6.0) =====
+        // Setiap aksi kini tercatat DI OUTLET mana ia terjadi, sehingga
+        // konsol dev bisa memfilter per outlet dan export owner hanya
+        // menampilkan jejak outletnya sendiri. Baris lama di-backfill
+        // dari ikatan akun aktornya (era pra-kolom ini memang hanya punya
+        // user_id); baris aktor tanpa ikatan tetap NULL = tampil "—".
+        `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS outlet_id BIGINT REFERENCES outlets(id)`,
+        `UPDATE audit_logs a SET outlet_id = u.outlet_id
+        FROM users u
+        WHERE a.user_id = u.id AND a.outlet_id IS NULL AND u.outlet_id IS NOT NULL`,
+        `CREATE INDEX IF NOT EXISTS idx_audit_outlet ON audit_logs(outlet_id)`,
+
+        // ===== 10) Era Go murni (v1.6.0) — perpisahan tabel demo Prisma =====
+        // Frontend tidak lagi membaca SATU baris pun dari schema Prisma
+        // (tabel PascalCase era demo yang di-reseed setiap docker compose
+        // up oleh service "migrate" — service itu pun sudah pensiun).
+        // Seluruh data hidup ada di tabel lowercase milik Go ini. Tabel
+        // beku itu berisi data demo yang terus ditimpa seed, bukan data
+        // bisnis; men DROP-nya menutup dunia-dua-meja selamanya.
+        // IF EXISTS + CASCADE: aman di database yang tak pernah punya
+        // service migrate sekalipun.
+        `DROP TABLE IF EXISTS "HandoverEvent", "TransactionItem", "Transaction",
+        "StockMovement", "ProductImage", "Product", "Unit", "Category",
+        "AuditEvent", "Outlet", "User" CASCADE`,
 }

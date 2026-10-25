@@ -1,33 +1,24 @@
-// Pembangun filter query jejak audit (Task 34 Fase B, diperbarui Task 35).
+// Pembangun filter query jejak audit (Task 34 Fase B, diperbarui Task 35;
+// v2.1.0: murni — filter diteruskan ke backend-go GET /audit-logs, tidak
+// ada lagi Prisma where di sini).
 //
 // Satu sumber kebenaran untuk DUA konsumen: halaman /dev/logs (query
 // penuh developer) dan route /api/logs/export (Excel owner + developer).
 // Menyamakan perilaku di dua tempat = satu fungsi, bukan salin-tempel —
 // filter yang berbeda antara layar dan file unduhan adalah bug klasik
 // laporan keuangan/audit.
-// Task 35: filter "level" (SUKSES / PERINGATAN / GAGAL) memakai
-// definisi tingkat dari lib/audit-labels supaya UI, filter, dan file
-// tidak pernah berbeda pendapat.
-import { Prisma } from "@/lib/generated/prisma/client";
-import { warnActions } from "@/lib/audit-labels";
+//
+// Interpretasi filter (q, action, outlet, actor, level, from/to WIB)
+// dikerjakan backend-go di audit.go — definisi tingkat dijamin sama
+// dengan lib/audit-labels karena keduanya sengaja disinkronkan.
 
 // Batas aman satu export: menjaga respons tetap kecil dan memaksa
 // rentang tanggal dipakai untuk penelusuran besar (bukan "unduh semua
-// sejak awal zaman" dari tombol).
+// sejak awal zaman" dari tombol). Limit maksimum Go sengaja 10.000.
 export const LOG_EXPORT_ROW_CAP = 10_000;
 
-// Rentang tanggal filter ditafsirkan menurut WIB (UTC+7): pengguna
-// memilih "23/10/2026" dan maksudnya adalah hari itu di warung, bukan
-// hari itu di jam UTC. Offset eksplisit, bukan offset zona server.
+// Rentang tanggal filter ditafsirkan menurut WIB (UTC+7) oleh backend-go.
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-export function wibStartOfDay(dateStr: string): Date {
-  return new Date(`${dateStr}T00:00:00+07:00`);
-}
-
-export function wibEndOfDay(dateStr: string): Date {
-  return new Date(`${dateStr}T23:59:59.999+07:00`);
-}
 
 export type LogFilterInput = {
   q?: string;
@@ -46,67 +37,32 @@ export type LogFilterInput = {
 const isSet = (value: string | undefined): value is string =>
   typeof value === "string" && value !== "" && value !== "ALL";
 
-export function buildLogWhere(
-  input: LogFilterInput,
-): Prisma.AuditEventWhereInput {
-  const filters: Prisma.AuditEventWhereInput[] = [];
+const isLevel = (value: string | undefined): value is string =>
+  value === "SUKSES" || value === "PERINGATAN" || value === "GAGAL";
 
-  const q = input.q?.trim();
-  if (q) {
-    filters.push({
-      OR: [
-        { summary: { contains: q, mode: "insensitive" } },
-        { entity: { contains: q, mode: "insensitive" } },
-        { actor: { name: { contains: q, mode: "insensitive" } } },
-      ],
-    });
-  }
-  if (isSet(input.action)) filters.push({ action: input.action });
-  if (isSet(input.outlet)) filters.push({ outletId: input.outlet });
-  if (isSet(input.actor)) filters.push({ actorId: input.actor });
-  if (input.from && DATE_RE.test(input.from)) {
-    filters.push({ createdAt: { gte: wibStartOfDay(input.from) } });
-  }
-  if (input.to && DATE_RE.test(input.to)) {
-    filters.push({ createdAt: { lte: wibEndOfDay(input.to) } });
-  }
-
-  // Filter tingkat: turunkan jadi predikat kolom action — tidak ada
-  // kolom baru di database, definisinya murni dari nama aksi
-  // (berakhiran _FAILED = GAGAL; daftar warn = PERINGATAN).
-  if (input.level === "GAGAL") {
-    filters.push({ action: { endsWith: "_FAILED" } });
-  } else if (input.level === "PERINGATAN") {
-    filters.push({ action: { in: warnActions() } });
-  } else if (input.level === "SUKSES") {
-    filters.push({
-      action: {
-        not: { endsWith: "_FAILED" },
-        notIn: warnActions(),
-      },
-    });
-  }
-
-  return filters.length > 0 ? { AND: filters } : {};
-}
-
-// Rangkai ulang filter menjadi query string untuk tautan (tombol export,
-// pagination) — nilai kosong dibuang supaya URL tetap pendek dan enak dibaca.
-export function logQueryString(input: LogFilterInput): string {
+// Rangkai filter menjadi URLSearchParams untuk dipanggil ke backend-go —
+// dipakai halaman /dev/logs (plus limit/offset paginasi) dan route
+// export (plus limit=LOG_EXPORT_ROW_CAP). Urutan param stabil
+// (q, action, outlet, actor, from, to, level) supaya URL mudah dibaca
+// dan hasil cache bisa dimanfaatkan.
+export function buildLogQuery(input: LogFilterInput): URLSearchParams {
   const qs = new URLSearchParams();
-  if (input.q?.trim()) qs.set("q", input.q.trim());
+  const q = input.q?.trim();
+  if (q) qs.set("q", q);
   if (isSet(input.action)) qs.set("action", input.action);
   if (isSet(input.outlet)) qs.set("outlet", input.outlet);
   if (isSet(input.actor)) qs.set("actor", input.actor);
   if (input.from && DATE_RE.test(input.from)) qs.set("from", input.from);
   if (input.to && DATE_RE.test(input.to)) qs.set("to", input.to);
-  if (
-    input.level === "SUKSES" ||
-    input.level === "PERINGATAN" ||
-    input.level === "GAGAL"
-  ) {
-    qs.set("level", input.level);
-  }
-  const s = qs.toString();
+  if (isLevel(input.level)) qs.set("level", input.level);
+  return qs;
+}
+
+// Rangkai ulang filter menjadi query string untuk tautan (tombol export,
+// pagination) — nilai kosong dibuang supaya URL tetap pendek dan enak
+// dibaca. Kepada pembaca link: param "outlet" hanya berlaku untuk
+// developer; owner di-scope paksa oleh Go ke outletnya sendiri.
+export function logQueryString(input: LogFilterInput): string {
+  const s = buildLogQuery(input).toString();
   return s ? `?${s}` : "";
 }

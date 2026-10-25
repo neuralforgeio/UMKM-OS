@@ -5,8 +5,12 @@
 // staf lewat Antrean Penyajian (satu arah, berjejak di HandoverEvent).
 //
 // Redesign Task 35: kartu statistik berikon + ring warna, pencarian
-// dengan ikon, kartu hasil dengan aksen warna kiri — logika query dan
-// aksi TIDAK berubah sama sekali.
+// dengan ikon, kartu hasil dengan aksen warna kiri.
+// v2.1.0: seluruh data kini dari backend-go — GET /verify/today (kartu
+// statistik + antrean) dan GET /verify/lookup (pencarian struk). Kasir
+// boleh mencari struk kasir lain di outletnya (semantik halaman lama);
+// pemilik tanpa ikatan outlet otomatis melihat outlet utama (aturan
+// scoping Go v2.0.0).
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -17,14 +21,18 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
-import { startOfTodayWIB } from "@/lib/handover";
 import { AuroraBackground } from "@/components/aurora-background";
 import { ThemeHeaderActions } from "@/components/theme-header-actions";
 import { ServeButton, ServeQueuePanel } from "@/components/serve-queue";
+import type { ServeQueueRow } from "./actions";
 
 export const instant = false;
+
+// 404 dari /verify/lookup = "struk tidak ketemu" (kartu tidak-ditemukan),
+// bukan kegagalan sistem yang perlu dilempar.
+const httpNotFound = 404;
 
 const dtFmt = new Intl.DateTimeFormat("id-ID", {
   timeZone: "Asia/Jakarta",
@@ -36,6 +44,38 @@ const PAYMENT_LABELS: Record<string, string> = {
   CASH: "Tunai",
   QRIS: "QRIS",
   DEBIT: "Debit",
+};
+
+// Bentuk respons GET /verify/today (backend-go verify.go).
+type VerifyToday = {
+  counts: {
+    waiting: number;
+    served: number;
+    confirmed: number;
+    disputed: number;
+  };
+  queue: {
+    id: number;
+    receipt_no: string;
+    created_at: string;
+    item_count: number;
+    total: number;
+    payment_method: string;
+  }[];
+};
+
+// Bentuk respons GET /verify/lookup — TransactionSummary Go.
+type VerifyFound = {
+  id: number;
+  receipt_no: string;
+  created_at: string;
+  total: number;
+  payment_method: string;
+  status: string;
+  item_count: number;
+  handover_status: string | null;
+  handover_confirmed_at: string | null;
+  handover_confirmed_by_name: string | null;
 };
 
 export default async function VerifyConsolePage({
@@ -53,42 +93,46 @@ export default async function VerifyConsolePage({
   ) {
     redirect("/");
   }
+  if (!user.goToken) redirect("/login");
 
   const sp = await searchParams;
   const rawQ = Array.isArray(sp.q) ? sp.q[0] : sp.q;
   const q = (rawQ ?? "").trim();
 
-  // Kasir/developer-maintenance only sees their outlet; an owner without
-  // one sees all.
-  const outletScope = user.outletId ? { outletId: user.outletId } : {};
+  const token = user.goToken;
 
-  const todayRows = await prisma.transaction.findMany({
-    where: { createdAt: { gte: startOfTodayWIB() }, ...outletScope },
-    orderBy: { createdAt: "desc" },
-    take: 200,
-    select: {
-      id: true,
-      code: true,
-      createdAt: true,
-      total: true,
-      paymentMethod: true,
-      status: true,
-      handoverStatus: true,
-      items: { select: { quantity: true } },
-    },
-  });
+  // Kartu statistik + antrean hari ini dalam SATU panggilan; pencarian
+  // hanya dilakukan saat ada q. Antrean diambil bersama counts supaya
+  // render pertama cukup satu round-trip (polling 30 dtk tetap lewat
+  // /queue dari komponen klien).
+  const todayRes = await goFetch<VerifyToday>(token, "/verify/today");
+  if (!todayRes.ok) throw new Error(todayRes.message);
+  const counts = todayRes.data.counts;
+  const queueRows: ServeQueueRow[] = todayRes.data.queue.map((r) => ({
+    id: String(r.id),
+    code: r.receipt_no,
+    createdAtIso: r.created_at,
+    itemCount: r.item_count,
+    totalRupiah: Math.round(r.total),
+    paymentMethod: r.payment_method,
+  }));
 
-  // The queue = today's completed receipts with zero handover activity.
-  const queueRows = todayRows
-    .filter((t) => t.status === "COMPLETED" && t.handoverStatus === null)
-    .map((t) => ({
-      id: t.id,
-      code: t.code,
-      createdAtIso: t.createdAt.toISOString(),
-      itemCount: t.items.reduce((sum, i) => sum + i.quantity, 0),
-      totalRupiah: Math.round(Number(t.total)),
-      paymentMethod: t.paymentMethod,
-    }));
+  // Lookup by receipt code (TRX-...) or the legacy 8-char verification
+  // code — keduanya dikejar Go dalam satu query ter-scope outlet.
+  let found: VerifyFound | null = null;
+  if (q) {
+    const res = await goFetch<VerifyFound>(
+      token,
+      `/verify/lookup?q=${encodeURIComponent(q)}`,
+    );
+    // 404 = struk tidak ketemu (pesan "tidak ditemukan" di bawah);
+    // kegagalan lain (backend mati) tetap dilempar agar terlihat.
+    if (res.ok) {
+      found = res.data;
+    } else if (res.status !== httpNotFound) {
+      throw new Error(res.message);
+    }
+  }
 
   const chips: {
     label: string;
@@ -99,69 +143,42 @@ export default async function VerifyConsolePage({
   }[] = [
     {
       label: "Menunggu",
-      value: queueRows.length,
+      value: counts.waiting,
       icon: Clock3,
       chip: "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 ring-1 ring-amber-200 dark:ring-amber-500/30",
       valueCls: "text-amber-600 dark:text-amber-400",
     },
     {
       label: "Disajikan",
-      value: todayRows.filter((t) => t.handoverStatus === "SERVED").length,
+      value: counts.served,
       icon: UtensilsCrossed,
       chip: "bg-teal-50 text-teal-600 ring-1 ring-teal-200 dark:bg-teal-950/40 dark:text-teal-400 dark:ring-teal-500/30",
       valueCls: "text-teal-600",
     },
     {
       label: "Terverifikasi",
-      value: todayRows.filter((t) => t.handoverStatus === "CONFIRMED").length,
+      value: counts.confirmed,
       icon: BadgeCheck,
       chip: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 ring-1 ring-emerald-200 dark:ring-emerald-500/30",
       valueCls: "text-emerald-600 dark:text-emerald-400",
     },
     {
       label: "Sengketa",
-      value: todayRows.filter((t) => t.handoverStatus === "DISPUTED").length,
+      value: counts.disputed,
       icon: AlertTriangle,
       chip: "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 ring-1 ring-red-200 dark:ring-red-500/30",
       valueCls: "text-red-600 dark:text-red-400",
     },
   ];
 
-  // Lookup by receipt code (TRX-...) or the legacy 8-char verification
-  // code — both resolve to the same single receipt, scoped to outlet.
-  const found = q
-    ? await prisma.transaction.findFirst({
-        where: {
-          OR: [{ code: q.toUpperCase() }, { claimCode: q.toUpperCase() }],
-          ...outletScope,
-        },
-        select: {
-          id: true,
-          code: true,
-          createdAt: true,
-          total: true,
-          paymentMethod: true,
-          status: true,
-          handoverStatus: true,
-          handoverConfirmedAt: true,
-          handoverConfirmedBy: true,
-          items: { select: { quantity: true } },
-        },
-      })
-    : null;
-  const foundItemCount = found
-    ? found.items.reduce((sum, i) => sum + i.quantity, 0)
+  const foundCreatedAt = found ? new Date(found.created_at) : null;
+  const foundItemCount = found ? found.item_count : 0;
+  const foundAgeMin = foundCreatedAt
+    ? Math.max(0, Math.floor((Date.now() - foundCreatedAt.getTime()) / 60000))
     : 0;
-  const foundAgeMin = found
-    ? Math.max(0, Math.floor((Date.now() - found.createdAt.getTime()) / 60000))
-    : 0;
-  const foundByName = found?.handoverConfirmedBy
-    ? ((
-        await prisma.user.findUnique({
-          where: { id: found.handoverConfirmedBy },
-          select: { name: true },
-        })
-      )?.name ?? null)
+  const foundByName = found?.handover_confirmed_by_name ?? null;
+  const foundConfirmedAt = found?.handover_confirmed_at
+    ? new Date(found.handover_confirmed_at)
     : null;
 
   return (
@@ -246,18 +263,18 @@ export default async function VerifyConsolePage({
           <div className="rounded-2xl glass-card p-4">
             <div className="flex items-center justify-between gap-2">
               <p className="font-mono text-sm font-bold text-slate-900 dark:text-slate-100">
-                {found.code}
+                {found.receipt_no}
               </p>
               <span className="rounded-full bg-slate-100 dark:bg-slate-900 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-400">
-                {PAYMENT_LABELS[found.paymentMethod] ?? found.paymentMethod}
+                {PAYMENT_LABELS[found.payment_method] ?? found.payment_method}
               </span>
             </div>
             <div className="mt-2 flex items-baseline justify-between gap-2 border-t border-dashed border-slate-200 dark:border-slate-800 pt-2">
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {dtFmt.format(found.createdAt)} WIB · {foundItemCount} item
+                {foundCreatedAt ? dtFmt.format(foundCreatedAt) : "-"} WIB · {foundItemCount} item
               </p>
               <p className="text-sm font-bold tabular-nums text-slate-900 dark:text-slate-100">
-                {formatRupiah(Math.round(Number(found.total)))}
+                {formatRupiah(Math.round(found.total))}
               </p>
             </div>
           </div>
@@ -270,12 +287,12 @@ export default async function VerifyConsolePage({
               Struk ini sudah <b>DIREFUND</b>. Uang dianggap kembali ke
               pembeli dan stok telah dikembalikan.
             </div>
-          ) : found.handoverStatus === "SERVED" ? (
+          ) : found.handover_status === "SERVED" ? (
             <div className="rounded-2xl border-l-4 border-emerald-500 glass-card p-4 text-sm text-slate-700 dark:text-slate-300">
               <p className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-300">
                 <BadgeCheck className="h-4 w-4" />
                 Tercatat disajikan{" "}
-                {dtFmt.format(found.handoverConfirmedAt ?? found.createdAt)} WIB
+                {dtFmt.format(foundConfirmedAt ?? foundCreatedAt ?? new Date())} WIB
                 {foundByName ? ` oleh ${foundByName}` : ""}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
@@ -290,12 +307,12 @@ export default async function VerifyConsolePage({
                 Lihat jejak lengkap
               </Link>
             </div>
-          ) : found.handoverStatus === "CONFIRMED" ? (
+          ) : found.handover_status === "CONFIRMED" ? (
             <div className="rounded-2xl border-l-4 border-emerald-600 glass-card p-4 text-sm text-slate-700 dark:text-slate-300">
               <p className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-300">
                 <BadgeCheck className="h-4 w-4" />
                 Terverifikasi diterima pembeli{" "}
-                {dtFmt.format(found.handoverConfirmedAt ?? found.createdAt)} WIB
+                {dtFmt.format(foundConfirmedAt ?? foundCreatedAt ?? new Date())} WIB
               </p>
               <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                 Bukti terkuat: tanda tangan pembeli tersimpan permanen.
@@ -307,7 +324,7 @@ export default async function VerifyConsolePage({
                 Lihat tanda tangan &amp; jejak
               </Link>
             </div>
-          ) : found.handoverStatus === "DISPUTED" ? (
+          ) : found.handover_status === "DISPUTED" ? (
             <div className="rounded-2xl border-l-4 border-red-500 glass-card p-4 text-sm text-red-700 dark:text-red-300">
               <p className="flex items-center gap-1.5 font-bold">
                 <AlertTriangle className="h-4 w-4" />
@@ -324,7 +341,7 @@ export default async function VerifyConsolePage({
                 Buka detail penyelesaian
               </Link>
             </div>
-          ) : found.handoverStatus === "COURIER_CLAIMED" ? (
+          ) : found.handover_status === "COURIER_CLAIMED" ? (
             <div className="rounded-2xl border-l-4 border-amber-500 glass-card p-4 text-sm text-amber-800 dark:text-amber-200">
               <p className="font-bold">
                 Ditandai sudah diantar (klaim staf, tanpa tanda tangan).
@@ -351,7 +368,7 @@ export default async function VerifyConsolePage({
                 sendiri oleh pembeli) — alasan tercatat permanen untuk evaluasi
                 pola staf.
               </p>
-              <ServeButton transactionId={found.id} withNote />
+              <ServeButton transactionId={String(found.id)} withNote />
               <Link
                 href={`/owner/verify/${found.id}`}
                 className="block text-center text-xs font-bold text-red-600 dark:text-red-400 underline"
@@ -365,7 +382,7 @@ export default async function VerifyConsolePage({
                 <Clock3 className="h-4 w-4" />
                 Belum disajikan ({foundAgeMin} mnt lalu) — sajikan sekarang.
               </p>
-              <ServeButton transactionId={found.id} />
+              <ServeButton transactionId={String(found.id)} />
               <Link
                 href={`/owner/verify/${found.id}`}
                 className="block text-center text-xs font-bold text-blue-700 dark:text-blue-300 underline"
