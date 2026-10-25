@@ -1,10 +1,13 @@
-# UMKM-OS
-
-> Sistem operasi untuk warung dan UMKM Indonesia — kasir (POS), manajemen stok, laporan penjualan, dan analitik dalam satu platform.
-
 <p align="center">
   <img src="frontend/public/icon/umkm-icon.png" alt="Logo UMKM OS" width="150" />
 </p>
+
+<p align="center">
+  <h1 align="center">UMKM OS</h1>
+</p>
+
+> Sistem operasi untuk warung dan UMKM Indonesia — kasir (POS), manajemen stok, laporan penjualan, dan analitik dalam satu platform.
+
 
 <p align="center">
   <a href="LICENSE">
