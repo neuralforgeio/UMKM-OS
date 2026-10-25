@@ -56,8 +56,8 @@ func OwnerPassword() string { return Get("OWNER_PASSWORD", "") }
 // menjadi pintu belakang. Akun hanya dibuat saat boot bila keduanya
 // diatur di backend-go/.env (file itu sudah di-gitignore):
 //
-//      DEVELOPER_EMAIL=dev@warunganda.id
-//      DEVELOPER_PASSWORD=password-kuat-pilihan-anda
+//	DEVELOPER_EMAIL=dev@warunganda.id
+//	DEVELOPER_PASSWORD=password-kuat-pilihan-anda
 //
 // Setelah akun dibuat, ganti password selanjutnya lewat menu ganti
 // password biasa (login memakai hash di database, bukan env).
