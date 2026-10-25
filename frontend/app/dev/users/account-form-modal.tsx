@@ -1,27 +1,32 @@
 "use client";
 
-// Modal buat / edit akun dari konsol developer — design language v1.3.0
-// (glass, tema gelap/terang). LOGIC IDENTIK dengan versi sebelumnya:
-// Create: nama, email, password awal (checklist hijau saat mengetik),
-// peran, outlet — dan opsi "+ Outlet baru…" yang membuat outlet SEBELUM
-// akun (pola yang sama dengan "+ Kategori baru…" di form produk).
-// Edit: sama tanpa password (reset password punya modal sendiri).
-// Semua field controlled state: nilai TIDAK PERNAH hilang saat submit
-// gagal — pesan error muncul, form tetap terisi.
+// Modal buat / edit akun dari konsol developer — design v1.5.0 ala
+// mockup Gemini (glass gelap, max-w-lg rounded-3xl, label uppercase,
+// tombol gradien). LOGIC IDENTIK dengan versi sebelumnya:
+// Create: nama, email, password awal (checklist hidup saat mengetik —
+// kini 4 syarat: panjang, huruf besar, ANGKA, simbol), peran, outlet —
+// dan opsi "+ Outlet baru…" yang membuat outlet SEBELUM akun (pola yang
+// sama dengan "+ Kategori baru…" di form produk).
+// Edit: sama tanpa password (reset password punya modal sendiri) +
+// checkbox aktif. Semua field controlled state: nilai TIDAK PERNAH
+// hilang saat submit gagal — pesan error muncul, form tetap terisi.
+// Modal ini selalu tampil di dalam konsol gelap, tapi tetap sadar-tema
+// (varian dark:) supaya tidak rusak bila dipakai ulang di halaman lain.
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { LuMapPin, LuShieldCheck, LuUserPlus, LuX } from "react-icons/lu";
 import { PasswordInput } from "@/components/password-input";
+import { SelectInput } from "@/components/select-input";
 import { isPasswordValid } from "@/lib/password-policy";
 import { createAccount, createOutlet, updateAccount } from "./actions";
-import { roleView } from "./view-helpers";
+import { roleBadgeDark } from "./view-helpers";
 import type { OutletOption, UserRow } from "./types";
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 const LABEL_CLASS =
-  "text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400";
+  "mb-1.5 block text-xs font-bold tracking-wider text-slate-300 uppercase dark:text-slate-300";
 
 // Nilai sentinel pilihan "buat outlet baru dulu" — konvensi "__new__"
 // disalin dari form produk (kategori) supaya perilakunya seragam.
@@ -96,7 +101,7 @@ export function AccountFormModal({
 
   const outletRequired = role === "KASIR";
   const creatingOutlet = outletId === NEW_OUTLET;
-  const rv = roleView(role);
+  const rb = roleBadgeDark(role);
 
   async function handleSubmit() {
     setError(null);
@@ -166,79 +171,75 @@ export function AccountFormModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md"
       role="dialog"
       aria-modal="true"
       aria-label={user ? `Ubah akun ${user.name}` : "Buat akun baru"}
     >
-      <div
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
       <motion.div
-        initial={{ opacity: 0, y: 24, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.4, ease: EASE }}
-        className="glass-card relative flex max-h-[94dvh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl sm:rounded-2xl"
+        initial={{ opacity: 0, scale: 0.95, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: EASE }}
+        className="glass-card relative flex max-h-[94dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-slate-700/80 shadow-2xl"
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200/70 px-5 py-4 dark:border-slate-800/70">
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white ${
-                user
-                  ? "bg-violet-600"
-                  : "bg-gradient-to-br from-violet-500 to-indigo-600"
-              }`}
-            >
-              {user ? (
-                <LuShieldCheck className="h-4 w-4" />
-              ) : (
-                <LuUserPlus className="h-4 w-4" />
-              )}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-                {user ? `Ubah akun — ${user.name}` : "Buat akun baru"}
-              </p>
-              {user && (
-                <p className="text-[11px] text-slate-400">
-                  <span
-                    className={`rounded-full border px-1.5 py-0.5 font-bold ${rv.badge}`}
-                  >
-                    {rv.label}
-                  </span>
-                </p>
-              )}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Tutup"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Tutup"
+          className="absolute top-5 right-5 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+        >
+          <LuX className="h-5 w-5" />
+        </button>
+
+        <div className="flex shrink-0 items-center space-x-3 px-6 pt-6 pb-5 sm:px-8">
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-lg ${
+              user
+                ? "bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-blue-600/25"
+                : "bg-gradient-to-tr from-blue-500 via-blue-600 to-indigo-600 shadow-blue-500/25"
+            }`}
           >
-            <LuX className="h-4 w-4" />
-          </button>
+            {user ? (
+              <LuShieldCheck className="h-5 w-5" />
+            ) : (
+              <LuUserPlus className="h-5 w-5" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <h3 className="truncate text-lg font-extrabold text-white">
+              {user ? `Ubah Akun — ${user.name}` : "Tambah Akun Baru"}
+            </h3>
+            <p className="text-xs text-slate-400">
+              {user ? (
+                <span
+                  className={`rounded-lg border px-1.5 py-0.5 text-[10px] font-extrabold tracking-wider uppercase ${rb.badge}`}
+                >
+                  {rb.label}
+                </span>
+              ) : (
+                "Isi data dan tentukan tingkat hak akses pengguna."
+              )}
+            </p>
+          </div>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-2 sm:px-8">
           {error && (
-            <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400">
+            <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-400">
               {error}
             </p>
           )}
 
           <div>
             <label htmlFor="acc-name" className={LABEL_CLASS}>
-              Nama
+              Nama Lengkap
             </label>
             <input
               id="acc-name"
-              className="glass-input mt-1.5"
+              className="glass-input w-full rounded-xl px-4 py-2.5 text-xs text-white transition focus:outline-none"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="mis. Budi Santoso"
+              placeholder="Contoh: Budi Santoso"
               maxLength={60}
               autoComplete="off"
             />
@@ -246,15 +247,15 @@ export function AccountFormModal({
 
           <div>
             <label htmlFor="acc-email" className={LABEL_CLASS}>
-              Email (untuk login)
+              Email Pengguna
             </label>
             <input
               id="acc-email"
               type="email"
-              className="glass-input mt-1.5"
+              className="glass-input w-full rounded-xl px-4 py-2.5 text-xs text-white transition focus:outline-none"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="nama@contoh.com"
+              placeholder="nama@warung.id"
               maxLength={100}
               autoComplete="off"
             />
@@ -263,56 +264,55 @@ export function AccountFormModal({
           {!user && (
             <div>
               <label htmlFor="acc-password" className={LABEL_CLASS}>
-                Password awal
+                Kata Sandi Awal
               </label>
               <div className="mt-1.5">
                 <PasswordInput
                   id="acc-password"
                   value={password}
                   onChange={setPassword}
-                  placeholder="ketik untuk melihat syarat"
+                  placeholder="••••••••"
                   showChecklist
                 />
               </div>
-              <p className="mt-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-                Disimpan ter-hash bcrypt di backend-go. User dapat menggantinya
-                sendiri lewat ganti password biasa.
-              </p>
+              <span className="mt-1 block text-[10px] text-slate-500">
+                Minimal 8 karakter — wajib ada huruf besar, angka, dan simbol.
+              </span>
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="acc-role" className={LABEL_CLASS}>
-                Peran
+                Peran / Hak Akses
               </label>
-              <select
+              <SelectInput
                 id="acc-role"
-                className="glass-input mt-1.5"
                 value={role}
                 onChange={(e) =>
                   setRole(e.target.value === "OWNER" ? "OWNER" : "KASIR")
                 }
               >
-                <option value="OWNER">Owner</option>
-                <option value="KASIR">Kasir</option>
-              </select>
-              <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                <option value="KASIR">Kasir (Terbatas)</option>
+                <option value="OWNER">Owner (Akses Penuh Warung)</option>
+              </SelectInput>
+              <p className="mt-1 text-[10px] text-slate-500">
                 Akun DEVELOPER tidak bisa dibuat dari sini.
               </p>
             </div>
             <div>
               <label htmlFor="acc-outlet" className={LABEL_CLASS}>
-                Outlet {outletRequired ? "(wajib)" : "(opsional)"}
+                Penempatan Outlet {outletRequired ? "(wajib)" : ""}
               </label>
-              <select
+              <SelectInput
                 id="acc-outlet"
-                className="glass-input mt-1.5"
                 value={outletId}
                 onChange={(e) => setOutletId(e.target.value)}
               >
                 <option value="">
-                  {outletRequired ? "— pilih outlet —" : "Semua outlet"}
+                  {outletRequired
+                    ? "— pilih outlet —"
+                    : "Akses Global (Semua Outlet)"}
                 </option>
                 {outlets.map((o) => (
                   <option key={o.id} value={o.id}>
@@ -323,18 +323,18 @@ export function AccountFormModal({
                     produk: pilih, isi nama, selesai — tanpa keluar dari
                     form akun. */}
                 <option value={NEW_OUTLET}>+ Outlet baru…</option>
-              </select>
+              </SelectInput>
             </div>
           </div>
 
           {creatingOutlet && (
-            <div className="space-y-2 rounded-xl border border-violet-500/20 bg-violet-500/10 p-3">
-              <p className="flex items-center gap-1.5 text-xs font-bold text-violet-700 dark:text-violet-300">
+            <div className="space-y-2 rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
+              <p className="flex items-center gap-1.5 text-xs font-bold text-blue-300">
                 <LuMapPin className="h-3.5 w-3.5" />
                 Outlet baru
               </p>
               <input
-                className="glass-input"
+                className="glass-input w-full rounded-xl px-4 py-2.5 text-xs text-white transition focus:outline-none"
                 value={newOutletName}
                 onChange={(e) => setNewOutletName(e.target.value)}
                 placeholder="Nama outlet (mis. Warung Bu Sari 2)"
@@ -342,14 +342,14 @@ export function AccountFormModal({
                 autoComplete="off"
               />
               <input
-                className="glass-input"
+                className="glass-input w-full rounded-xl px-4 py-2.5 text-xs text-white transition focus:outline-none"
                 value={newOutletAddress}
                 onChange={(e) => setNewOutletAddress(e.target.value)}
                 placeholder="Alamat (opsional)"
                 maxLength={120}
                 autoComplete="off"
               />
-              <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] leading-relaxed text-slate-500">
                 Outlet dibuat lebih dulu saat menekan tombol simpan, lalu akun
                 otomatis terikat ke outlet itu. Gagal bikin outlet = tidak ada
                 yang dibuat, isian tetap aman di layar.
@@ -358,25 +358,25 @@ export function AccountFormModal({
           )}
 
           {user && (
-            <label className="flex items-center gap-2.5 rounded-xl border border-slate-200/80 px-3 py-2.5 dark:border-slate-700">
+            <label className="flex items-center gap-2.5 rounded-xl border border-slate-700 px-3 py-2.5">
               <input
                 type="checkbox"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
-                className="h-4 w-4 accent-violet-600"
+                className="h-4 w-4 accent-blue-500"
               />
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              <span className="text-sm font-medium text-slate-200">
                 Akun aktif (bisa login)
               </span>
             </label>
           )}
         </div>
 
-        <div className="flex shrink-0 justify-end gap-2 border-t border-slate-200/70 px-5 py-4 dark:border-slate-800/70">
+        <div className="flex shrink-0 items-center justify-end space-x-3 border-t border-slate-800 px-6 pt-4 pb-6 sm:px-8">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="rounded-xl border border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-300 transition-all hover:bg-slate-800"
           >
             Batal
           </button>
@@ -384,10 +384,10 @@ export function AccountFormModal({
             type="button"
             onClick={() => startAsync(handleSubmit)}
             disabled={pending}
-            className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-blue-600/30 transition-all hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending && <Spinner className="h-3.5 w-3.5" />}
-            {user ? "Simpan" : "Buat Akun"}
+            {user ? "Simpan Akun" : "Buat Akun"}
           </button>
         </div>
       </motion.div>

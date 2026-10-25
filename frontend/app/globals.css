@@ -17,16 +17,21 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-jakarta), var(--font-geist-sans), ui-sans-serif,
-    system-ui, sans-serif;
+  --font-sans:
+    var(--font-jakarta), var(--font-geist-sans), ui-sans-serif, system-ui,
+    sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-jakarta), var(--font-geist-sans), system-ui,
-    -apple-system, sans-serif;
+  font-family:
+    var(--font-jakarta),
+    var(--font-geist-sans),
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 /* =====================================================================
@@ -141,6 +146,16 @@ body {
 .glass-input option {
   color: #0f172a;
   background: #ffffff;
+}
+/* Popup daftar opsi di tema gelap: tanpa ini Chrome Windows menggambar
+   daftar putih menyala di atas halaman gelap. color-scheme: dark juga
+   membuat kontrol native (popup select) ikut gelap. */
+.dark .glass-input {
+  color-scheme: dark;
+}
+.dark .glass-input option {
+  color: #f1f5f9;
+  background: #0f172a;
 }
 
 /* ---- Pola titik grid latar ---- */
