@@ -79,21 +79,25 @@ func isValidSignatureData(s string) bool {
 		len(s) > 100 && len(s) <= 300000
 }
 
-// Nama outlet untuk struk publik: masih dari tabel Prisma "Outlet" (era
-// single-outlet). Deployment murni-Go tanpa Prisma tetap aman — tabel
-// yang tidak ada bukan error, namanya jadi "Warung".
+// Nama outlet untuk struk publik (v1.4.0): dari tabel `outlets` milik Go.
+// Era transisi tetap aman — kalau tabel Prisma "Outlet" lama masih ada
+// dan outlets belum terisi, namanya diambil dari sana; deployment murni
+// tanpa Prisma jatuh ke "Warung".
 func outletDisplayName(ctx context.Context) string {
-	var hasTable *bool
-	if err := db.Pool.QueryRow(ctx,
-		`SELECT to_regclass('public."Outlet"') IS NOT NULL`).Scan(&hasTable); err != nil || hasTable == nil || !*hasTable {
-		return "Warung"
-	}
 	var name string
 	if err := db.Pool.QueryRow(ctx,
-		`SELECT name FROM "Outlet" ORDER BY "createdAt" ASC LIMIT 1`).Scan(&name); err != nil || strings.TrimSpace(name) == "" {
-		return "Warung"
+		`SELECT name FROM outlets ORDER BY created_at ASC, id ASC LIMIT 1`).Scan(&name); err == nil && strings.TrimSpace(name) != "" {
+		return strings.TrimSpace(name)
 	}
-	return name
+	var hasTable *bool
+	if err := db.Pool.QueryRow(ctx,
+		`SELECT to_regclass('public."Outlet"') IS NOT NULL`).Scan(&hasTable); err == nil && hasTable != nil && *hasTable {
+		if err := db.Pool.QueryRow(ctx,
+			`SELECT name FROM "Outlet" ORDER BY "createdAt" ASC LIMIT 1`).Scan(&name); err == nil && strings.TrimSpace(name) != "" {
+			return strings.TrimSpace(name)
+		}
+	}
+	return "Warung"
 }
 
 type QueueRow struct {

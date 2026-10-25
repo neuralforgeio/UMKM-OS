@@ -37,6 +37,7 @@ func Connect() {
 	if err := migrate(ctx); err != nil {
 		fatal("[db] Gagal migrasi schema: %v", err)
 	}
+	importLegacyOutlets(ctx)
 	if err := seedOwner(ctx); err != nil {
 		fatal("[db] Gagal seed owner awal: %v", err)
 	}
@@ -58,7 +59,7 @@ func migrate(ctx context.Context) error {
 			return err
 		}
 	}
-	logger.Success("[db] Schema siap (8 tabel + sequence + index)")
+	logger.Success("[db] Schema siap (9 tabel + sequence + index)")
 	return nil
 }
 
@@ -183,6 +184,52 @@ func randomPassword(n int) string {
 		b[i] = passwordAlphabet[int(b[i])%len(passwordAlphabet)]
 	}
 	return string(b)
+}
+
+// importLegacyOutlets (v1.4.0) — jembatan satu arah dari era Prisma.
+//
+// Boot PERTAMA v1.4.0 pada database lama: tabel `outlets` masih kosong,
+// sedangkan identitas warung (nama/alamat/telepon/logo) hidup di tabel
+// PascalCase "Outlet" milik Prisma. Identitas itu diimpor SEKALI ke
+// `outlets` supaya tidak ada yang harus diatur ulang oleh pemilik.
+// Karena guard "outlets sudah terisi -> lewati", boot-boot berikutnya
+// (dan pembuatan outlet baru dari konsol) tidak pernah memicu ulang.
+// Database baru tanpa Prisma: jatuh ke seed satu outlet "Warung".
+func importLegacyOutlets(ctx context.Context) {
+	var count int
+	if err := Pool.QueryRow(ctx, `SELECT COUNT(*) FROM outlets`).Scan(&count); err != nil {
+		fatal("[db] Gagal memeriksa tabel outlets: %v", err)
+	}
+	if count > 0 {
+		return // sudah ada isinya — impor hanya sekali seumur hidup
+	}
+
+	var hasTable *bool
+	if err := Pool.QueryRow(ctx,
+		`SELECT to_regclass('public."Outlet"') IS NOT NULL`).Scan(&hasTable); err == nil &&
+		hasTable != nil && *hasTable {
+		tag, err := Pool.Exec(ctx, `
+                        INSERT INTO outlets (name, address, phone, logo_mime_type, logo_data, logo_version, is_active, created_at)
+                        SELECT "name",
+                               COALESCE("address", ''),
+                               COALESCE("phone", ''),
+                               "logoMimeType",
+                               "logoData",
+                               COALESCE("logoVersion", 0),
+                               COALESCE("isActive", TRUE),
+                               COALESCE("createdAt", NOW())
+                        FROM "Outlet"
+                        ORDER BY "createdAt" ASC`)
+		if err == nil && tag.RowsAffected() > 0 {
+			logger.Success("[db] Identitas outlet diimpor dari tabel Prisma lama (sekali saja)")
+			return
+		}
+	}
+
+	if _, err := Pool.Exec(ctx, `INSERT INTO outlets (name) VALUES ('Warung')`); err != nil {
+		fatal("[db] Gagal membuat outlet awal: %v", err)
+	}
+	logger.Success("[db] Outlet utama siap (default \"Warung\")")
 }
 
 var migrations = []string{
@@ -324,4 +371,23 @@ var migrations = []string{
     )`,
 	`CREATE INDEX IF NOT EXISTS idx_handover_events_tx
         ON handover_events(transaction_id, created_at)`,
+
+	// ===== 7) Outlet & ikatan akun (v1.4.0) =====
+	// Identitas warung pindah dari tabel Prisma "Outlet" ke sini;
+	// users.outlet_id mengikat kasir ke satu outlet (owner boleh
+	// kosong = akses semua outlet, developer tidak pernah diikat).
+	`CREATE TABLE IF NOT EXISTS outlets (
+        id BIGSERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        address TEXT NOT NULL DEFAULT '',
+        phone TEXT NOT NULL DEFAULT '',
+        logo_mime_type TEXT,
+        logo_data BYTEA,
+        logo_version INT NOT NULL DEFAULT 0,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+	`ALTER TABLE users ADD COLUMN IF NOT EXISTS outlet_id BIGINT REFERENCES outlets(id)`,
+	`CREATE INDEX IF NOT EXISTS idx_users_outlet ON users(outlet_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_outlets_name ON outlets(name)`,
 }

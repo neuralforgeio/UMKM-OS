@@ -8,13 +8,13 @@ import (
 )
 
 // AppVersion mengikuti Semantic Versioning: MAJOR.MINOR.PATCH
-// 1.3.0 = fitur: konsolidasi serah terima & verifikasi struk ke Go —
+// 1.4.0 = fitur: konsolidasi serah terima & verifikasi struk ke Go —
 // antrean penyajian (GET /queue), aksi serve/confirm/claim, struk publik
 // tanpa login (GET /public/receipt/{code} + konfirmasi/bantah pembeli),
 // refund transaksi atomik (stok + kartu stok + audit), laporan laba
 // (GET /reports/profit), pencarian transaksi (q), dan manajemen akun
 // parsial (reset password / aktif-nonaktif / soft delete).
-const AppVersion = "1.3.0"
+const AppVersion = "1.4.0"
 
 func init() {
 	_ = godotenv.Load()

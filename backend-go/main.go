@@ -57,6 +57,10 @@ func main() {
 		api.Post("/public/receipt/{code}/confirm", handler.PublicConfirm)
 		api.Post("/public/receipt/{code}/dispute", handler.PublicDispute)
 
+		// Logo outlet (v1.4.0): publik — halaman & struk memuatnya
+		// lewat tag <img> yang tidak bisa membawa Authorization.
+		api.Get("/outlets/{id}/logo", handler.ServeOutletLogo)
+
 		// Butuh login (OWNER, CASHIER, DEVELOPER)
 		api.Group(func(priv chi.Router) {
 			priv.Use(middleware.RequireAuth)
@@ -92,6 +96,14 @@ func main() {
 			mgr.Put("/users/{id}", handler.UpdateUser)
 			mgr.Delete("/users/{id}", handler.DeleteUser)
 
+			// Outlet (v1.4.0): identitas warung milik Go — dibaca
+			// konsol dev, form akun, dan pengaturan outlet.
+			mgr.Get("/outlets", handler.ListOutlets)
+			mgr.Get("/outlets/{id}", handler.GetOutlet)
+			mgr.Put("/outlets/{id}", handler.UpdateOutlet)
+			mgr.Post("/outlets/{id}/logo", handler.UploadOutletLogo)
+			mgr.Delete("/outlets/{id}/logo", handler.DeleteOutletLogo)
+
 			mgr.Post("/products", handler.CreateProduct)
 			mgr.Put("/products/{id}", handler.UpdateProduct)
 			mgr.Delete("/products/{id}", handler.DeleteProduct)
@@ -114,11 +126,22 @@ func main() {
 			// stok naik; hanya OWNER / DEVELOPER, atomik, berjejak.
 			mgr.Post("/transactions/{id}/refund", handler.RefundTransaction)
 
-			mgr.Get("/audit-logs", handler.ListAuditLogs)
-
 			// Log sistem (untuk dibaca di frontend nanti)
 			mgr.Get("/logs", handler.ListLogFiles)
 			mgr.Get("/logs/{date}", handler.ReadLogFile)
+		})
+
+		// Khusus DEVELOPER (v1.4.0): membuat outlet, jejak masuk/keluar
+		// mode maintenance, dan QUERY audit log — pemilik melihat jejak
+		// lewat export spreadsheet, bukan konsol query.
+		api.Group(func(dev chi.Router) {
+			dev.Use(middleware.RequireAuth)
+			dev.Use(middleware.RequireRoleIn("DEVELOPER"))
+
+			dev.Post("/outlets", handler.CreateOutlet)
+			dev.Post("/outlets/{id}/maintenance-session", handler.EnterMaintenanceSession)
+			dev.Delete("/outlets/{id}/maintenance-session", handler.ExitMaintenanceSession)
+			dev.Get("/audit-logs", handler.ListAuditLogs)
 		})
 	})
 
