@@ -1,8 +1,8 @@
 "use client";
 
 // Tombol "Outlet Baru" di konsol developer (Task 35). Pemilik warung
-// menambah outlet dari sini tanpa harus membuka form akun â€” form akun
-// punya jalur buat-outletnya sendiri ("+ Outlet baruâ€¦").
+// menambah outlet dari sini tanpa harus membuka form akun — form akun
+// punya jalur buat-outletnya sendiri ("+ Outlet baru…").
 // Modal + controlled state: kalau gagal (nama kembar dsb.) semua isian
 // tetap di layar beserta pesan errornya.
 // v1.6.0: modal glass sadar tema (terang/gelap) mengikuti konsol dev.

@@ -57,12 +57,12 @@ export default async function OwnerStockPage() {
   if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER")
     redirect("/cashier");
   if (!session.user.goToken) {
-    throw new Error("Sesi tidak memiliki token backend â€” silakan login ulang.");
+    throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
   }
   const goToken = session.user.goToken;
 
   // Produk aktif + 200 gerakan terakhir + total gerakan, semuanya dari
-  // backend-go â€” kartu stok dan kasir membaca angka yang sama.
+  // backend-go — kartu stok dan kasir membaca angka yang sama.
   const [productsResult, movementsResult] = await Promise.all([
     goFetch<GoProduct[]>(goToken, "/products"),
     goFetch<{ total: number; rows: GoMovement[] }>(
@@ -87,7 +87,7 @@ export default async function OwnerStockPage() {
 
   // Rows are plain serializable objects. Display strings are prepared on
   // the server so the client render stays hydration-safe. Gerakan OUT
-  // yang terikat nomor struk = penjualan kasir â€” ditampilkan SALE agar
+  // yang terikat nomor struk = penjualan kasir — ditampilkan SALE agar
   // makna barisnya sama dengan era sebelumnya.
   const movementRows: StockMovementRow[] = movementsResult.data.rows.map(
     (movement) => ({

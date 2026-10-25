@@ -16,7 +16,7 @@ export default async function SettingsPage() {
     redirect("/cashier");
   }
 
-  // Select only identity fields â€” the logo BYTES never leave the
+  // Select only identity fields — the logo BYTES never leave the
   // server; the client gets a cache-busted URL instead.
   const outletSelect = {
     name: true,
@@ -61,10 +61,10 @@ export default async function SettingsPage() {
             )}
             <div className="min-w-0">
               <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
-                Pengaturan â€” {outlet.name}
+                Pengaturan — {outlet.name}
               </h1>
               <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                {session.user.name ?? "Pemilik"} Â· Pemilik
+                {session.user.name ?? "Pemilik"} · Pemilik
               </p>
             </div>
           </div>
@@ -104,12 +104,12 @@ export default async function SettingsPage() {
         <section className="rounded-2xl glass-card p-6">
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Logo UMKM</h2>
           <p className="mt-1 mb-5 text-sm text-slate-500 dark:text-slate-400">
-            Logo warungmu â€” muncul di struk, header kasir, dan ikon browser.
+            Logo warungmu — muncul di struk, header kasir, dan ikon browser.
           </p>
           <OutletLogoForm logoUrl={logoUrl} />
         </section>
 
-        {/* Unduh log outlet (Task 35): GET form biasa ke route export â€”
+        {/* Unduh log outlet (Task 35): GET form biasa ke route export —
             owner otomatis di-scope ke outletnya sendiri di server, jadi
             tidak ada parameter outlet yang bisa (perlu) diutak-atik. */}
         <section className="rounded-2xl glass-card p-6">
@@ -120,7 +120,7 @@ export default async function SettingsPage() {
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Unduh jejak audit outlet ini sebagai Excel: tabel log yang rapi
             (bisa difilter), grafik tren periodik, aktivitas per jam, top
-            aksi, dan pivot harian â€” siap untuk analisa.
+            aksi, dan pivot harian — siap untuk analisa.
           </p>
           <form
             method="get"
@@ -164,7 +164,7 @@ export default async function SettingsPage() {
             </button>
           </form>
           <p className="mt-2 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
-            Rentang kosong = semua waktu. Maksimal 10.000 baris per unduhan â€”
+            Rentang kosong = semua waktu. Maksimal 10.000 baris per unduhan —
             untuk penelusuran panjang, unduh per rentang bulan. Hanya event
             outlet {outlet.name} yang ikut.
           </p>
@@ -220,7 +220,7 @@ export default async function SettingsPage() {
             )}
             <div className="my-2 border-t border-dashed border-neutral-400" />
             <p className="text-center text-[9px] text-slate-400 dark:text-slate-500">
-              â€¦ sisa struk menyusul di halaman kasir
+              … sisa struk menyusul di halaman kasir
             </p>
           </div>
         </section>

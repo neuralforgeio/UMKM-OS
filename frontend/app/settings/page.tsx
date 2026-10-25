@@ -4,7 +4,7 @@ import { settingsBackHref, settingsBackLabel } from "@/lib/settings-nav";
 import { AppearanceSettings } from "./appearance-client";
 
 // Pengaturan Tampilan (v1.3.0). v1.6.0: tombol "Kembali" kini sadar
-// peran â€” pengguna yang sudah login pulang ke areanya (kasir/owner/dev),
+// peran — pengguna yang sudah login pulang ke areanya (kasir/owner/dev),
 // pengunjung anonim ke /login. Section lain (bahasa, notifikasi, dsb.)
 // menyusul bertahap sesuai ide berikutnya.
 export const metadata: Metadata = {
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: "Pilih tema gelap, terang, atau ikuti pengaturan perangkat.",
 };
 
-// auth() membaca cookie sesi â€” halaman ini tidak bisa diprarender statis
+// auth() membaca cookie sesi — halaman ini tidak bisa diprarender statis
 // (konvensi yang sama dengan halaman dev: rute blocking dinamis).
 export const instant = false;
 

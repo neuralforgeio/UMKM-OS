@@ -34,7 +34,7 @@ export default async function HomePage() {
 
   // Owner briefing: a tiny live snapshot so the launcher page already
   // answers "how is the warung doing today" without opening reports.
-  // Angka kini dari backend-go (satu sumber data) â€” kalau backend tidak
+  // Angka kini dari backend-go (satu sumber data) — kalau backend tidak
   // merespons, kartu statistik dilewati, halaman tetap terbuka.
   let stats: {
     omzetToday: number;
@@ -50,7 +50,7 @@ export default async function HomePage() {
     }>(session.user.goToken, "/reports/dashboard");
     // Bentuk respons diverifikasi SEBELUM dibaca: backend lama (pra
     // v1.1.0) menjawab /reports/dashboard dengan kolom rata
-    // (today_revenue, low_stock_products) tanpa objek "today" â€” kartu
+    // (today_revenue, low_stock_products) tanpa objek "today" — kartu
     // statistik cukup dilewati, halaman peluncur tetap terbuka. Setelah
     // proses lama dimatikan dan backend-go v1.1.0+ yang menjawab, kartu
     // statistik muncul lagi sendirinya.
@@ -106,7 +106,7 @@ export default async function HomePage() {
     : [];
 
   return (
-    // Shell aurora (v1.8.0): beranda/peluncur peran ikut tema pengguna â€”
+    // Shell aurora (v1.8.0): beranda/peluncur peran ikut tema pengguna —
     // kartu pintasan memakai kaca, toggle tema & /settings ada di header.
     <div className="relative min-h-dvh bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
       <AuroraBackground />
@@ -234,7 +234,7 @@ export default async function HomePage() {
         )}
 
         <p className="mt-auto pt-6 text-center text-xs text-slate-400 dark:text-slate-500">
-          UMKM OS Â· demo warung digital â€” kasir, laporan, dan peramalan
+          UMKM OS · demo warung digital — kasir, laporan, dan peramalan
         </p>
       </div>
     </div>

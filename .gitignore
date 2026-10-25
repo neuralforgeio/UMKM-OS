@@ -33,6 +33,12 @@ yarn-debug.log*
 yarn-error.log*
 
 # ---------------------------------------------------------------------
+# Skrip delivery lokal (payload Base64, self-cleaning) — tidak untuk
+# repositori; skrip menghapus dirinya sendiri setelah selesai.
+# ---------------------------------------------------------------------
+umkm-os-*.ps1
+
+# ---------------------------------------------------------------------
 # OS / editor
 # ---------------------------------------------------------------------
 .DS_Store

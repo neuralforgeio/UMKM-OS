@@ -56,7 +56,7 @@ function StockBadge({ product }: { product: ProductRow }) {
   if (product.stock <= product.minStock) {
     return (
       <span className="inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 text-[11px] font-bold tabular-nums text-amber-700 dark:text-amber-300">
-        {product.stock} {product.unit} Â· menipis
+        {product.stock} {product.unit} · menipis
       </span>
     );
   }
@@ -68,7 +68,7 @@ function StockBadge({ product }: { product: ProductRow }) {
 }
 
 // Product identity tile: the chosen photo when one exists, otherwise
-// the colored category initials â€” the same fallback language as the POS.
+// the colored category initials — the same fallback language as the POS.
 function ProductAvatar({ product }: { product: ProductRow }) {
   if (product.thumbImageId) {
     return (
@@ -133,7 +133,7 @@ function ProductRowItem({
             {product.categoryName}
           </span>
         ) : (
-          <span className="text-[11px] text-slate-300">â€”</span>
+          <span className="text-[11px] text-slate-300">—</span>
         )}
       </div>
 
@@ -162,7 +162,7 @@ function ProductRowItem({
             <span className="font-normal text-slate-400 dark:text-slate-500">{product.unit}</span>
           </>
         ) : (
-          <span className="font-normal text-slate-300">â€”</span>
+          <span className="font-normal text-slate-300">—</span>
         )}
       </p>
 
@@ -315,10 +315,10 @@ export function ProductsClient({
             </div>
             <div className="min-w-0">
               <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
-                Manajemen Produk â€” {outletName}
+                Manajemen Produk — {outletName}
               </h1>
               <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                {summary.activeCount} produk aktif Â· {summary.archivedCount}{" "}
+                {summary.activeCount} produk aktif · {summary.archivedCount}{" "}
                 arsip
               </p>
             </div>

@@ -18,7 +18,7 @@ import {
 //   - zoom   : slider + pan by dragging outside the crop box
 // The transform is baked into an offscreen canvas at natural resolution;
 // the preview renders that canvas, and the export copies the crop region
-// straight from it â€” preview and result can never disagree.
+// straight from it — preview and result can never disagree.
 //
 // Shape notes (lint-clean React 19 patterns):
 //   - the baked canvas lives in a ref (only touched in callbacks),
@@ -409,7 +409,7 @@ export function ImageEditorModal({
                       className="h-6 w-6 animate-spin"
                       aria-hidden="true"
                     />
-                    <p className="text-xs font-medium">Memuat fotoâ€¦</p>
+                    <p className="text-xs font-medium">Memuat foto…</p>
                   </div>
                 ) : (
                   <div
@@ -450,7 +450,7 @@ export function ImageEditorModal({
                         }}
                       >
                         <span className="absolute -top-6 left-0 rounded-md bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white shadow">
-                          {Math.round(effCrop.w)}Ã—{Math.round(effCrop.h)}
+                          {Math.round(effCrop.w)}×{Math.round(effCrop.h)}
                         </span>
                         {(
                           [
@@ -536,7 +536,7 @@ export function ImageEditorModal({
                 </button>
                 <div className="ml-auto flex min-w-40 flex-1 items-center gap-2">
                   <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                    {zoom.toFixed(2).replace(".", ",")}Ã—
+                    {zoom.toFixed(2).replace(".", ",")}×
                   </span>
                   <input
                     type="range"
@@ -578,7 +578,7 @@ export function ImageEditorModal({
             {exporting && (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             )}
-            {exporting ? "Menyiapkanâ€¦" : "Gunakan Foto"}
+            {exporting ? "Menyiapkan…" : "Gunakan Foto"}
           </button>
         </div>
       </div>

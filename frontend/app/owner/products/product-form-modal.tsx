@@ -71,7 +71,7 @@ const grouped = (value: string) =>
   value ? formatThousands(parseInt(value, 10)) : "";
 
 // Rp text field: right-aligned tabular digits with a fixed "Rp" prefix
-// and live thousand separators â€” the same money language as the POS.
+// and live thousand separators — the same money language as the POS.
 function RpInput({
   id,
   value,
@@ -428,7 +428,7 @@ export function ProductFormModal({
         onClick={onClose}
         aria-hidden="true"
       />
-      {/* Panel kaca aurora (v1.8.0) â€” konsisten dengan modal Kelola Akun. */}
+      {/* Panel kaca aurora (v1.8.0) — konsisten dengan modal Kelola Akun. */}
       <div className="glass-card relative flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl shadow-2xl sm:rounded-2xl dark:shadow-black/50">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/60 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -467,16 +467,16 @@ export function ProductFormModal({
             {createdId && (
               <div className="flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2.5 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                 <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                Produk tersimpan â€” tinggal foto yang menyusul.
+                Produk tersimpan — tinggal foto yang menyusul.
               </div>
             )}
 
-            {/* ============ FOTO PRODUK â€” dipindah ke PALING ATAS ============ */}
+            {/* ============ FOTO PRODUK — dipindah ke PALING ATAS ============ */}
             <div>
               <p className={LABEL_CLASS}>Foto Produk (maks. {MAX_PHOTOS})</p>
               <p className="mt-0.5 text-[11px] leading-tight text-slate-400 dark:text-slate-500">
                 Tampil di keranjang kasir, kartu produk, dan tabel. Tandai foto
-                dengan bintang untuk menjadikannya thumbnail â€” default: foto
+                dengan bintang untuk menjadikannya thumbnail — default: foto
                 pertama.
               </p>
               <div className="mt-2 grid grid-cols-3 gap-2.5 sm:grid-cols-4">
@@ -634,7 +634,7 @@ export function ProductFormModal({
                       <ImagePlus className="h-5 w-5" />
                     )}
                     <span className="text-[10px] font-semibold">
-                      {photoBusy === "upload" ? "Mengunggahâ€¦" : "Tambah foto"}
+                      {photoBusy === "upload" ? "Mengunggah…" : "Tambah foto"}
                     </span>
                   </button>
                 )}
@@ -691,7 +691,7 @@ export function ProductFormModal({
                 <p className="mt-1 text-[11px] leading-tight text-slate-400 dark:text-slate-500">
                   {product
                     ? "SKU tetap setelah produk dibuat."
-                    : "Dibuat otomatis dari kategori â€” nomor final ditetapkan saat disimpan."}
+                    : "Dibuat otomatis dari kategori — nomor final ditetapkan saat disimpan."}
                 </p>
               </div>
 
@@ -728,13 +728,13 @@ export function ProductFormModal({
                     onChange={(event) => handleUnitSelect(event.target.value)}
                     className={`mt-1 ${INPUT_CLASS}`}
                   >
-                    <option value="">Pilih satuanâ€¦</option>
+                    <option value="">Pilih satuan…</option>
                     {units.map((unit) => (
                       <option key={unit.name} value={unit.name}>
                         {unit.name}
                       </option>
                     ))}
-                    <option value="__new__">+ Satuan baruâ€¦</option>
+                    <option value="__new__">+ Satuan baru…</option>
                   </select>
                 )}
               </div>
@@ -780,7 +780,7 @@ export function ProductFormModal({
                         {category.name}
                       </option>
                     ))}
-                    <option value="__new__">+ Kategori baruâ€¦</option>
+                    <option value="__new__">+ Kategori baru…</option>
                   </select>
                 )}
               </div>
@@ -866,7 +866,7 @@ export function ProductFormModal({
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               )}
               {isPending
-                ? "Menyimpanâ€¦"
+                ? "Menyimpan…"
                 : createdId
                   ? queue.length > 0
                     ? "Coba Unggah Foto Lagi"

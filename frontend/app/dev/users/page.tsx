@@ -12,7 +12,7 @@ import {
 
 export const instant = false;
 
-// Konsol kelola akun (khusus DEVELOPER) â€” kini membaca langsung dari
+// Konsol kelola akun (khusus DEVELOPER) — kini membaca langsung dari
 // backend-go: GET /users (akun live + last_transaction_at) dan
 // GET /outlets (pilihan ikatan di form akun). Akun terhapus tidak
 // pernah dikirim Go (deleted_at IS NULL), jadi filter di UI tidak
@@ -28,7 +28,7 @@ export default async function DevUsersPage() {
     goFetch<GoOutletDTO[]>(goToken, "/outlets"),
   ]);
 
-  // Backend tidak terjangkau: kartu error yang jelas, bukan crash â€”
+  // Backend tidak terjangkau: kartu error yang jelas, bukan crash —
   // mengikuti tema aplikasi (aurora + glass, terang/gelap).
   if (!usersRes.ok || !outletsRes.ok) {
     return (

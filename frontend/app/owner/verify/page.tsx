@@ -1,11 +1,11 @@
-// KONSOL VERIFIKASI STRUK v3 (dine-in) â€” dibuka KASIR/OWNER yang login
+// KONSOL VERIFIKASI STRUK v3 (dine-in) — dibuka KASIR/OWNER yang login
 // (dan DEVELOPER saat mode maintenance, Task 35).
 // Nomor struk adalah ALAMAT, bukan kunci: pencarian hanya menampilkan
 // status + ATURAN KEPUTUSAN deterministik. Status penyajian dicatat
 // staf lewat Antrean Penyajian (satu arah, berjejak di HandoverEvent).
 //
 // Redesign Task 35: kartu statistik berikon + ring warna, pencarian
-// dengan ikon, kartu hasil dengan aksen warna kiri â€” logika query dan
+// dengan ikon, kartu hasil dengan aksen warna kiri — logika query dan
 // aksi TIDAK berubah sama sekali.
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -128,7 +128,7 @@ export default async function VerifyConsolePage({
   ];
 
   // Lookup by receipt code (TRX-...) or the legacy 8-char verification
-  // code â€” both resolve to the same single receipt, scoped to outlet.
+  // code — both resolve to the same single receipt, scoped to outlet.
   const found = q
     ? await prisma.transaction.findFirst({
         where: {
@@ -182,7 +182,7 @@ export default async function VerifyConsolePage({
           }
           className="rounded-lg bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 shadow-sm ring-1 ring-slate-200 transition hover:text-slate-900 dark:hover:text-slate-100"
         >
-          â† Kembali
+          ← Kembali
         </Link>
         <div className="flex min-w-0 items-center gap-2">
           <ThemeHeaderActions />
@@ -205,7 +205,7 @@ export default async function VerifyConsolePage({
         <input
           name="q"
           defaultValue={q}
-          placeholder="Cari nomor struk (TRX-â€¦)"
+          placeholder="Cari nomor struk (TRX-…)"
           autoComplete="off"
           className="w-full rounded-2xl glass-card py-3 pl-10 pr-3 font-mono text-sm text-slate-900 dark:text-slate-100 outline-none transition placeholder:font-sans placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700"
         />
@@ -254,7 +254,7 @@ export default async function VerifyConsolePage({
             </div>
             <div className="mt-2 flex items-baseline justify-between gap-2 border-t border-dashed border-slate-200 dark:border-slate-800 pt-2">
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {dtFmt.format(found.createdAt)} WIB Â· {foundItemCount} item
+                {dtFmt.format(found.createdAt)} WIB · {foundItemCount} item
               </p>
               <p className="text-sm font-bold tabular-nums text-slate-900 dark:text-slate-100">
                 {formatRupiah(Math.round(Number(found.total)))}
@@ -262,7 +262,7 @@ export default async function VerifyConsolePage({
             </div>
           </div>
 
-          {/* Kartu status â€” aturan keputusan, kartu aksen kiri sesuai
+          {/* Kartu status — aturan keputusan, kartu aksen kiri sesuai
               bobot: merah = masalah, amber = perlu tindakan, hijau =
               selesai, biru = baru. */}
           {found.status === "REFUNDED" ? (
@@ -279,7 +279,7 @@ export default async function VerifyConsolePage({
                 {foundByName ? ` oleh ${foundByName}` : ""}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-                Aturan: klaim penggantian pesanan untuk struk ini DITOLAK â€”
+                Aturan: klaim penggantian pesanan untuk struk ini DITOLAK —
                 penyerahan tercatat permanen (siapa + kapan) dan tidak bisa
                 dibatalkan.
               </p>
@@ -311,7 +311,7 @@ export default async function VerifyConsolePage({
             <div className="rounded-2xl border-l-4 border-red-500 glass-card p-4 text-sm text-red-700 dark:text-red-300">
               <p className="flex items-center gap-1.5 font-bold">
                 <AlertTriangle className="h-4 w-4" />
-                Sengketa terbuka â€” pembeli membantah pernah menerima.
+                Sengketa terbuka — pembeli membantah pernah menerima.
               </p>
               <p className="mt-1 text-xs leading-relaxed text-red-600/80">
                 Selesaikan langsung dengan pembeli; seluruh jejak kejadian
@@ -330,7 +330,7 @@ export default async function VerifyConsolePage({
                 Ditandai sudah diantar (klaim staf, tanpa tanda tangan).
               </p>
               <p className="mt-1 text-xs leading-relaxed text-amber-700/80">
-                Bukti lemah â€” bila pembeli ada di tempat, minta ia tanda tangan
+                Bukti lemah — bila pembeli ada di tempat, minta ia tanda tangan
                 di halaman detail untuk bukti kuat.
               </p>
               <Link
@@ -348,7 +348,7 @@ export default async function VerifyConsolePage({
               </p>
               <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
                 Sajikan pesanan sekarang, atau tutup dengan alasan (mis. diambil
-                sendiri oleh pembeli) â€” alasan tercatat permanen untuk evaluasi
+                sendiri oleh pembeli) — alasan tercatat permanen untuk evaluasi
                 pola staf.
               </p>
               <ServeButton transactionId={found.id} withNote />
@@ -363,7 +363,7 @@ export default async function VerifyConsolePage({
             <div className="space-y-3 rounded-2xl border-l-4 border-blue-500 glass-card p-4">
               <p className="flex items-center gap-1.5 text-sm font-bold text-blue-700 dark:text-blue-300">
                 <Clock3 className="h-4 w-4" />
-                Belum disajikan ({foundAgeMin} mnt lalu) â€” sajikan sekarang.
+                Belum disajikan ({foundAgeMin} mnt lalu) — sajikan sekarang.
               </p>
               <ServeButton transactionId={found.id} />
               <Link
@@ -380,7 +380,7 @@ export default async function VerifyConsolePage({
       {q && !found && (
         <div className="mt-3 rounded-2xl glass-card p-5 text-center text-sm text-slate-400 dark:text-slate-500">
           Struk <span className="font-mono font-bold text-slate-600 dark:text-slate-400">{q}</span>{" "}
-          tidak ditemukan. Periksa lagi nomornya â€” formatnya TRX-tanggal-nomor,
+          tidak ditemukan. Periksa lagi nomornya — formatnya TRX-tanggal-nomor,
           tercetak di bagian atas struk.
         </div>
       )}

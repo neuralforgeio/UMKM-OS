@@ -1,4 +1,4 @@
-// Test kartu kategori kasir (v1.8.0) â€” memastikan chip kategori
+// Test kartu kategori kasir (v1.8.0) — memastikan chip kategori
 // bersifat DUAL-THEME: setiap chip terang wajib membawa padanan gelap
 // (dark:bg-... dan dark:text-...), sehingga halaman kasir ikut tema
 // pengguna seperti halaman owner dan dev.
@@ -18,7 +18,7 @@ const KATEGORI_KNOWN = [
   "Perawatan",
 ];
 
-describe("categoryChipClass â€” chip dual-theme", () => {
+describe("categoryChipClass — chip dual-theme", () => {
   it("setiap kategori bawaan punya warna terang DAN padanan gelap", () => {
     for (const nama of KATEGORI_KNOWN) {
       const chip = categoryChipClass(nama);
@@ -45,12 +45,12 @@ describe("categoryChipClass â€” chip dual-theme", () => {
   });
 });
 
-describe("categoryAvatarClass â€” avatar kategori", () => {
+describe("categoryAvatarClass — avatar kategori", () => {
   it("kategori dikenal memakai warna avatar solid (aman dua tema)", () => {
     for (const nama of KATEGORI_KNOWN) {
       const avatar = categoryAvatarClass(nama);
       expect(avatar).toMatch(/^bg-\w+-500$|^bg-\w+-600$/);
-      // avatar solid TIDAK boleh membawa varian gelap â€” warnanya memang
+      // avatar solid TIDAK boleh membawa varian gelap — warnanya memang
       // dipakai di kedua tema (kontras dijamin oleh teks putih di atasnya).
       expect(avatar).not.toContain("dark:");
     }
@@ -62,9 +62,9 @@ describe("categoryAvatarClass â€” avatar kategori", () => {
   });
 });
 
-describe("initialsOf â€” inisial dua huruf untuk avatar keranjang", () => {
+describe("initialsOf — inisial dua huruf untuk avatar keranjang", () => {
   it("dua kata pertama diambil KARAKTER awalnya, kapital", () => {
-    // Perilaku riil lama: karakter pertama tiap kata â€” "600ml" menyumbang
+    // Perilaku riil lama: karakter pertama tiap kata — "600ml" menyumbang
     // "6" (komentar lama di ui.tsx menulis "AQ", tapi kode selalu "A6";
     // test mengunci perilaku riil agar tidak berubah tanpa sengaja).
     expect(initialsOf("Aqua 600ml")).toBe("A6");

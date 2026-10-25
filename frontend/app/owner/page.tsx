@@ -12,17 +12,17 @@ import { formatRupiah } from "@/lib/format";
 export const instant = false;
 
 // =====================================================================
-// Dashboard owner â€” Tahap 4a (frontend v1.0.0, file dilengkapi di v1.0.1).
+// Dashboard owner — Tahap 4a (frontend v1.0.0, file dilengkapi di v1.0.1).
 //
 // SELURUH angka statistik kini datang dari backend-go lewat satu
 // panggilan GET /api/v1/reports/dashboard: ringkasan hari ini & kemarin,
 // grafik 7 hari (gap-free), porsi metode pembayaran, 5 produk terlaris,
 // stok menipis + saran restok, dan 6 transaksi terbaru. Frontend tidak
-// lagi menghitung agregat sendiri â€” PostgreSQL tetap satu-satunya sumber
+// lagi menghitung agregat sendiri — PostgreSQL tetap satu-satunya sumber
 // data lewat tangan Go, dan kasir/owner/peluncur melihat angka yang sama.
 //
 // Satu-satunya yang masih Prisma: identitas outlet (nama & logo) untuk
-// header â€” pindah ke backend-go menyusul pada fase multi-outlet.
+// header — pindah ke backend-go menyusul pada fase multi-outlet.
 // =====================================================================
 
 // Compact chart labels: 1250000 -> "1,3 jt", 45000 -> "45 rb".
@@ -313,7 +313,7 @@ function StatCard({
 // Label hari singkat ("Sen", "Sel", ...) dari tanggal "YYYY-MM-DD" milik
 // backend. String diparse sebagai UTC lalu dibaca dengan timeZone UTC
 // supaya hari tidak pernah bergeser akibat zona waktu server (container
-// defaultnya UTC, mesin lokal bisa WIB â€” keduanya dapat hasil sama).
+// defaultnya UTC, mesin lokal bisa WIB — keduanya dapat hasil sama).
 const weekdayShortId = (iso: string) => {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1)).toLocaleDateString(
@@ -323,7 +323,7 @@ const weekdayShortId = (iso: string) => {
 };
 
 // Bentuk respons GET /reports/dashboard (backend-go v1.1.0+). Uang sudah
-// berupa Rupiah bulat (BIGINT) â€” tidak ada lagi konversi Prisma Decimal.
+// berupa Rupiah bulat (BIGINT) — tidak ada lagi konversi Prisma Decimal.
 type DashboardData = {
   today: { revenue: number; transactions: number; items_sold: number };
   yesterday: { revenue: number; transactions: number };
@@ -357,10 +357,10 @@ export default async function OwnerPage() {
   if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER")
     redirect("/cashier");
   if (!session.user.goToken) {
-    throw new Error("Sesi tidak memiliki token backend â€” silakan login ulang.");
+    throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
   }
 
-  // Identitas outlet (nama & logo) masih dari Prisma â€” menyusul pindah
+  // Identitas outlet (nama & logo) masih dari Prisma — menyusul pindah
   // ke backend-go pada fase multi-outlet, sama seperti halaman peluncur.
   const outlet = session.user.outletId
     ? await prisma.outlet.findUnique({ where: { id: session.user.outletId } })
@@ -374,7 +374,7 @@ export default async function OwnerPage() {
 
   // Satu panggilan untuk seluruh dashboard. Backend mati = halaman gagal
   // dengan pesan yang jelas (pola yang sama dengan halaman kelola produk)
-  // â€” tidak ada angka palsu yang ditampilkan.
+  // — tidak ada angka palsu yang ditampilkan.
   const dash = await goFetch<DashboardData>(
     session.user.goToken,
     "/reports/dashboard",
@@ -453,7 +453,7 @@ export default async function OwnerPage() {
   });
 
   return (
-    // Shell aurora (v1.8.0): latar ambient + kartu kaca â€” ikut tema
+    // Shell aurora (v1.8.0): latar ambient + kartu kaca — ikut tema
     // terang/gelap milik pengguna yang sedang membuka dashboard ini.
     <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
       <AuroraBackground />
@@ -477,7 +477,7 @@ export default async function OwnerPage() {
                 Laporan - {outlet.name}
               </h1>
               <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                {session.user.name ?? "Pemilik"} Â· Pemilik
+                {session.user.name ?? "Pemilik"} · Pemilik
               </p>
             </div>
           </div>
@@ -546,7 +546,7 @@ export default async function OwnerPage() {
                   {deltaPct}% vs kemarin
                 </span>
               ) : (
-                <span>vs kemarin â€”</span>
+                <span>vs kemarin —</span>
               )
             }
           />
@@ -581,7 +581,7 @@ export default async function OwnerPage() {
                   Penjualan 7 Hari Terakhir
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  Total {formatRupiah(weekTotal)} Â· {weekCount} transaksi
+                  Total {formatRupiah(weekTotal)} · {weekCount} transaksi
                 </p>
               </div>
               <ChartIcon className="h-5 w-5 shrink-0 text-slate-300" />
@@ -668,7 +668,7 @@ export default async function OwnerPage() {
                       />
                     </div>
                     <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
-                      {count} struk Â· {Math.round(share)}%
+                      {count} struk · {Math.round(share)}%
                     </p>
                   </div>
                 );
@@ -761,7 +761,7 @@ export default async function OwnerPage() {
                         {p.name}
                       </p>
                       <p className="text-xs text-slate-400 dark:text-slate-500">
-                        {p.sku ? `${p.sku} Â· ` : ""}min {p.minStock} {p.unit}
+                        {p.sku ? `${p.sku} · ` : ""}min {p.minStock} {p.unit}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
@@ -808,7 +808,7 @@ export default async function OwnerPage() {
                       {r.code}
                     </p>
                     <p className="truncate text-xs text-slate-400 dark:text-slate-500">
-                      {r.cashier} Â· {r.time}
+                      {r.cashier} · {r.time}
                     </p>
                   </div>
                   <span

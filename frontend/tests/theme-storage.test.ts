@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 // Unit test untuk kunci penyimpanan tema per pengguna
-// (lib/theme-storage.ts) â€” murni, tanpa React/window, hasilnya pasti
+// (lib/theme-storage.ts) — murni, tanpa React/window, hasilnya pasti
 // sama di mesin mana pun. Yang dijaga: permintaan pemilik "setiap
 // orang punya tema masing-masing yang tersimpan di local machine
-// mereka" â€” dua akun berbeda TIDAK boleh berbagi satu kunci
+// mereka" — dua akun berbeda TIDAK boleh berbagi satu kunci
 // localStorage, dan halaman tanpa sesi tetap punya kunci generik.
 
 import {
@@ -19,7 +19,7 @@ describe("themeKeyForUser", () => {
     expect(themeKeyForUser("92")).toBe("theme-92");
   });
 
-  it("dua orang berbeda tidak berbagi kunci â€” inti permintaan per-user", () => {
+  it("dua orang berbeda tidak berbagi kunci — inti permintaan per-user", () => {
     const owner = themeKeyForUser("1");
     const kasir = themeKeyForUser("2");
     expect(owner).not.toBe(kasir);
@@ -55,7 +55,7 @@ describe("isPerUserThemeKey", () => {
     expect(isPerUserThemeKey(undefined)).toBe(false);
   });
 
-  it("cermin hanya menyala untuk kunci per-pengguna â€” anonim tak bercermin ke dirinya sendiri", () => {
+  it("cermin hanya menyala untuk kunci per-pengguna — anonim tak bercermin ke dirinya sendiri", () => {
     // Jika kunci aktif = "theme-<id>", cermin menyala; jika kunci
     // aktif = "theme" (anonim), cermin mati supaya tidak menimpa
     // nilai anonim dengan dirinya sendiri secara sia-sia.
@@ -66,14 +66,14 @@ describe("isPerUserThemeKey", () => {
 
 describe("kontrak kunci dengan next-themes", () => {
   it("kunci anonim persis default next-themes ('theme')", () => {
-    // next-themes memakai "theme" bila storageKey tidak diberikan â€”
+    // next-themes memakai "theme" bila storageKey tidak diberikan —
     // nilai ini HARUS tetap sama agar halaman /login & /verify
     // (tanpa sesi) dan cermin ThemeProvider bicara bahasa yang sama.
     expect(ANONYMOUS_THEME_KEY).toBe("theme");
   });
 
   it("kunci per-pengguna selalu diawali nama kunci anonim", () => {
-    // "theme-<id>" â€” mudah dibersihkan/di-inspeksi manual lewat
+    // "theme-<id>" — mudah dibersihkan/di-inspeksi manual lewat
     // DevTools dengan filter awalan yang sama.
     expect(themeKeyForUser("3").startsWith(`${ANONYMOUS_THEME_KEY}-`)).toBe(
       true,

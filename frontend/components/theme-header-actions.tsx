@@ -1,11 +1,11 @@
 "use client";
 
-// Aksi tema untuk header tiap area (kasir / owner / dev) â€” v1.6.0.
+// Aksi tema untuk header tiap area (kasir / owner / dev) — v1.6.0.
 // Berisi dua pintu pengganti tema:
-//   1. ThemeToggle  â€” pil 3 pilihan (sistem/gelap/terang), ganti seketika;
-//   2. tautan gear  â€” menuju halaman /settings berisi kartu pratinjau.
+//   1. ThemeToggle  — pil 3 pilihan (sistem/gelap/terang), ganti seketika;
+//   2. tautan gear  — menuju halaman /settings berisi kartu pratinjau.
 // Tema tersimpan PER PENGGUNA di localStorage (kunci "theme-<idUser>",
-// v1.7.0) â€” tiap orang punya temanya sendiri bahkan bila berbagi satu
+// v1.7.0) — tiap orang punya temanya sendiri bahkan bila berbagi satu
 // browser, persis permintaan pemilik: "setiap orang punya tema
 // masing-masing yang tersimpan di local machine mereka".
 import Link from "next/link";

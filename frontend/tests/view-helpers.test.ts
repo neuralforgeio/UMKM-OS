@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 // Unit test untuk pemetaan DTO backend-go -> baris tabel akun dan util
-// tampilan (app/dev/users/view-helpers.ts). Murni â€” tidak menyentuh
+// tampilan (app/dev/users/view-helpers.ts). Murni — tidak menyentuh
 // jaringan/database, jadi hasilnya pasti sama di mesin mana pun.
 
 import {
@@ -134,8 +134,8 @@ describe("initials", () => {
 });
 
 describe("formatWibShort", () => {
-  it("null (belum pernah jualan) tampil sebagai â€”", () => {
-    expect(formatWibShort(null)).toBe("â€”");
+  it("null (belum pernah jualan) tampil sebagai —", () => {
+    expect(formatWibShort(null)).toBe("—");
   });
 
   it("tanggal UTC dikonversi ke WIB, bukan zona mesin", () => {
@@ -191,7 +191,7 @@ describe("roleBadgeDark (konsol Kelola Akun, sadar tema v1.6.0)", () => {
     }
   });
 
-  it("v1.6.0: badge sadar tema â€” teks pekat untuk terang + varian dark:", () => {
+  it("v1.6.0: badge sadar tema — teks pekat untuk terang + varian dark:", () => {
     for (const role of ["OWNER", "KASIR", "DEVELOPER"] as const) {
       const { badge } = roleBadgeDark(role);
       // sisi terang: teks pekat (600/700) agar terbaca di kartu glass terang
@@ -219,8 +219,8 @@ describe("avatarGradient", () => {
 });
 
 describe("formatWibDateTime", () => {
-  it("null (belum pernah jualan) tampil sebagai â€”", () => {
-    expect(formatWibDateTime(null)).toBe("â€”");
+  it("null (belum pernah jualan) tampil sebagai —", () => {
+    expect(formatWibDateTime(null)).toBe("—");
   });
 
   it("tanggal + jam UTC dikonversi ke WIB dengan pemisah jam ':'", () => {

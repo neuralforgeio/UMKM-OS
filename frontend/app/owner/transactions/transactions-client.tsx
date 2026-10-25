@@ -74,7 +74,7 @@ const formatTime = (iso: string) =>
   });
 
 const formatPct = (value: number | null) =>
-  value === null ? "â€”" : `${value.toFixed(1)}%`;
+  value === null ? "—" : `${value.toFixed(1)}%`;
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
@@ -199,7 +199,7 @@ function DetailPanel({
     return (
       <div className="flex items-center gap-2 px-4 py-6 text-sm text-slate-500 dark:text-slate-400">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Memuat detailâ€¦
+        Memuat detail…
       </div>
     );
   }
@@ -269,7 +269,7 @@ function DetailPanel({
           {detail.discountRupiah > 0 && (
             <DetailRow
               label="Diskon"
-              value={`âˆ’ ${formatRupiah(detail.discountRupiah)}`}
+              value={`− ${formatRupiah(detail.discountRupiah)}`}
               valueClass="text-red-600 dark:text-red-400"
             />
           )}
@@ -294,12 +294,12 @@ function DetailPanel({
           />
           <DetailRow
             label="Kode klaim"
-            value={detail.claimCode ?? "â€”"}
+            value={detail.claimCode ?? "—"}
             valueClass="font-mono"
           />
           <DetailRow
             label="Serah terima"
-            value={handover?.label ?? "â€”"}
+            value={handover?.label ?? "—"}
             valueClass={
               handover ? `text-xs ${handover.badge}` : "text-slate-400 dark:text-slate-500"
             }
@@ -314,7 +314,7 @@ function DetailPanel({
           </p>
           {detail.handoverStatus === "SERVED" ? (
             <p className="mt-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
-              Struk ini tercatat SUDAH DISAJIKAN â€” refund tetap bisa dilakukan,
+              Struk ini tercatat SUDAH DISAJIKAN — refund tetap bisa dilakukan,
               tetapi WAJIB menyertakan alasan (tercatat permanen untuk
               evaluasi).
             </p>
@@ -331,7 +331,7 @@ function DetailPanel({
             maxLength={120}
             placeholder={
               detail.handoverStatus === "SERVED"
-                ? "Alasan (WAJIB â€” struk tercatat sudah disajikan)"
+                ? "Alasan (WAJIB — struk tercatat sudah disajikan)"
                 : "Alasan (opsional, mis. barang rusak / salah input)"
             }
             className="mt-2 w-full resize-none rounded-lg border border-red-200 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100 dark:focus:ring-red-500/20"
@@ -355,12 +355,12 @@ function DetailPanel({
             ) : (
               <RotateCcw className="h-4 w-4" />
             )}
-            {refundPending ? "Memprosesâ€¦" : "Refund & kembalikan stok"}
+            {refundPending ? "Memproses…" : "Refund & kembalikan stok"}
           </button>
         </div>
       ) : (
         <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/40 px-3 py-2.5 text-sm text-red-700 dark:text-red-300">
-          Transaksi ini sudah direfund â€” stok telah dikembalikan dan uang
+          Transaksi ini sudah direfund — stok telah dikembalikan dan uang
           dianggap kembali ke pembeli.
         </div>
       )}
@@ -511,10 +511,10 @@ export function TransactionsClient({
             </div>
             <div className="min-w-0">
               <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
-                Riwayat Transaksi â€” {outletName}
+                Riwayat Transaksi — {outletName}
               </h1>
               <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                {userName} Â· Pemilik
+                {userName} · Pemilik
               </p>
             </div>
           </div>
@@ -565,7 +565,7 @@ export function TransactionsClient({
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Cari kode strukâ€¦ (mis. TRX-20261022)"
+                    placeholder="Cari kode struk… (mis. TRX-20261022)"
                     className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20"
                   />
                 </div>
@@ -632,8 +632,8 @@ export function TransactionsClient({
                               {row.code}
                             </p>
                             <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
-                              {formatTime(row.createdAtIso)} Â· {row.itemCount}{" "}
-                              item Â· {row.cashierName}
+                              {formatTime(row.createdAtIso)} · {row.itemCount}{" "}
+                              item · {row.cashierName}
                             </p>
                           </div>
                           <span
@@ -848,7 +848,7 @@ export function TransactionsClient({
 
             <p className="text-[11px] text-slate-400 dark:text-slate-500">
               Catatan: HPP dihitung memakai harga beli terkini tiap produk
-              (harga beli tidak di-snapshot saat penjualan) â€” angka laba adalah
+              (harga beli tidak di-snapshot saat penjualan) — angka laba adalah
               perkiraan yang wajar untuk warung. Transaksi refund tidak
               dihitung.
             </p>

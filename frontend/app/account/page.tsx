@@ -7,9 +7,9 @@ import { AccountForm } from "./client";
 
 export const instant = false;
 
-// AKUN SAYA (v1.0.3) â€” ganti password mandiri untuk SEMUA peran.
+// AKUN SAYA (v1.0.3) — ganti password mandiri untuk SEMUA peran.
 // Sebelumnya titik ganti password tercecer (pengaturan owner via Prisma,
-// reset oleh developer) â€” kini satu pintu yang menulis langsung ke
+// reset oleh developer) — kini satu pintu yang menulis langsung ke
 // backend-go, satu-satunya pihak yang memeriksa password saat LOGIN.
 const ROLE_LABEL: Record<string, string> = {
   OWNER: "Pemilik",
@@ -39,7 +39,7 @@ export default async function AccountPage() {
                 Akun Saya
               </h1>
               <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                {session.user.name ?? session.user.email} Â· {roleLabel}
+                {session.user.name ?? session.user.email} · {roleLabel}
               </p>
             </div>
           </div>
@@ -54,7 +54,7 @@ export default async function AccountPage() {
           <div className="mb-5 space-y-1">
             <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Ganti password</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Password baru berlaku untuk login berikutnya â€” semua peran
+              Password baru berlaku untuk login berikutnya — semua peran
               (pemilik, kasir, developer) memakai pintu yang sama ini.
             </p>
           </div>

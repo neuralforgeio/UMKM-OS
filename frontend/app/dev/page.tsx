@@ -51,7 +51,7 @@ function formatWib(date: Date): string {
 export default async function DevConsolePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  // Hanya DEVELOPER boleh melihat konsol ini â€” owner & kasir punya
+  // Hanya DEVELOPER boleh melihat konsol ini — owner & kasir punya
   // halamannya sendiri dan tidak boleh membaca data lintas outlet.
   if (session.user.role !== "DEVELOPER") redirect("/");
 
@@ -168,7 +168,7 @@ export default async function DevConsolePage() {
 
               <div className="hidden items-center space-x-2 border-l border-slate-200 pl-4 text-xs font-medium text-slate-500 md:flex dark:border-slate-800 dark:text-slate-400">
                 <span className="truncate">
-                  {session.user.name ?? "Developer"} Â· akses lintas outlet
+                  {session.user.name ?? "Developer"} · akses lintas outlet
                 </span>
               </div>
             </div>
@@ -196,7 +196,7 @@ export default async function DevConsolePage() {
           </div>
         </header>
 
-        {/* Pintasan Fase B: dua pintu utama konsol. Kartu besar + panah â€”
+        {/* Pintasan Fase B: dua pintu utama konsol. Kartu besar + panah —
             bukan menu tersembunyi, karena ini alasan konsol ini ada. */}
         <section className="grid gap-3 sm:grid-cols-2">
           <Link
@@ -312,7 +312,7 @@ export default async function DevConsolePage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                      {o.address ?? "â€”"}
+                      {o.address ?? "—"}
                     </td>
                     <td className="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-300">
                       {o._count.products}
@@ -328,7 +328,7 @@ export default async function DevConsolePage() {
                       colSpan={4}
                       className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
                     >
-                      Belum ada outlet terdaftar â€” tekan &quot;Outlet Baru&quot;
+                      Belum ada outlet terdaftar — tekan &quot;Outlet Baru&quot;
                       untuk membuat yang pertama.
                     </td>
                   </tr>
@@ -361,7 +361,7 @@ export default async function DevConsolePage() {
               href="/dev/logs"
               className="font-semibold text-violet-700 hover:underline dark:text-violet-400"
             >
-              Buka query penuh + unduh Excel â†’
+              Buka query penuh + unduh Excel →
             </Link>
           </p>
           <div className="mt-4 overflow-x-auto">
@@ -406,7 +406,7 @@ export default async function DevConsolePage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                        {e.outlet?.name ?? "â€”"}
+                        {e.outlet?.name ?? "—"}
                       </td>
                       <td className="px-4 py-3">
                         {/* Label manusiawi + kode mentah di bawahnya:
@@ -432,7 +432,7 @@ export default async function DevConsolePage() {
                       colSpan={5}
                       className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
                     >
-                      Belum ada aksi tercatat â€” jalankan satu transaksi di
+                      Belum ada aksi tercatat — jalankan satu transaksi di
                       kasir lalu muat ulang halaman ini.
                     </td>
                   </tr>
@@ -443,7 +443,7 @@ export default async function DevConsolePage() {
         </section>
 
         <p className="mt-4 text-center text-xs text-slate-400 dark:text-slate-500">
-          Fase A + B + penyempurnaan Task 35 aktif Â· Fase C (kelola kasir oleh
+          Fase A + B + penyempurnaan Task 35 aktif · Fase C (kelola kasir oleh
           owner + Akun Saya semua peran) menyusul setelah blok ini
           diverifikasi.
         </p>

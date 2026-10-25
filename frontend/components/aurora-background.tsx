@@ -5,7 +5,7 @@ export function AuroraBackground() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden print:hidden"
     >
       <div className="aurora-1 absolute -top-32 -left-32 h-[600px] w-[600px] rounded-full bg-gradient-to-tr from-blue-600/15 to-indigo-600/10 blur-[130px] dark:from-blue-600/30 dark:to-indigo-600/20" />
       <div className="aurora-2 absolute top-1/3 left-1/4 h-[500px] w-[500px] rounded-full bg-gradient-to-br from-cyan-500/10 to-blue-700/15 blur-[140px] dark:from-cyan-500/20 dark:to-blue-700/25" />

@@ -1,13 +1,13 @@
 "use client";
 
-// Konsol "Kelola Akun & Hak Akses" â€” design v1.5.0 (ala mockup Gemini:
+// Konsol "Kelola Akun & Hak Akses" — design v1.5.0 (ala mockup Gemini:
 // aurora + glassmorphism) kini SADAR TEMA: mengikuti tema aplikasi
-// (terang/gelap/sistem) lewat varian dark: â€” tidak lagi memaksa gelap.
+// (terang/gelap/sistem) lewat varian dark: — tidak lagi memaksa gelap.
 // LOGIC TETAP VERSI KITA: data dari backend-go lewat server component
 // induk; filter (cari/peran/outlet/status) + pagination 20 baris di
 // klien; aksi lewat server action (buat/ubah/reset password/toggle
 // aktif/hapus ketik-email); baris DEVELOPER & baris sendiri terkunci
-// (server juga menolak); akun terhapus tidak pernah dikirim Go â€” dari
+// (server juga menolak); akun terhapus tidak pernah dikirim Go — dari
 // sudut daftar, hapus = selamanya; jejaknya hidup di /dev/logs.
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
@@ -61,7 +61,7 @@ const PAGE_SIZE = 20;
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
-// Ikon + bayangan avatar per peran (visual saja â€” label & warna kelas
+// Ikon + bayangan avatar per peran (visual saja — label & warna kelas
 // ada di view-helpers.roleBadgeDark/avatarGradient supaya bisa diuji).
 const ROLE_ICON: Record<UserRow["role"], typeof LuCrown> = {
   DEVELOPER: LuCodeXml,
@@ -79,7 +79,7 @@ const AVATAR_SHADOW: Record<UserRow["role"], string> = {
 const ACTION_BTN =
   "p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all disabled:cursor-not-allowed disabled:opacity-30";
 
-// Spinner resident â€” gaya tombol design (sama dengan login).
+// Spinner resident — gaya tombol design (sama dengan login).
 function Spinner({ className = "" }: { className?: string }) {
   return (
     <svg
@@ -107,7 +107,7 @@ function Spinner({ className = "" }: { className?: string }) {
 }
 
 // Modal reset password: aksi sensitif selalu butuh langkah (dan niat)
-// tersendiri â€” terpisah dari form utama. Checklist syarat hidup di
+// tersendiri — terpisah dari form utama. Checklist syarat hidup di
 // bawah input (4 syarat: panjang, huruf besar, angka, simbol).
 function ResetPasswordModal({
   user,
@@ -174,7 +174,7 @@ function ResetPasswordModal({
               Reset Kata Sandi
             </p>
             <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-              {user.name} Â· {user.email}
+              {user.name} · {user.email}
             </p>
           </div>
         </div>
@@ -192,11 +192,11 @@ function ResetPasswordModal({
             <PasswordInput
               value={password}
               onChange={setPassword}
-              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+              placeholder="••••••••"
               showChecklist
             />
             <span className="mt-1 block text-[10px] text-slate-500">
-              Minimal 8 karakter â€” wajib ada huruf besar, angka, dan simbol.
+              Minimal 8 karakter — wajib ada huruf besar, angka, dan simbol.
             </span>
           </div>
           <p className="text-[11px] leading-relaxed text-slate-500">
@@ -292,7 +292,7 @@ function DeleteAccountModal({
           <div className="min-w-0">
             <p className="text-lg font-extrabold text-slate-900 dark:text-white">Hapus Akun</p>
             <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-              {user.name} Â· {user.email}
+              {user.name} · {user.email}
             </p>
           </div>
         </div>
@@ -304,11 +304,11 @@ function DeleteAccountModal({
             </p>
           )}
           <p className="text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-            Akun dihapus <b className="text-slate-900 dark:text-white">selamanya dari daftar</b> â€”
+            Akun dihapus <b className="text-slate-900 dark:text-white">selamanya dari daftar</b> —
             tidak bisa dibatalkan. Email{" "}
             <b className="text-slate-700 dark:text-slate-200">{user.email}</b> dibebaskan supaya
             bisa dipakai akun baru. Riwayat transaksi dan jejak log atas nama
-            akun ini <b className="text-slate-900 dark:text-white">tetap tersimpan</b> â€” penghapusan
+            akun ini <b className="text-slate-900 dark:text-white">tetap tersimpan</b> — penghapusan
             ini sendiri juga masuk log.
           </p>
           <div>
@@ -422,7 +422,7 @@ export function UsersClient({
     }
   }
 
-  // Angka kartu metrik: ASLI dari data yang sama dengan tabel â€” bukan
+  // Angka kartu metrik: ASLI dari data yang sama dengan tabel — bukan
   // angka demo. Kartu 2 & 4 memang kualitatif (hirarki & status audit).
   const activeCount = users.filter((u) => u.isActive).length;
   const activePct =
@@ -469,14 +469,14 @@ export function UsersClient({
             </div>
 
             <div className="flex items-center space-x-3">
-              {/* Toggle tema + pintu /settings â€” tema tiap orang tersimpan
+              {/* Toggle tema + pintu /settings — tema tiap orang tersimpan
                   per pengguna (kunci localStorage "theme-<idUser>"). */}
               <ThemeHeaderActions />
 
               {/* Lonceng = pintu ke log aktivitas (notifikasi sistem). */}
               <Link
                 href="/dev/logs"
-                title="Notifikasi â€” log aktivitas sistem"
+                title="Notifikasi — log aktivitas sistem"
                 aria-label="Log aktivitas sistem"
                 className="relative rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-2 text-slate-500 dark:text-slate-400 transition-all hover:border-slate-300 dark:hover:border-slate-700 hover:text-slate-900 dark:hover:text-white"
               >
@@ -619,7 +619,7 @@ export function UsersClient({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
               <div className="relative lg:col-span-5">
                 {/* Ikon cari dipasang top-1/2 -translate-y-1/2 agar SELALU
-                    di tengah vertikal â€” pola inset-y-0 + h-4 membuat ikon
+                    di tengah vertikal — pola inset-y-0 + h-4 membuat ikon
                     terpaku di atas input (menceng 11px) karena CSS
                     mengabaikan bottom saat top+height sudah ditentukan. */}
                 <LuSearch className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -627,7 +627,7 @@ export function UsersClient({
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Cari nama atau emailâ€¦"
+                  placeholder="Cari nama atau email…"
                   className="glass-input w-full rounded-xl py-2.5 pr-4 pl-10 text-xs font-medium transition-all focus:outline-none"
                 />
               </div>
@@ -692,11 +692,11 @@ export function UsersClient({
                 <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800/50 text-xs">
                   {pageRows.map((user) => {
                     const isSelf = user.id === currentUserId;
-                    // Baris developer & baris sendiri hanya bisa DILIHAT â€”
+                    // Baris developer & baris sendiri hanya bisa DILIHAT —
                     // semua tombol modifikasinya mati (server juga menolak).
                     const locked = user.role === "DEVELOPER" || isSelf;
                     const lockTitle = isSelf
-                      ? "Akun Anda sendiri â€” ubah lewat Akun Saya"
+                      ? "Akun Anda sendiri — ubah lewat Akun Saya"
                       : "Akun developer dikelola lewat DEV_SEED_* di .env";
                     const rb = roleBadgeDark(user.role);
                     const RoleIcon = ROLE_ICON[user.role];
@@ -742,10 +742,10 @@ export function UsersClient({
                             </span>
                           ) : user.role === "OWNER" ? (
                             <span className="italic text-slate-500 dark:text-slate-400">
-                              â€” (Akses Semua)
+                              — (Akses Semua)
                             </span>
                           ) : (
-                            <span className="italic text-slate-500 dark:text-slate-400">â€”</span>
+                            <span className="italic text-slate-500 dark:text-slate-400">—</span>
                           )}
                         </td>
                         <td className="px-4 py-4">

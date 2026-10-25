@@ -28,14 +28,14 @@ function formatWib(date: Date): string {
   }).format(date);
 }
 
-// Drill-down outlet (Task 34 Fase B) â€” data bisnis READ-ONLY by design:
+// Drill-down outlet (Task 34 Fase B) — data bisnis READ-ONLY by design:
 // developer MEMBACA untuk memantau, mengubah hanya lewat jalurnya
 // masing-masing (produk/stok oleh owner outlet, akun oleh /dev/users).
 // Task 35 menambah pintu MAINTENANCE: developer bisa membuka konsol
-// owner & POS kasir outlet ini "menjadi stafnya" â€” memakai cookie
+// owner & POS kasir outlet ini "menjadi stafnya" — memakai cookie
 // dev_outlet yang disuntikkan ke sesi (lihat lib/auth.ts), keluar
 // kapan saja lewat banner amber.
-// v1.6.0: design aurora + glass sadar tema â€” logika data tidak berubah.
+// v1.6.0: design aurora + glass sadar tema — logika data tidak berubah.
 export default async function DevOutletDetailPage({
   params,
 }: {
@@ -81,7 +81,7 @@ export default async function DevOutletDetailPage({
         },
       }),
       prisma.user.findMany({
-        // Task 35: akun terhapus tidak pernah tampil di sini â€” dari
+        // Task 35: akun terhapus tidak pernah tampil di sini — dari
         // sudut pandang daftar, hapus = selamanya.
         where: { outletId: outlet.id, deletedAt: null },
         orderBy: [{ role: "asc" }, { name: "asc" }],
@@ -177,7 +177,7 @@ export default async function DevOutletDetailPage({
                     {outlet.name}
                   </span>
                   <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                    Drill-down outlet Â· baca-saja
+                    Drill-down outlet · baca-saja
                   </span>
                 </div>
               </Link>
@@ -218,7 +218,7 @@ export default async function DevOutletDetailPage({
             </h1>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
               {outlet.address ?? "alamat belum diisi"}
-              {outlet.phone ? ` Â· ${outlet.phone}` : ""}
+              {outlet.phone ? ` · ${outlet.phone}` : ""}
               {!outlet.isActive && (
                 <span className="ml-2 rounded-full border border-slate-400/20 bg-slate-400/10 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
                   nonaktif
@@ -233,7 +233,7 @@ export default async function DevOutletDetailPage({
         </header>
 
         {/* Mode maintenance (Task 35): developer "menjadi" staf outlet ini
-            â€” membuka /owner atau /cashier yang isinya mengikuti outlet.
+            — membuka /owner atau /cashier yang isinya mengikuti outlet.
             Masuk & keluar tercatat (DEV_MAINTENANCE_ENTER/EXIT). */}
         <section className="mt-2 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-5 dark:border-amber-500/20 dark:bg-amber-950/20">
           <h2 className="flex items-center gap-2 text-lg font-bold text-amber-900 dark:text-amber-300">
@@ -242,7 +242,7 @@ export default async function DevOutletDetailPage({
           </h2>
           <p className="mt-0.5 text-sm text-amber-800/90 dark:text-amber-200/80">
             Buka area owner atau kasir outlet {outlet.name} seolah Anda
-            stafnya â€” untuk men-debug, melatih, atau memperbaiki. Banner
+            stafnya — untuk men-debug, melatih, atau memperbaiki. Banner
             amber di halaman tersebut jadi pengingat bahwa Anda sedang
             bertindak sebagai developer; tekan &quot;Keluar Mode&quot; untuk
             kembali.
@@ -330,7 +330,7 @@ export default async function DevOutletDetailPage({
                         </p>
                       </td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                        {p.category?.name ?? "â€”"}
+                        {p.category?.name ?? "—"}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-600 dark:text-slate-300">
                         {formatRupiah(Math.round(Number(p.price)))}
@@ -345,7 +345,7 @@ export default async function DevOutletDetailPage({
                           </span>
                         ) : (
                           <span className="text-xs text-slate-400 dark:text-slate-500">
-                            {p.isActive ? "aman" : "â€”"}
+                            {p.isActive ? "aman" : "—"}
                           </span>
                         )}
                       </td>
@@ -443,7 +443,7 @@ export default async function DevOutletDetailPage({
               Transaksi Terbaru
             </h2>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              Hari ini: {todayAgg._count} transaksi Â·{" "}
+              Hari ini: {todayAgg._count} transaksi ·{" "}
               {formatRupiah(omzetToday)}
             </p>
             <div className="mt-3 overflow-x-auto">
@@ -476,7 +476,7 @@ export default async function DevOutletDetailPage({
                         {formatWib(t.createdAt)}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">
-                        {t.cashier?.name ?? "â€”"}
+                        {t.cashier?.name ?? "—"}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-600 dark:text-slate-300">
                         {formatRupiah(Math.round(Number(t.total)))}

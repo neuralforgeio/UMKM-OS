@@ -226,7 +226,7 @@ export function PosClient({
                 <span className="font-semibold text-slate-900 dark:text-slate-100">
                   {itemCount} item
                 </span>
-                <span className="text-slate-400 dark:text-slate-500"> Â· </span>
+                <span className="text-slate-400 dark:text-slate-500"> · </span>
                 <span className="font-bold tabular-nums text-slate-900 dark:text-slate-100">
                   {displayRp(totalSen)}
                 </span>

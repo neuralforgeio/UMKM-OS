@@ -1,4 +1,4 @@
-// Kunci penyimpanan tema (next-themes) â€” PER PENGGUNA, bukan per mesin.
+// Kunci penyimpanan tema (next-themes) — PER PENGGUNA, bukan per mesin.
 // Permintaan pemilik: "setiap orang punya tema masing-masing yang
 // tersimpan di local machine mereka". localStorage memang sudah
 // terisolasi per browser/perangkat, tapi bila dua orang berbagi satu
@@ -7,7 +7,7 @@
 // tiap akun membawa temanya sendiri di mesin itu.
 //
 // Modul ini sengaja MURNI (tanpa React, tanpa window) supaya bisa
-// diuji unit test tanpa DOM â€” komponen client yang memakai nilainya
+// diuji unit test tanpa DOM — komponen client yang memakai nilainya
 // lewat props dari server (app/layout.tsx membaca auth()).
 
 /** Kunci yang dipakai next-themes bila storageKey tidak diberikan. */
@@ -26,7 +26,7 @@ export function themeKeyForUser(userId: string): string {
 /**
  * Apakah kunci aktif adalah kunci per-pengguna?
  * Dipakai ThemeProvider untuk memutuskan perlu tidaknya "cermin"
- * ke kunci anonim â€” lihat components/theme-provider.tsx.
+ * ke kunci anonim — lihat components/theme-provider.tsx.
  */
 export function isPerUserThemeKey(storageKey: string | undefined): boolean {
   return typeof storageKey === "string" && storageKey !== ANONYMOUS_THEME_KEY;

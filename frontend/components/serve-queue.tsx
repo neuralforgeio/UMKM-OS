@@ -1,6 +1,6 @@
 "use client";
 
-// Antrean Penyajian â€” jantung anti-lupa Verifikasi Struk v3 (dine-in).
+// Antrean Penyajian — jantung anti-lupa Verifikasi Struk v3 (dine-in).
 // Semua transaksi hari ini yang belum ditandai SERVED tampil di sini
 // lengkap dengan umur pesanan; kasir cukup satu tap "Sudah Disajikan"
 // saat makanan/meja diserahkan. Dipakai di layar kasir (floating bar)
@@ -34,7 +34,7 @@ function ageBadge(age: number) {
 }
 
 // Re-render every 30s so the queue ages stay honest without touching
-// the server â€” the row DATA itself refreshes separately.
+// the server — the row DATA itself refreshes separately.
 function useNowTick() {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -114,7 +114,7 @@ export function ServeButton({
         }
       >
         {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-        {pending ? "Menyimpanâ€¦" : "Sudah Disajikan"}
+        {pending ? "Menyimpan…" : "Sudah Disajikan"}
       </button>
       {error && (
         <p
@@ -136,7 +136,7 @@ function ServeRow({ row, now }: { row: ServeQueueRow; now: number }) {
           {row.code}
         </p>
         <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
-          {timeFmt.format(new Date(row.createdAtIso))} Â· {row.itemCount} item Â·{" "}
+          {timeFmt.format(new Date(row.createdAtIso))} · {row.itemCount} item ·{" "}
           {formatRupiah(row.totalRupiah)}
         </p>
       </div>
@@ -163,7 +163,7 @@ export function ServeQueuePanel({
       <div className="mb-2 flex items-baseline justify-between">
         <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Antrean Penyajian</p>
         <p className="text-[11px] text-slate-400 dark:text-slate-500">
-          {rows.length} menunggu Â· segar tiap 30 dtk
+          {rows.length} menunggu · segar tiap 30 dtk
         </p>
       </div>
       {rows.length === 0 ? (
@@ -240,7 +240,7 @@ export function ServeQueueBar({
           }`}
         >
           <UtensilsCrossed className="h-4 w-4" />
-          {rows.length} pesanan belum disajikan Â· tertua {oldest} mnt
+          {rows.length} pesanan belum disajikan · tertua {oldest} mnt
         </button>
       </div>
     </div>

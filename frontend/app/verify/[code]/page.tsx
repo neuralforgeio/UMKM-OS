@@ -1,12 +1,12 @@
-// HALAMAN PUBLIK (tanpa login) â€” dibuka pembeli dari QR / link di struk.
+// HALAMAN PUBLIK (tanpa login) — dibuka pembeli dari QR / link di struk.
 // Sumber data: GET /api/v1/public/receipt/{code} (backend-go v1.3.0).
 // Dua mode, diputuskan oleh backend:
-// 1. MODE "readonly" (v3, dine-in): /verify/TRX-â€¦ â€” nomor struk hanyalah
+// 1. MODE "readonly" (v3, dine-in): /verify/TRX-… — nomor struk hanyalah
 //    ALAMAT. Halaman READ-ONLY: pembeli hanya melihat status
-//    penyajian/verifikasi. Tidak ada tombol konfirmasi/bantahan â€”
+//    penyajian/verifikasi. Tidak ada tombol konfirmasi/bantahan —
 //    pembeli tidak memegang kunci apa pun; sengketa diselesaikan
 //    langsung di warung dengan jejak handover_events.
-// 2. MODE "interactive" (v2 / struk takeaway): /verify/KODE8 â€” kode
+// 2. MODE "interactive" (v2 / struk takeaway): /verify/KODE8 — kode
 //    klaim 8 karakter adalah kunci interaktif (tanda tangan / bantah),
 //    dicetak di struk sebagai "Kode klaim".
 import type { ReactNode } from "react";
@@ -63,7 +63,7 @@ export default async function PublicVerifyPage({
   const code = decodeURIComponent(raw).trim().toUpperCase();
 
   // cacheComponents: menyentuh headers() menandai halaman ini dinamis
-  // (render per-request) â€” status harus selalu segar di HP pembeli,
+  // (render per-request) — status harus selalu segar di HP pembeli,
   // bukan hasil cache basi.
   await headers();
 
@@ -72,7 +72,7 @@ export default async function PublicVerifyPage({
   );
 
   if (!res.ok) {
-    // status 0 = backend-go tidak terjangkau â€” berbeda dari kode salah.
+    // status 0 = backend-go tidak terjangkau — berbeda dari kode salah.
     return (
       <Shell>
         <p className="text-center text-sm text-slate-500 dark:text-slate-400">
@@ -80,7 +80,7 @@ export default async function PublicVerifyPage({
             "Sistem verifikasi sedang tidak bisa dijangkau. Muat ulang halaman ini beberapa saat lagi."
           ) : (
             <>
-              Kode <span className="font-mono font-bold">{code || "â€”"}</span>{" "}
+              Kode <span className="font-mono font-bold">{code || "—"}</span>{" "}
               tidak dikenali. Pastikan sama persis dengan yang di struk / yang
               dibacakan kurir.
             </>
@@ -120,7 +120,7 @@ export default async function PublicVerifyPage({
                 className="flex justify-between text-sm text-slate-700 dark:text-slate-300"
               >
                 <span>
-                  {it.product_name} Ã— {it.qty}
+                  {it.product_name} × {it.qty}
                 </span>
                 <span className="text-slate-500 dark:text-slate-400">
                   {formatRupiah(it.subtotal)}
@@ -146,19 +146,19 @@ export default async function PublicVerifyPage({
         ) : status === "SERVED" ? (
           <section className="mt-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 p-4 text-center shadow-sm">
             <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
-              âœ” Pesanan sudah disajikan
+              ✔ Pesanan sudah disajikan
             </p>
             <p className="mt-1 text-xs text-emerald-700/80">
               {dtFmt.format(
                 new Date(tx.handover_confirmed_at ?? tx.created_at),
               )}{" "}
-              WIB Â· dicatat oleh staf saat penyerahan
+              WIB · dicatat oleh staf saat penyerahan
             </p>
           </section>
         ) : status === "CONFIRMED" ? (
           <section className="mt-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 p-4 text-center shadow-sm">
             <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
-              âœ” Pesanan sudah diterima &amp; terverifikasi
+              ✔ Pesanan sudah diterima &amp; terverifikasi
             </p>
             <p className="mt-1 text-xs text-emerald-700/80">
               {dtFmt.format(
@@ -192,7 +192,7 @@ export default async function PublicVerifyPage({
         )}
 
         <p className="mt-4 text-center text-[11px] text-slate-400 dark:text-slate-500">
-          Halaman ini hanya menampilkan status pesanan â€” bukan alat konfirmasi.
+          Halaman ini hanya menampilkan status pesanan — bukan alat konfirmasi.
           Ada pertanyaan? Hubungi warung langsung.
         </p>
       </Shell>
@@ -223,7 +223,7 @@ export default async function PublicVerifyPage({
           {tx.items.map((it, i) => (
             <li key={i} className="flex justify-between text-sm text-slate-700 dark:text-slate-300">
               <span>
-                {it.product_name} Ã— {it.qty}
+                {it.product_name} × {it.qty}
               </span>
               <span className="text-slate-500 dark:text-slate-400">
                 {formatRupiah(it.subtotal)}
@@ -249,12 +249,12 @@ export default async function PublicVerifyPage({
       ) : status === "CONFIRMED" ? (
         <section className="mt-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 p-4 text-center shadow-sm">
           <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
-            âœ” Pesanan sudah diterima
+            ✔ Pesanan sudah diterima
           </p>
           <p className="mt-1 text-xs text-emerald-700/80">
             Terverifikasi{" "}
             {dtFmt.format(new Date(tx.handover_confirmed_at ?? tx.created_at))}{" "}
-            WIB Â·{" "}
+            WIB ·{" "}
             {tx.confirm_method === "PUBLIC"
               ? "dari HP pembeli"
               : "di layar kurir"}
@@ -268,7 +268,7 @@ export default async function PublicVerifyPage({
             />
           )}
           <p className="mt-3 text-[11px] text-emerald-700/70">
-            Simpan link ini â€” dia bukti milik kamu juga.
+            Simpan link ini — dia bukti milik kamu juga.
           </p>
         </section>
       ) : status === "DISPUTED" ? (
@@ -287,7 +287,7 @@ export default async function PublicVerifyPage({
       ) : status === "SERVED" ? (
         <section className="mt-4 space-y-3">
           <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 p-4 text-sm font-bold text-emerald-700 dark:text-emerald-300">
-            âœ” Pesanan sudah disajikan{" "}
+            ✔ Pesanan sudah disajikan{" "}
             {dtFmt.format(new Date(tx.handover_confirmed_at ?? tx.created_at))}{" "}
             WIB
           </div>
@@ -325,7 +325,7 @@ export default async function PublicVerifyPage({
 
 function Shell({ children }: { children: ReactNode }) {
   // Shell aurora (v1.8.0): halaman publik pembeli ikut tema terakhir
-  // mesin pembeli (cermin anonim) â€” kartu memakai kaca.
+  // mesin pembeli (cermin anonim) — kartu memakai kaca.
   return (
     <main className="relative mx-auto min-h-screen w-full max-w-md bg-slate-50 p-4 pb-16 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
       <AuroraBackground />

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-// Unit test untuk lib/audit-labels.ts â€” penerjemah aksi audit.
+// Unit test untuk lib/audit-labels.ts — penerjemah aksi audit.
 // Murni, tanpa database. Fokus v1.6.0: LEVEL_BADGE harus punya varian
 // gelap (dark:) supaya chip log tetap terbaca saat konsol developer
-// berjalan di tema gelap â€” regresi dari bug "halaman tidak ikut tema".
+// berjalan di tema gelap — regresi dari bug "halaman tidak ikut tema".
 
 import {
   LEVEL_BADGE,
@@ -46,7 +46,7 @@ describe("actionLabel", () => {
 });
 
 describe("warnActions", () => {
-  it("mengembalikan salinan â€” pemanggil tidak bisa mengubah daftar asli", () => {
+  it("mengembalikan salinan — pemanggil tidak bisa mengubah daftar asli", () => {
     const a = warnActions();
     const b = warnActions();
     expect(a).toEqual(b);

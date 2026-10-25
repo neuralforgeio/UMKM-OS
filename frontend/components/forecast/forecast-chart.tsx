@@ -1,12 +1,12 @@
 // Pure SVG chart: revenue history (solid blue line + soft area) blending
 // into the forecast (dashed emerald line inside a low-high band).
-// Hand-rolled on purpose â€” zero chart dependencies, scales with the
+// Hand-rolled on purpose — zero chart dependencies, scales with the
 // card width, and still looks fine in print/screenshots.
 //
 // Color language mirrors the owner dashboard: blue = actual data
 // (same family as the "Penjualan 7 Hari" bars), emerald = prediction.
 // v1.8.0: garis kisi, label sumbu, dan divider kini memakai kelas
-// Tailwind stroke-/fill- sadar tema â€” heks hardcoded hanya untuk warna
+// Tailwind stroke-/fill- sadar tema — heks hardcoded hanya untuk warna
 // brand (biru/hijau) yang memang sama di kedua tema. Axis labels use compact units (rb / jt) because full formatRupiah
 // values cannot fit; every money value shown in the surrounding card
 // text still goes through formatRupiah (site-wide money contract).
@@ -17,7 +17,7 @@ const W = 720;
 const H = 230;
 const PAD = { top: 16, right: 14, bottom: 30, left: 62 };
 
-// Same compact formatter as app/owner/page.tsx â€” keep them identical
+// Same compact formatter as app/owner/page.tsx — keep them identical
 // so both charts label money the same way.
 function compactRp(value: number): string {
   if (value >= 1_000_000) {

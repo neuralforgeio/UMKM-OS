@@ -89,7 +89,7 @@ function typeMeta(type: string) {
 function signedQuantity(row: StockMovementRow) {
   if (row.type === "IN") return `+${row.quantity}`;
   if (row.type === "SALE") return `-${row.quantity}`;
-  return `Â±${row.quantity}`;
+  return `±${row.quantity}`;
 }
 
 function quantityColor(row: StockMovementRow) {
@@ -195,7 +195,7 @@ export function StockClient({
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-              Perlu Restok â€” {lowStock.length} produk di bawah batas minimum
+              Perlu Restok — {lowStock.length} produk di bawah batas minimum
             </h2>
           </div>
           <ul className="mt-2 divide-y divide-amber-100">
@@ -209,7 +209,7 @@ export function StockClient({
                     {product.name}
                   </p>
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    {product.sku} Â· sisa {product.stock} {product.unit} Â· min{" "}
+                    {product.sku} · sisa {product.stock} {product.unit} · min{" "}
                     {product.minStock}
                   </p>
                 </div>
@@ -402,7 +402,7 @@ export function StockClient({
                     <div className="mt-1.5 flex items-center justify-between gap-3 text-xs text-slate-400 dark:text-slate-500">
                       <span className="whitespace-nowrap">
                         {row.timeLabel}
-                        {row.userName ? ` Â· ${row.userName}` : ""}
+                        {row.userName ? ` · ${row.userName}` : ""}
                       </span>
                       {row.note && <span className="truncate">{row.note}</span>}
                     </div>
@@ -569,7 +569,7 @@ function RecordMovementModal({
               <option value="">Pilih produk...</option>
               {products.map((product) => (
                 <option key={product.id} value={product.id}>
-                  {product.name} Â· stok {product.stock} {product.unit}
+                  {product.name} · stok {product.stock} {product.unit}
                 </option>
               ))}
             </select>
@@ -579,7 +579,7 @@ function RecordMovementModal({
                 <span className="font-medium tabular-nums text-slate-700 dark:text-slate-300">
                   {selected.stock} {selected.unit}
                 </span>{" "}
-                Â· batas minimum {selected.minStock}
+                · batas minimum {selected.minStock}
               </p>
             )}
           </div>

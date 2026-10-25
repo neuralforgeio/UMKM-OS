@@ -1,16 +1,16 @@
 "use client";
 
-// Modal buat / edit akun dari konsol developer â€” design v1.5.0 ala
+// Modal buat / edit akun dari konsol developer — design v1.5.0 ala
 // mockup Gemini (glass gelap, max-w-lg rounded-3xl, label uppercase,
 // tombol gradien). LOGIC IDENTIK dengan versi sebelumnya:
-// Create: nama, email, password awal (checklist hidup saat mengetik â€”
-// kini 4 syarat: panjang, huruf besar, ANGKA, simbol), peran, outlet â€”
-// dan opsi "+ Outlet baruâ€¦" yang membuat outlet SEBELUM akun (pola yang
-// sama dengan "+ Kategori baruâ€¦" di form produk).
+// Create: nama, email, password awal (checklist hidup saat mengetik —
+// kini 4 syarat: panjang, huruf besar, ANGKA, simbol), peran, outlet —
+// dan opsi "+ Outlet baru…" yang membuat outlet SEBELUM akun (pola yang
+// sama dengan "+ Kategori baru…" di form produk).
 // Edit: sama tanpa password (reset password punya modal sendiri) +
 // checkbox aktif. Semua field controlled state: nilai TIDAK PERNAH
-// hilang saat submit gagal â€” pesan error muncul, form tetap terisi.
-// Modal ikut tema aplikasi (varian dark:) â€” terang di tema terang,
+// hilang saat submit gagal — pesan error muncul, form tetap terisi.
+// Modal ikut tema aplikasi (varian dark:) — terang di tema terang,
 // gelap di tema gelap, sama dengan halaman induknya.
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -28,11 +28,11 @@ const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 const LABEL_CLASS =
   "mb-1.5 block text-xs font-bold tracking-wider text-slate-600 uppercase dark:text-slate-300";
 
-// Nilai sentinel pilihan "buat outlet baru dulu" â€” konvensi "__new__"
+// Nilai sentinel pilihan "buat outlet baru dulu" — konvensi "__new__"
 // disalin dari form produk (kategori) supaya perilakunya seragam.
 const NEW_OUTLET = "__new__";
 
-// Spinner resident â€” gaya tombol design (sama dengan login).
+// Spinner resident — gaya tombol design (sama dengan login).
 function Spinner({ className = "" }: { className?: string }) {
   return (
     <svg
@@ -86,11 +86,11 @@ export function AccountFormModal({
   const [outletId, setOutletId] = useState(user?.outletId ?? "");
   const [isActive, setIsActive] = useState(user?.isActive ?? true);
   const [error, setError] = useState<string | null>(null);
-  // Field "outlet baru" â€” aktif hanya saat pilihan outlet = __new__.
+  // Field "outlet baru" — aktif hanya saat pilihan outlet = __new__.
   const [newOutletName, setNewOutletName] = useState("");
   const [newOutletAddress, setNewOutletAddress] = useState("");
 
-  // Escape untuk menutup modal â€” sama seperti editor foto/gambar produk.
+  // Escape untuk menutup modal — sama seperti editor foto/gambar produk.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -106,7 +106,7 @@ export function AccountFormModal({
   async function handleSubmit() {
     setError(null);
 
-    // Langkah 1 â€” bila dipilih "+ Outlet baruâ€¦": buat outlet DULU.
+    // Langkah 1 — bila dipilih "+ Outlet baru…": buat outlet DULU.
     // Akun butuh id outlet nyata; kalau pembuatan outlet gagal, akun
     // tidak dibuat dan semua isian tetap ada di layar.
     let finalOutletId = outletId;
@@ -127,7 +127,7 @@ export function AccountFormModal({
       finalOutletId = result.outletId;
     }
 
-    // Langkah 2 â€” validasi cepat di klien (server tetap memvalidasi
+    // Langkah 2 — validasi cepat di klien (server tetap memvalidasi
     // ulang; ini hanya supaya pesan muncul seketika tanpa round-trip).
     const inputOutlet = finalOutletId || null;
     if (outletRequired && !inputOutlet) {
@@ -139,7 +139,7 @@ export function AccountFormModal({
       return;
     }
 
-    // Langkah 3 â€” buat/ubah akun.
+    // Langkah 3 — buat/ubah akun.
     const result = user
       ? await updateAccount({
           userId: user.id,
@@ -207,7 +207,7 @@ export function AccountFormModal({
           </div>
           <div className="min-w-0">
             <h3 className="truncate text-lg font-extrabold text-slate-900 dark:text-white">
-              {user ? `Ubah Akun â€” ${user.name}` : "Tambah Akun Baru"}
+              {user ? `Ubah Akun — ${user.name}` : "Tambah Akun Baru"}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {user ? (
@@ -271,12 +271,12 @@ export function AccountFormModal({
                   id="acc-password"
                   value={password}
                   onChange={setPassword}
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  placeholder="••••••••"
                   showChecklist
                 />
               </div>
               <span className="mt-1 block text-[10px] text-slate-500">
-                Minimal 8 karakter â€” wajib ada huruf besar, angka, dan simbol.
+                Minimal 8 karakter — wajib ada huruf besar, angka, dan simbol.
               </span>
             </div>
           )}
@@ -311,7 +311,7 @@ export function AccountFormModal({
               >
                 <option value="">
                   {outletRequired
-                    ? "â€” pilih outlet â€”"
+                    ? "— pilih outlet —"
                     : "Akses Global (Semua Outlet)"}
                 </option>
                 {outlets.map((o) => (
@@ -319,10 +319,10 @@ export function AccountFormModal({
                     {o.name}
                   </option>
                 ))}
-                {/* Pintu yang sama seperti "+ Kategori baruâ€¦" di form
-                    produk: pilih, isi nama, selesai â€” tanpa keluar dari
+                {/* Pintu yang sama seperti "+ Kategori baru…" di form
+                    produk: pilih, isi nama, selesai — tanpa keluar dari
                     form akun. */}
-                <option value={NEW_OUTLET}>+ Outlet baruâ€¦</option>
+                <option value={NEW_OUTLET}>+ Outlet baru…</option>
               </SelectInput>
             </div>
           </div>

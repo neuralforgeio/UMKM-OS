@@ -6,13 +6,13 @@
 // card. When the FastAPI service is unreachable it degrades into a
 // hint card instead of breaking the whole dashboard.
 //
-// Styling mirrors app/owner/page.tsx exactly â€” rounded-2xl bg-white
+// Styling mirrors app/owner/page.tsx exactly — rounded-2xl bg-white
 // p-5 shadow-sm cards, small bold headings, decorative icon top-right
-// â€” so the widget reads as a native part of the dashboard. Color
+// — so the widget reads as a native part of the dashboard. Color
 // language: blue = actual (history), emerald = prediction (forecast).
 //
 // Money contract: every Rupiah amount rendered as text goes through
-// formatRupiah() â€” the single site-wide formatter. Only chart axis
+// formatRupiah() — the single site-wide formatter. Only chart axis
 // labels and the tiny per-cell ranges use compact units (rb/jt),
 // because full values do not fit; hovering a cell (title attribute)
 // still reveals the full formatRupiah range.
@@ -161,7 +161,7 @@ function BackendDown() {
 
 function RevenueCard({ data }: { data: RevenueForecastResponse }) {
   // The API history includes today as a LIVE partial row while the
-  // forecast also starts today â€” drop the duplicate from the chart
+  // forecast also starts today — drop the duplicate from the chart
   // input so the x-axis stays continuous, but keep it as a chip.
   const duplicatedToday =
     data.forecast.length > 0 &&
@@ -182,7 +182,7 @@ function RevenueCard({ data }: { data: RevenueForecastResponse }) {
               Ramalan Pendapatan
             </h2>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              {data.outlet_name} Â· {data.horizon_days} hari ke depan
+              {data.outlet_name} · {data.horizon_days} hari ke depan
             </p>
           </div>
           <SparkIcon className="h-5 w-5 shrink-0 text-slate-300" />
@@ -202,7 +202,7 @@ function RevenueCard({ data }: { data: RevenueForecastResponse }) {
             Ramalan Pendapatan
           </h2>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-            {data.outlet_name} Â· {data.horizon_days} hari ke depan
+            {data.outlet_name} · {data.horizon_days} hari ke depan
           </p>
         </div>
         <SparkIcon className="h-5 w-5 shrink-0 text-slate-300" />
@@ -218,7 +218,7 @@ function RevenueCard({ data }: { data: RevenueForecastResponse }) {
             <span className="font-medium text-slate-700 dark:text-slate-300">
               {formatRupiah(totals.low)}
             </span>
-            {" â€“ "}
+            {" – "}
             <span className="font-medium text-slate-700 dark:text-slate-300">
               {formatRupiah(totals.high)}
             </span>
@@ -226,7 +226,7 @@ function RevenueCard({ data }: { data: RevenueForecastResponse }) {
         </div>
         {today && today.transactions > 0 && (
           <span className="rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-            Hari ini {formatRupiah(Math.round(today.revenue))} Â·{" "}
+            Hari ini {formatRupiah(Math.round(today.revenue))} ·{" "}
             {today.transactions} trx
           </span>
         )}
@@ -240,7 +240,7 @@ function RevenueCard({ data }: { data: RevenueForecastResponse }) {
         {data.forecast.map((f, i) => (
           <div
             key={f.date}
-            title={`${i === 0 ? "Hari ini" : (WEEKDAY_ID[f.weekday] ?? f.weekday)}: ${formatRupiah(Math.round(f.low))} â€“ ${formatRupiah(Math.round(f.high))}`}
+            title={`${i === 0 ? "Hari ini" : (WEEKDAY_ID[f.weekday] ?? f.weekday)}: ${formatRupiah(Math.round(f.low))} – ${formatRupiah(Math.round(f.high))}`}
             className={`rounded-lg border px-2 py-2 text-center ${
               i === 0 ? "border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 " : "border-slate-200 dark:border-slate-800"
             }`}
@@ -252,7 +252,7 @@ function RevenueCard({ data }: { data: RevenueForecastResponse }) {
               {formatRupiah(Math.round(f.point))}
             </p>
             <p className="truncate text-[10px] tabular-nums text-slate-400 dark:text-slate-500">
-              {compactRp(f.low)}â€“{compactRp(f.high)}
+              {compactRp(f.low)}–{compactRp(f.high)}
             </p>
           </div>
         ))}
@@ -304,7 +304,7 @@ function RestockRow({ p }: { p: ProductForecast }) {
           <span className="font-semibold text-slate-600 dark:text-slate-400">
             {p.current_stock}
           </span>{" "}
-          Â· perkiraan{" "}
+          · perkiraan{" "}
           <span className="font-semibold text-slate-600 dark:text-slate-400">{needed}</span>
         </p>
       </div>

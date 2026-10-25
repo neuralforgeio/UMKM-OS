@@ -42,10 +42,10 @@ function ProductCard({
       onClick={() => onAdd(product.id)}
       className={`group relative flex h-full flex-col rounded-xl border p-2.5 text-left transition active:scale-[0.98] lg:p-3 ${
         soldOut
-          ? "cursor-not-allowed border-slate-200 dark:border-slate-800  opacity-55"
+          ? "cursor-not-allowed border-slate-200/80 dark:border-white/10 opacity-55"
           : qty > 0
-            ? "border-blue-500 bg-blue-50/50 ring-2 ring-blue-500/20"
-            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900  hover:border-blue-400 hover:shadow-md"
+            ? "border-blue-500 bg-blue-50/50 ring-2 ring-blue-500/20 dark:bg-blue-500/10"
+            : "border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 hover:border-blue-400 hover:shadow-md"
       }`}
     >
       {qty > 0 && (
@@ -150,13 +150,13 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
   };
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-sm">
+    <section className="glass-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl">
       {/* Toolbar: count + search + pagination, then category chips. */}
       <div className="shrink-0 border-b border-slate-100 dark:border-slate-800/60 p-3">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="flex shrink-0 items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             <Package className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
-            Produk <span className="text-slate-300">Â·</span> {filtered.length}
+            Produk <span className="text-slate-300">·</span> {filtered.length}
           </h2>
           <div className="relative min-w-40 flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -168,7 +168,7 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
                 setPage(1);
               }}
               placeholder="Cari nama produk atau SKU..."
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 pl-9 pr-9 text-sm text-slate-900 dark:text-slate-100 outline-none transition placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20"
+              className="glass-input w-full rounded-xl py-2 pl-9 pr-9 text-sm outline-none transition"
             />
             {query && (
               <button
@@ -191,7 +191,7 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
                 aria-label="Halaman sebelumnya"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 transition hover:bg-slate-50 dark:hover:bg-slate-800/60 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300/80 dark:border-white/15 text-slate-600 dark:text-slate-300 transition hover:bg-slate-100/70 dark:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -204,7 +204,7 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
                     className={`h-8 w-8 rounded-lg text-xs font-bold tabular-nums transition ${
                       n === currentPage
                         ? "bg-blue-600 text-white shadow-sm"
-                        : "border border-slate-300 dark:border-slate-700  text-slate-600 dark:text-slate-400  hover:bg-slate-50 dark:hover:bg-slate-800/60 "
+                        : "border border-slate-300/80 dark:border-white/15 text-slate-600 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-white/10 "
                     }`}
                   >
                     {n}
@@ -220,7 +220,7 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
                 aria-label="Halaman berikutnya"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 transition hover:bg-slate-50 dark:hover:bg-slate-800/60 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300/80 dark:border-white/15 text-slate-600 dark:text-slate-300 transition hover:bg-slate-100/70 dark:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -238,8 +238,8 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
               }}
               className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition ${
                 category === null
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400  hover:bg-slate-200 dark:hover:bg-slate-800 "
+                  ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
+                  : "bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/20 "
               }`}
             >
               Semua
@@ -254,8 +254,8 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
                 }}
                 className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition ${
                   category === name
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400  hover:bg-slate-200 dark:hover:bg-slate-800 "
+                    ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
+                    : "bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/20 "
                 }`}
               >
                 {name}
@@ -267,7 +267,7 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {filtered.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-10 text-center">
+          <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-white/10 p-10 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-900">
               <Package className="h-6 w-6 text-slate-400 dark:text-slate-500" />
             </div>
@@ -281,7 +281,7 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="mt-3 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-400 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                className="mt-3 rounded-full border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-white/10 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-white/20"
               >
                 Hapus filter
               </button>
@@ -305,7 +305,7 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
               <div
                 key={`slot-${i}`}
                 aria-hidden="true"
-                className="hidden rounded-xl border border-dashed border-slate-200 dark:border-slate-800 lg:block"
+                className="hidden rounded-xl border border-dashed border-slate-200 dark:border-white/10 lg:block"
               />
             ))}
           </div>

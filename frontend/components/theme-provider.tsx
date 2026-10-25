@@ -3,7 +3,7 @@
 // ThemeProvider tingkat akar (v1.7.0): tema kini PER PENGGUNA.
 // app/layout.tsx (server component) membaca sesi lewat auth(), lalu
 // meneruskan storageKey "theme-<idUser>" ke sini. next-themes lalu
-// membaca/menulis localStorage dengan kunci itu â€” dua orang yang
+// membaca/menulis localStorage dengan kunci itu — dua orang yang
 // berbagi satu browser tetap membawa tema masing-masing.
 //
 // Halaman TANPA sesi (/login, /verify/[code]) tetap memakai kunci
@@ -22,11 +22,11 @@ import {
 } from "@/lib/theme-storage";
 
 /**
- * Menyalin pilihan tema (bukan hasil resolusinya â€” "system" tetap
+ * Menyalin pilihan tema (bukan hasil resolusinya — "system" tetap
  * "system") ke kunci anonim selama kunci aktif adalah kunci
  * per-pengguna. Halaman publik /login & /verify membaca kunci itu,
  * jadi mesin menampilkan tema yang terakhir DIPILIH orang yang
- * memakainya â€” bukan kembali ke tema sistem begitu keluar sesi.
+ * memakainya — bukan kembali ke tema sistem begitu keluar sesi.
  *
  * Hanya perubahan SESUDAH mount yang dicerminkan: efek ini sengaja
  * melewati nilai awal (useRef penanda), supaya sekadar membuka
@@ -45,7 +45,7 @@ function AnonymousThemeMirror({ enabled }: { enabled: boolean }) {
     try {
       window.localStorage.setItem(ANONYMOUS_THEME_KEY, theme);
     } catch {
-      // Penyimpanan pribat browser penuh/diblokir â€” cermin gagal
+      // Penyimpanan pribat browser penuh/diblokir — cermin gagal
       // bukan masalah fatal; tema per-pengguna tetap tersimpan.
     }
   }, [theme, enabled]);

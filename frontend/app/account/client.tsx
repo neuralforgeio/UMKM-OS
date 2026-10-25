@@ -1,6 +1,6 @@
 "use client";
 
-// Formulir ganti password Akun Saya. Satu komponen dipakai semua peran â€”
+// Formulir ganti password Akun Saya. Satu komponen dipakai semua peran —
 // perbedaan peran hanya soal dari halaman mana pintasannya ditempel
 // (header kasir, pengaturan owner, konsol developer).
 import { useActionState, useState } from "react";

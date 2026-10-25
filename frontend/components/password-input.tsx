@@ -4,15 +4,15 @@
 // (Task 35). Dipakai di form akun developer (buat akun, reset password)
 // dan Akun Saya. Checklist berubah hijau SAAT MENGETIK, bukan setelah
 // submit — pengelola langsung tahu syarat mana yang sudah dipenuhi.
-// v1.5.0: styling kini sadar-tema — di konsol gelap (wrapper .dark)
-// input mengikuti bahasa desain glass (bg slate gelap, teks terang,
-// focus biru), sehingga teks yang diketik selalu terbaca.
+// v1.5.0: styling sadar-tema; v1.9.0: memakai kelas glass-input
+// dari globals.css — sama dengan seluruh input aplikasi (login, kasir,
+// pengaturan) sehingga teks yang diketik selalu terbaca di kedua tema.
 import { useState } from "react";
 import { Check, Eye, EyeOff, X } from "lucide-react";
 import { PASSWORD_RULES } from "@/lib/password-policy";
 
 const INPUT_BASE =
-  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-10 font-mono text-sm text-slate-900 outline-none transition placeholder:font-sans placeholder:text-slate-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:ring-blue-500/20";
+  "glass-input w-full rounded-xl px-3 py-2 pr-10 font-mono text-sm outline-none transition placeholder:font-sans";
 
 export function PasswordInput({
   id,

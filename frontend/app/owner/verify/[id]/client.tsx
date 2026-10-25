@@ -93,7 +93,7 @@ export function ClaimDeliveredButton({
       >
         {pending
           ? "Menyimpan..."
-          : "Sudah Diantar â€” Klaim Kurir (tanpa tanda tangan)"}
+          : "Sudah Diantar — Klaim Kurir (tanpa tanda tangan)"}
       </button>
       {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
@@ -133,7 +133,7 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
       onClick={copy}
       className="rounded-md border border-slate-300 dark:border-slate-700 px-2 py-1 text-[11px] text-slate-600 dark:text-slate-400"
     >
-      {copied ? "Tersalin âœ“" : (label ?? "Salin")}
+      {copied ? "Tersalin ✓" : (label ?? "Salin")}
     </button>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { ArrowLeft, Check, Loader2, Printer, RotateCcw } from "lucide-react";
+import { AuroraBackground } from "@/components/aurora-background";
 import type { OutletInfo, Receipt as ReceiptType } from "./types";
 import { formatRupiah } from "@/lib/format";
 import { markServed } from "@/app/owner/verify/actions";
@@ -33,7 +34,7 @@ const dateFmt = new Intl.DateTimeFormat("id-ID", {
 // printers and centers neatly on A4. This stylesheet is unlayered,
 // which means it wins over Tailwind utilities without !important.
 const RECEIPT_CSS = `
-/* Solid cash-register rules â€” long clean black lines, no dashes. */
+/* Solid cash-register rules — long clean black lines, no dashes. */
 .receipt-rule {
   border-top: 1px solid #000;
   margin: 7px 0;
@@ -103,7 +104,7 @@ export function ReceiptView({
 
   // Eceran serah-langsung (v1.3.0): one tap POSTs /transactions/{id}/serve
   // on backend-go so this receipt never lingers in the serve queue. The
-  // handover_events + audit writes are Go's job â€” this UI is strictly
+  // handover_events + audit writes are Go's job — this UI is strictly
   // best-effort.
   const [served, setServed] = useState(false);
   const [serveError, setServeError] = useState<string | null>(null);
@@ -123,13 +124,18 @@ export function ReceiptView({
   }
 
   return (
-    <div className="min-h-dvh bg-slate-100 dark:bg-slate-900 print:bg-white">
+    // Shell aurora (v1.9.0): latar ambient + kartu kaca mengikuti tema
+    // pengguna — sama dengan POS dan area owner. Saat mencetak, seluruh
+    // chrome disembunyikan (print:hidden) dan hanya #struk-paper yang
+    // keluar di atas kertas putih polos.
+    <div className="relative min-h-dvh bg-slate-100 dark:bg-slate-950 print:bg-white">
+      <AuroraBackground />
       <div className="mx-auto w-full max-w-5xl px-4 py-8 lg:py-10">
         {/* Success header spans the full width ABOVE the grid, so the
             summary card and the receipt paper both start at exactly
-            the same height â€” perfectly level side by side. */}
+            the same height — perfectly level side by side. */}
         <div className="flex items-center gap-4 print:hidden">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-500/15">
             <Check className="h-7 w-7 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
           </div>
           <div className="min-w-0">
@@ -137,16 +143,16 @@ export function ReceiptView({
               Transaksi Berhasil
             </h1>
             <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-              Struk siap dicetak â€” periksa sekali lagi sebelum menutup halaman
+              Struk siap dicetak — periksa sekali lagi sebelum menutup halaman
               ini.
             </p>
           </div>
         </div>
 
         <div className="mt-8 grid items-start gap-8 lg:grid-cols-[1fr_340px] print:mt-0 print:block">
-          {/* Summary + actions â€” never printed. */}
+          {/* Summary + actions — never printed. */}
           <section className="space-y-6 print:hidden">
-            <dl className="divide-y divide-slate-100 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <dl className="divide-y divide-slate-100 dark:divide-white/10 rounded-2xl glass-card">
               <div className="flex items-center justify-between gap-4 px-5 py-3.5">
                 <dt className="text-sm text-slate-500 dark:text-slate-400">Kode struk</dt>
                 <dd className="font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -178,7 +184,7 @@ export function ReceiptView({
               )}
             </dl>
 
-            <div className="space-y-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm">
+            <div className="space-y-3 rounded-2xl glass-card p-5">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-500 dark:text-slate-400">Subtotal</span>
                 <span className="font-medium tabular-nums text-slate-900 dark:text-slate-100">
@@ -217,18 +223,18 @@ export function ReceiptView({
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-xs text-slate-600 dark:text-slate-400 shadow-sm">
+            <div className="rounded-xl glass-card px-3 py-2.5 text-xs text-slate-600 dark:text-slate-400">
               <p className="font-bold text-slate-800 dark:text-slate-200">Serah terima pesanan</p>
               <p className="mt-0.5 leading-relaxed">
                 Makan di tempat / eceran: tandai sekarang supaya tidak
                 menggantung di Antrean Penyajian kasir.
                 {receipt.claimCode
-                  ? " Takeaway / diantar: serahkan saja struknya â€” pembeli mengonfirmasi sendiri dari HP lewat QR dan kode klaim yang tercetak."
+                  ? " Takeaway / diantar: serahkan saja struknya — pembeli mengonfirmasi sendiri dari HP lewat QR dan kode klaim yang tercetak."
                   : ""}
               </p>
               {served ? (
                 <p className="mt-2 rounded-lg bg-emerald-100 px-2.5 py-1.5 text-xs font-semibold text-emerald-800">
-                  Tercatat disajikan â€” terima kasih!
+                  Tercatat disajikan — terima kasih!
                 </p>
               ) : (
                 <button
@@ -242,7 +248,7 @@ export function ReceiptView({
                   ) : (
                     <Check className="h-3.5 w-3.5" />
                   )}
-                  {servePending ? "Menyimpanâ€¦" : "Sudah Diserahkan ke Pembeli"}
+                  {servePending ? "Menyimpan…" : "Sudah Diserahkan ke Pembeli"}
                 </button>
               )}
               {serveError && (
@@ -280,12 +286,12 @@ export function ReceiptView({
             </Link>
           </section>
 
-          {/* The receipt paper â€” the ONLY thing that prints. */}
+          {/* The receipt paper — the ONLY thing that prints. */}
           <div className="lg:sticky lg:top-8 print:static">
             <div
               id="struk-paper"
               // Kertas struk = thermal fisik: TETAP PUTIH meski aplikasi
-              // sedang tema gelap (v1.8.0) â€” persis kertas di tangan pembeli.
+              // sedang tema gelap (v1.8.0) — persis kertas di tangan pembeli.
               className="relative mx-auto w-full max-w-[340px] bg-white font-mono text-[11px] leading-relaxed text-slate-900 shadow-xl print:bg-white print:shadow-none dark:shadow-black/40"
             >
               <div className="px-5 py-6 print:px-0 print:py-0">
@@ -408,7 +414,7 @@ export function ReceiptView({
                 {receipt.qrSvg && (
                   <div className="flex flex-col items-center">
                     {/* Server-rendered QR (v1.3.0): when a claim code exists
-                        it encodes the INTERACTIVE buyer page â€” one scan and
+                        it encodes the INTERACTIVE buyer page — one scan and
                         the takeaway buyer can confirm/dispute from their
                         phone. QR dan kode klaim tercetak di kertas yang
                         sama, jadi tingkat rahasianya identik. Legacy receipts
@@ -429,7 +435,7 @@ export function ReceiptView({
                 {receipt.claimCode && (
                   <div className="mt-2 text-center">
                     {/* Fallback when the QR will not scan: the code is safe
-                        to read aloud over the phone â€” its alphabet has no
+                        to read aloud over the phone — its alphabet has no
                         ambiguous characters (no 0/O/1/I). Bigger than body
                         text so it survives small thermal prints. */}
                     <p className="text-[9px] font-bold uppercase tracking-[0.25em]">
@@ -451,11 +457,11 @@ export function ReceiptView({
                   -- {outlet.name} --
                 </p>
               </div>
-              {/* Perforated edge â€” screen decoration only. */}
+              {/* Perforated edge — screen decoration only. */}
               <div className="receipt-tear print:hidden" aria-hidden="true" />
             </div>
             <p className="mx-auto mt-3 max-w-[340px] text-center text-xs text-slate-400 dark:text-slate-500 print:hidden">
-              Pratinjau struk 58mm â€” yang tercetak hanya kertas struk ini.
+              Pratinjau struk 58mm — yang tercetak hanya kertas struk ini.
             </p>
           </div>
         </div>

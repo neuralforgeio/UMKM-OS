@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// Unit test untuk navigasi halaman /settings (lib/settings-nav.ts) â€”
+// Unit test untuk navigasi halaman /settings (lib/settings-nav.ts) —
 // murni, tanpa React/router, jadi hasilnya pasti sama di mesin mana pun.
 // Yang dijaga: tombol "Kembali" di /settings harus memulangkan tiap
 // peran ke areanya sendiri, bukan selalu ke /login (bug lama v1.3.0).

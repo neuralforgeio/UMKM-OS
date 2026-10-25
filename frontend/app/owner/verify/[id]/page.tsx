@@ -1,4 +1,4 @@
-// Detail SATU transaksi â€” dibuka staf dari perangkat LOGIN.
+// Detail SATU transaksi — dibuka staf dari perangkat LOGIN.
 // v3: jalur utama dine-in = tombol "Sudah Disajikan" (satu arah,
 // berjejak); tanda tangan pembeli tetap tersedia sebagai bukti kuat
 // untuk takeaway/online. Kode & QR selalu ada di sini untuk itu.
@@ -94,7 +94,7 @@ export default async function VerifyDetailPage({
       <div className="relative z-10">
       <div className="mb-3 flex items-center justify-between">
         <Link href="/owner/verify" className="text-sm text-slate-500 dark:text-slate-400">
-          â† Daftar
+          ← Daftar
         </Link>
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
           Bukti Serah Terima
@@ -113,7 +113,7 @@ export default async function VerifyDetailPage({
               {formatRupiah(Number(tx.total))}
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {tx.items.length} item Â·{" "}
+              {tx.items.length} item ·{" "}
               {PAYMENT_LABELS[tx.paymentMethod] ?? tx.paymentMethod}
             </p>
           </div>
@@ -129,7 +129,7 @@ export default async function VerifyDetailPage({
           {tx.items.map((it, i) => (
             <li key={i} className="flex justify-between text-xs text-slate-600 dark:text-slate-400">
               <span>
-                {it.product.name} Ã— {it.quantity}
+                {it.product.name} × {it.quantity}
               </span>
               <span>{formatRupiah(Number(it.priceAtSale) * it.quantity)}</span>
             </li>
@@ -137,7 +137,7 @@ export default async function VerifyDetailPage({
         </ul>
       </section>
 
-      {/* Kode + QR â€” selalu tersedia (staf never forgets the code) */}
+      {/* Kode + QR — selalu tersedia (staf never forgets the code) */}
       <section className="mt-3 rounded-2xl glass-card p-4 text-center">
         <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Kode verifikasi</p>
         <p className="mt-1 font-mono text-3xl font-bold tracking-[0.25em] text-slate-900 dark:text-slate-100">
@@ -164,19 +164,19 @@ export default async function VerifyDetailPage({
         {status === "SERVED" ? (
           <div className="space-y-2 text-center">
             <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-              âœ” Tercatat disajikan{" "}
+              ✔ Tercatat disajikan{" "}
               {dtFmt.format(tx.handoverConfirmedAt ?? tx.createdAt)} WIB
               {actorName ? ` oleh ${actorName}` : ""}
             </p>
             <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
-              Penandaan penyajian SATU ARAH â€” tidak bisa dibatalkan. Klaim
+              Penandaan penyajian SATU ARAH — tidak bisa dibatalkan. Klaim
               penggantian pesanan untuk struk ini ditolak; jejaknya permanen.
             </p>
           </div>
         ) : status === "CONFIRMED" ? (
           <div className="space-y-3 text-center">
             <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-              âœ” Terverifikasi{" "}
+              ✔ Terverifikasi{" "}
               {dtFmt.format(tx.handoverConfirmedAt ?? tx.createdAt)} WIB
             </p>
             {confirmEvent?.signatureData && (
@@ -191,7 +191,7 @@ export default async function VerifyDetailPage({
               Metode:{" "}
               {confirmEvent?.method === "PUBLIC" ? "HP pembeli" : "layar kurir"}
               {confirmEvent?.buyerName
-                ? ` Â· a.n. ${confirmEvent.buyerName}`
+                ? ` · a.n. ${confirmEvent.buyerName}`
                 : ""}
             </p>
           </div>
@@ -216,13 +216,13 @@ export default async function VerifyDetailPage({
           <div className="space-y-4">
             <div className="rounded-lg bg-blue-50 dark:bg-blue-950/40 p-3">
               <p className="mb-2 text-xs font-bold text-blue-900">
-                Dine-in / bungkus â€” pesanan diserahkan sekarang?
+                Dine-in / bungkus — pesanan diserahkan sekarang?
               </p>
               <ServeButton transactionId={tx.id} />
             </div>
             <div>
               <p className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                Konfirmasi di layar ini (bukti terkuat â€” tanda tangan pembeli)
+                Konfirmasi di layar ini (bukti terkuat — tanda tangan pembeli)
               </p>
               <ConfirmInAppForm transactionId={tx.id} />
             </div>
@@ -236,7 +236,7 @@ export default async function VerifyDetailPage({
         )}
       </section>
 
-      {/* Jejak audit â€” gak bisa dihapus, gak bisa dimanipulasi */}
+      {/* Jejak audit — gak bisa dihapus, gak bisa dimanipulasi */}
       <section className="mt-3 rounded-2xl glass-card p-4">
         <p className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
           Jejak kejadian
@@ -249,8 +249,8 @@ export default async function VerifyDetailPage({
               </span>
               <span className="text-slate-700 dark:text-slate-300">
                 {KIND_LABEL[e.kind] ?? e.kind}
-                {e.actorRole ? ` Â· ${e.actorRole}` : ""}
-                {e.note ? ` â€” "${e.note}"` : ""}
+                {e.actorRole ? ` · ${e.actorRole}` : ""}
+                {e.note ? ` — "${e.note}"` : ""}
               </span>
             </li>
           ))}

@@ -16,15 +16,15 @@ import { LogsPagination } from "./logs-pagination";
 
 export const instant = false;
 
-// Query jejak audit penuh (Task 34 Fase B, diperbarui Task 35) â€”
+// Query jejak audit penuh (Task 34 Fase B, diperbarui Task 35) —
 // khusus DEVELOPER. Pagination dan filter HIDUP DI URL (server-side):
 // tabel audit tumbuh tanpa batas (setiap transaksi/stok/login menambah
-// baris), jadi tidak seperti halaman produk yang memuat semua baris â€”
+// baris), jadi tidak seperti halaman produk yang memuat semua baris —
 // di sini setiap halaman hanya membaca 20 baris dari database.
 // Task 35: kolom aksi kini label manusiawi + kode mentah, dengan
 // tingkat SUKSES/PERINGATAN/GAGAL (filter-able), dan unduhan berupa
 // EXCEL ber-grafik (bukan CSV polos).
-// v1.6.0: design aurora + glass sadar tema (terang/gelap/sistem) â€”
+// v1.6.0: design aurora + glass sadar tema (terang/gelap/sistem) —
 // logika query & pagination tidak berubah sama sekali.
 const PAGE_SIZE = 20;
 
@@ -89,7 +89,7 @@ export default async function DevLogsPage({
         outlet: { select: { name: true } },
       },
     }),
-    // Daftar aksi yang BENAR-BENAR pernah terjadi â€” dropdown filter tidak
+    // Daftar aksi yang BENAR-BENAR pernah terjadi — dropdown filter tidak
     // pernah menawarkan aksi hantu yang tidak ada datanya.
     prisma.auditEvent.findMany({
       distinct: ["action"],
@@ -110,7 +110,7 @@ export default async function DevLogsPage({
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
 
-  // Query string filter aktif â€” dipakai pagination (pertahankan filter)
+  // Query string filter aktif — dipakai pagination (pertahankan filter)
   // dan tombol export (unduh hasil filter INI, bukan semua log).
   const qs = logQueryString({ q, action, outlet, actor, from, to, level });
 
@@ -186,7 +186,7 @@ export default async function DevLogsPage({
             </h1>
             <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500 sm:text-sm dark:text-slate-400">
               Setiap aksi tercatat: login, transaksi, stok, akun, hingga
-              percobaan yang gagal. Filter hidup di URL â€” hasilnya bisa
+              percobaan yang gagal. Filter hidup di URL — hasilnya bisa
               di-bookmark dan dibagikan; maksimum 10.000 baris per unduhan.
             </p>
           </div>
@@ -201,7 +201,7 @@ export default async function DevLogsPage({
               type="text"
               name="q"
               defaultValue={q}
-              placeholder="Cari ringkasan / entitas / nama aktorâ€¦"
+              placeholder="Cari ringkasan / entitas / nama aktor…"
               aria-label="Cari teks"
               className="glass-input w-full rounded-xl px-4 py-2.5 text-xs transition-all focus:outline-none"
             />
@@ -216,9 +216,9 @@ export default async function DevLogsPage({
           </SelectInput>
           <SelectInput name="level" defaultValue={level} aria-label="Filter tingkat">
             <option value="">Semua tingkat</option>
-            <option value="SUKSES">SUKSES â€” selesai normal</option>
-            <option value="PERINGATAN">PERINGATAN â€” aksi sensitif</option>
-            <option value="GAGAL">GAGAL â€” ada error</option>
+            <option value="SUKSES">SUKSES — selesai normal</option>
+            <option value="PERINGATAN">PERINGATAN — aksi sensitif</option>
+            <option value="GAGAL">GAGAL — ada error</option>
           </SelectInput>
           <SelectInput name="outlet" defaultValue={outlet} aria-label="Filter outlet">
             <option value="">Semua outlet</option>
@@ -316,7 +316,7 @@ export default async function DevLogsPage({
                         )}
                       </td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                        {row.outlet?.name ?? "â€”"}
+                        {row.outlet?.name ?? "—"}
                       </td>
                       <td className="px-4 py-3">
                         {/* Label manusiawi berwarna tingkat + kode mentah:
@@ -332,7 +332,7 @@ export default async function DevLogsPage({
                         </p>
                       </td>
                       <td className="px-4 py-3 font-mono text-[11px] text-slate-400 dark:text-slate-500">
-                        {row.entity ?? "â€”"}
+                        {row.entity ?? "—"}
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                         {row.summary}
@@ -346,7 +346,7 @@ export default async function DevLogsPage({
                       colSpan={6}
                       className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
                     >
-                      Tidak ada log yang cocok â€” longgarkan filter atau
+                      Tidak ada log yang cocok — longgarkan filter atau
                       perlebar rentang tanggal.
                     </td>
                   </tr>
