@@ -58,12 +58,12 @@ const digits = (value: string, max: number) =>
   value.replace(/\D/g, "").slice(0, max);
 
 const LABEL_CLASS =
-  "text-xs font-semibold uppercase tracking-wide text-slate-500";
+  "text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400";
 const INPUT_CLASS =
-  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  "w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20";
 
 const TILE_BTN =
-  "flex h-6 w-6 items-center justify-center rounded-md bg-white/95 text-slate-700 shadow-sm transition hover:bg-white hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-30";
+  "flex h-6 w-6 items-center justify-center rounded-md bg-white/95 text-slate-700 dark:text-slate-300 shadow-sm transition hover:bg-white dark:hover:bg-slate-900 hover:text-blue-600 dark:hover:text-blue-400 disabled:cursor-not-allowed disabled:opacity-30";
 
 // Live grouping for numeric fields: the stored string stays raw digits
 // ("4000"), only the presentation gains Indonesian thousand dots.
@@ -71,7 +71,7 @@ const grouped = (value: string) =>
   value ? formatThousands(parseInt(value, 10)) : "";
 
 // Rp text field: right-aligned tabular digits with a fixed "Rp" prefix
-// and live thousand separators — the same money language as the POS.
+// and live thousand separators â€” the same money language as the POS.
 function RpInput({
   id,
   value,
@@ -85,7 +85,7 @@ function RpInput({
 }) {
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-semibold text-slate-400">
+      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-semibold text-slate-400 dark:text-slate-500">
         Rp
       </span>
       <input
@@ -96,7 +96,7 @@ function RpInput({
         value={grouped(value)}
         placeholder={placeholder ?? "0"}
         onChange={(event) => onChange(digits(event.target.value, 10))}
-        className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-10 pr-3 text-right text-sm font-semibold tabular-nums text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 pl-10 pr-3 text-right text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20"
       />
     </div>
   );
@@ -123,7 +123,7 @@ function QtyInput({
       value={grouped(value)}
       placeholder="0"
       onChange={(event) => onChange(digits(event.target.value, max))}
-      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-right text-sm font-semibold tabular-nums text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-right text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20"
     />
   );
 }
@@ -424,21 +424,22 @@ export function ProductFormModal({
       aria-label={product ? `Ubah produk ${product.name}` : "Produk baru"}
     >
       <div
-        className="absolute inset-0 bg-slate-900/60"
+        className="absolute inset-0 bg-slate-950/60 backdrop-blur-md dark:bg-slate-950/80"
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl">
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+      {/* Panel kaca aurora (v1.8.0) â€” konsisten dengan modal Kelola Akun. */}
+      <div className="glass-card relative flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl shadow-2xl sm:rounded-2xl dark:shadow-black/50">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/60 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-500/20">
               <Boxes className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="truncate text-base font-bold leading-tight text-slate-900">
+              <h2 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
                 {product ? "Ubah Produk" : "Produk Baru"}
               </h2>
-              <p className="truncate text-xs text-slate-500">
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
                 {product
                   ? product.sku
                   : "Tambahkan barang yang dijual di warung"}
@@ -449,7 +450,7 @@ export function ProductFormModal({
             type="button"
             onClick={onClose}
             aria-label="Tutup formulir"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <X className="h-4 w-4" />
           </button>
@@ -464,18 +465,18 @@ export function ProductFormModal({
         >
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
             {createdId && (
-              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-700">
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2.5 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                 <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-                Produk tersimpan — tinggal foto yang menyusul.
+                Produk tersimpan â€” tinggal foto yang menyusul.
               </div>
             )}
 
-            {/* ============ FOTO PRODUK — dipindah ke PALING ATAS ============ */}
+            {/* ============ FOTO PRODUK â€” dipindah ke PALING ATAS ============ */}
             <div>
               <p className={LABEL_CLASS}>Foto Produk (maks. {MAX_PHOTOS})</p>
-              <p className="mt-0.5 text-[11px] leading-tight text-slate-400">
+              <p className="mt-0.5 text-[11px] leading-tight text-slate-400 dark:text-slate-500">
                 Tampil di keranjang kasir, kartu produk, dan tabel. Tandai foto
-                dengan bintang untuk menjadikannya thumbnail — default: foto
+                dengan bintang untuk menjadikannya thumbnail â€” default: foto
                 pertama.
               </p>
               <div className="mt-2 grid grid-cols-3 gap-2.5 sm:grid-cols-4">
@@ -485,7 +486,7 @@ export function ProductFormModal({
                   return (
                     <div
                       key={image.id}
-                      className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
+                      className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900"
                     >
                       {image.isThumb && (
                         <span className="absolute left-1 top-1 z-10 rounded bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
@@ -500,7 +501,7 @@ export function ProductFormModal({
                       />
                       {tileBusy ? (
                         <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                          <Loader2 className="h-5 w-5 animate-spin text-slate-400 dark:text-slate-500" />
                         </div>
                       ) : (
                         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-0.5 bg-black/50 p-1">
@@ -577,7 +578,7 @@ export function ProductFormModal({
                   return (
                     <div
                       key={item.key}
-                      className="relative aspect-square overflow-hidden rounded-lg border border-blue-200 bg-slate-100"
+                      className="relative aspect-square overflow-hidden rounded-lg border border-blue-200 bg-slate-100 dark:bg-slate-900"
                     >
                       <span
                         className={`absolute left-1 top-1 z-10 rounded px-1.5 py-0.5 text-[9px] font-bold text-white ${
@@ -593,7 +594,7 @@ export function ProductFormModal({
                       />
                       {photoBusy === "queue" ? (
                         <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                          <Loader2 className="h-5 w-5 animate-spin text-slate-400 dark:text-slate-500" />
                         </div>
                       ) : (
                         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-0.5 bg-black/50 p-1">
@@ -625,7 +626,7 @@ export function ProductFormModal({
                   <button
                     type="button"
                     onClick={pickPhoto}
-                    className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400 transition hover:border-blue-400 hover:text-blue-500"
+                    className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-400 dark:text-slate-500 transition hover:border-blue-400 hover:text-blue-500"
                   >
                     {photoBusy === "upload" ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
@@ -633,7 +634,7 @@ export function ProductFormModal({
                       <ImagePlus className="h-5 w-5" />
                     )}
                     <span className="text-[10px] font-semibold">
-                      {photoBusy === "upload" ? "Mengunggah…" : "Tambah foto"}
+                      {photoBusy === "upload" ? "Mengunggahâ€¦" : "Tambah foto"}
                     </span>
                   </button>
                 )}
@@ -685,12 +686,12 @@ export function ProductFormModal({
                   readOnly
                   tabIndex={-1}
                   value={previewSku}
-                  className={`mt-1 cursor-default bg-slate-50 font-mono ${INPUT_CLASS}`}
+                  className={`mt-1 cursor-default bg-slate-50 dark:bg-slate-950 font-mono ${INPUT_CLASS}`}
                 />
-                <p className="mt-1 text-[11px] leading-tight text-slate-400">
+                <p className="mt-1 text-[11px] leading-tight text-slate-400 dark:text-slate-500">
                   {product
                     ? "SKU tetap setelah produk dibuat."
-                    : "Dibuat otomatis dari kategori — nomor final ditetapkan saat disimpan."}
+                    : "Dibuat otomatis dari kategori â€” nomor final ditetapkan saat disimpan."}
                 </p>
               </div>
 
@@ -714,7 +715,7 @@ export function ProductFormModal({
                     <button
                       type="button"
                       onClick={() => setUseNewUnit(false)}
-                      className="flex shrink-0 items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                      className="flex shrink-0 items-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
                     >
                       <ChevronLeft className="h-3.5 w-3.5" />
                       Pilih lama
@@ -727,13 +728,13 @@ export function ProductFormModal({
                     onChange={(event) => handleUnitSelect(event.target.value)}
                     className={`mt-1 ${INPUT_CLASS}`}
                   >
-                    <option value="">Pilih satuan…</option>
+                    <option value="">Pilih satuanâ€¦</option>
                     {units.map((unit) => (
                       <option key={unit.name} value={unit.name}>
                         {unit.name}
                       </option>
                     ))}
-                    <option value="__new__">+ Satuan baru…</option>
+                    <option value="__new__">+ Satuan baruâ€¦</option>
                   </select>
                 )}
               </div>
@@ -758,7 +759,7 @@ export function ProductFormModal({
                     <button
                       type="button"
                       onClick={() => setUseNewCategory(false)}
-                      className="flex shrink-0 items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                      className="flex shrink-0 items-center gap-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
                     >
                       <ChevronLeft className="h-3.5 w-3.5" />
                       Pilih lama
@@ -779,7 +780,7 @@ export function ProductFormModal({
                         {category.name}
                       </option>
                     ))}
-                    <option value="__new__">+ Kategori baru…</option>
+                    <option value="__new__">+ Kategori baruâ€¦</option>
                   </select>
                 )}
               </div>
@@ -831,7 +832,7 @@ export function ProductFormModal({
                     onChange={setMinStock}
                     max={5}
                   />
-                  <p className="mt-1 text-[11px] leading-tight text-slate-400">
+                  <p className="mt-1 text-[11px] leading-tight text-slate-400 dark:text-slate-500">
                     Stok sama atau di bawah angka ini ditandai perlu restok.
                   </p>
                 </div>
@@ -841,18 +842,18 @@ export function ProductFormModal({
             {error && (
               <div
                 role="alert"
-                className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700"
+                className="rounded-xl bg-red-50 dark:bg-red-950/40 px-3 py-2.5 text-sm text-red-700 dark:text-red-300"
               >
                 {error}
               </div>
             )}
           </div>
 
-          <div className="flex shrink-0 gap-2 border-t border-slate-100 px-5 py-4">
+          <div className="flex shrink-0 gap-2 border-t border-slate-100 dark:border-slate-800/60 px-5 py-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:flex-none sm:px-5"
+              className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60 sm:flex-none sm:px-5"
             >
               {createdId ? "Tutup" : "Batal"}
             </button>
@@ -865,7 +866,7 @@ export function ProductFormModal({
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               )}
               {isPending
-                ? "Menyimpan…"
+                ? "Menyimpanâ€¦"
                 : createdId
                   ? queue.length > 0
                     ? "Coba Unggah Foto Lagi"

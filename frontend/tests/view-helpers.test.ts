@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 // Unit test untuk pemetaan DTO backend-go -> baris tabel akun dan util
-// tampilan (app/dev/users/view-helpers.ts). Murni — tidak menyentuh
+// tampilan (app/dev/users/view-helpers.ts). Murni â€” tidak menyentuh
 // jaringan/database, jadi hasilnya pasti sama di mesin mana pun.
 
 import {
@@ -134,8 +134,8 @@ describe("initials", () => {
 });
 
 describe("formatWibShort", () => {
-  it("null (belum pernah jualan) tampil sebagai —", () => {
-    expect(formatWibShort(null)).toBe("—");
+  it("null (belum pernah jualan) tampil sebagai â€”", () => {
+    expect(formatWibShort(null)).toBe("â€”");
   });
 
   it("tanggal UTC dikonversi ke WIB, bukan zona mesin", () => {
@@ -169,8 +169,8 @@ describe("roleView", () => {
   });
 });
 
-describe("roleBadgeDark (konsol gelap v1.5.0)", () => {
-  it("label peran huruf besar untuk badge tabel gelap", () => {
+describe("roleBadgeDark (konsol Kelola Akun, sadar tema v1.6.0)", () => {
+  it("label peran huruf besar untuk badge tabel", () => {
     expect(roleBadgeDark("OWNER").label).toBe("OWNER");
     expect(roleBadgeDark("KASIR").label).toBe("KASIR");
     expect(roleBadgeDark("DEVELOPER").label).toBe("DEVELOPER");
@@ -182,12 +182,22 @@ describe("roleBadgeDark (konsol gelap v1.5.0)", () => {
     expect(roleBadgeDark("KASIR").badge).toContain("emerald");
   });
 
-  it("badge selalu memuat border + tint supaya konsisten di kartu gelap", () => {
+  it("badge selalu memuat border + tint supaya konsisten di kartu glass", () => {
     for (const role of ["OWNER", "KASIR", "DEVELOPER"] as const) {
       const { badge } = roleBadgeDark(role);
       expect(badge).toContain("border-");
       expect(badge).toContain("bg-");
       expect(badge).toContain("text-");
+    }
+  });
+
+  it("v1.6.0: badge sadar tema â€” teks pekat untuk terang + varian dark:", () => {
+    for (const role of ["OWNER", "KASIR", "DEVELOPER"] as const) {
+      const { badge } = roleBadgeDark(role);
+      // sisi terang: teks pekat (600/700) agar terbaca di kartu glass terang
+      expect(badge).toMatch(/text-(blue|emerald|purple)-(600|700)/);
+      // sisi gelap: varian dark: dengan teks pucat (300)
+      expect(badge).toMatch(/dark:text-(blue|emerald|purple)-300/);
     }
   });
 });
@@ -209,8 +219,8 @@ describe("avatarGradient", () => {
 });
 
 describe("formatWibDateTime", () => {
-  it("null (belum pernah jualan) tampil sebagai —", () => {
-    expect(formatWibDateTime(null)).toBe("—");
+  it("null (belum pernah jualan) tampil sebagai â€”", () => {
+    expect(formatWibDateTime(null)).toBe("â€”");
   });
 
   it("tanggal + jam UTC dikonversi ke WIB dengan pemisah jam ':'", () => {

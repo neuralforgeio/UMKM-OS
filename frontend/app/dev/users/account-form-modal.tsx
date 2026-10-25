@@ -1,17 +1,17 @@
 "use client";
 
-// Modal buat / edit akun dari konsol developer — design v1.5.0 ala
+// Modal buat / edit akun dari konsol developer â€” design v1.5.0 ala
 // mockup Gemini (glass gelap, max-w-lg rounded-3xl, label uppercase,
 // tombol gradien). LOGIC IDENTIK dengan versi sebelumnya:
-// Create: nama, email, password awal (checklist hidup saat mengetik —
-// kini 4 syarat: panjang, huruf besar, ANGKA, simbol), peran, outlet —
-// dan opsi "+ Outlet baru…" yang membuat outlet SEBELUM akun (pola yang
-// sama dengan "+ Kategori baru…" di form produk).
+// Create: nama, email, password awal (checklist hidup saat mengetik â€”
+// kini 4 syarat: panjang, huruf besar, ANGKA, simbol), peran, outlet â€”
+// dan opsi "+ Outlet baruâ€¦" yang membuat outlet SEBELUM akun (pola yang
+// sama dengan "+ Kategori baruâ€¦" di form produk).
 // Edit: sama tanpa password (reset password punya modal sendiri) +
 // checkbox aktif. Semua field controlled state: nilai TIDAK PERNAH
-// hilang saat submit gagal — pesan error muncul, form tetap terisi.
-// Modal ini selalu tampil di dalam konsol gelap, tapi tetap sadar-tema
-// (varian dark:) supaya tidak rusak bila dipakai ulang di halaman lain.
+// hilang saat submit gagal â€” pesan error muncul, form tetap terisi.
+// Modal ikut tema aplikasi (varian dark:) â€” terang di tema terang,
+// gelap di tema gelap, sama dengan halaman induknya.
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -26,13 +26,13 @@ import type { OutletOption, UserRow } from "./types";
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
 const LABEL_CLASS =
-  "mb-1.5 block text-xs font-bold tracking-wider text-slate-300 uppercase dark:text-slate-300";
+  "mb-1.5 block text-xs font-bold tracking-wider text-slate-600 uppercase dark:text-slate-300";
 
-// Nilai sentinel pilihan "buat outlet baru dulu" — konvensi "__new__"
+// Nilai sentinel pilihan "buat outlet baru dulu" â€” konvensi "__new__"
 // disalin dari form produk (kategori) supaya perilakunya seragam.
 const NEW_OUTLET = "__new__";
 
-// Spinner resident — gaya tombol design (sama dengan login).
+// Spinner resident â€” gaya tombol design (sama dengan login).
 function Spinner({ className = "" }: { className?: string }) {
   return (
     <svg
@@ -86,11 +86,11 @@ export function AccountFormModal({
   const [outletId, setOutletId] = useState(user?.outletId ?? "");
   const [isActive, setIsActive] = useState(user?.isActive ?? true);
   const [error, setError] = useState<string | null>(null);
-  // Field "outlet baru" — aktif hanya saat pilihan outlet = __new__.
+  // Field "outlet baru" â€” aktif hanya saat pilihan outlet = __new__.
   const [newOutletName, setNewOutletName] = useState("");
   const [newOutletAddress, setNewOutletAddress] = useState("");
 
-  // Escape untuk menutup modal — sama seperti editor foto/gambar produk.
+  // Escape untuk menutup modal â€” sama seperti editor foto/gambar produk.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -106,7 +106,7 @@ export function AccountFormModal({
   async function handleSubmit() {
     setError(null);
 
-    // Langkah 1 — bila dipilih "+ Outlet baru…": buat outlet DULU.
+    // Langkah 1 â€” bila dipilih "+ Outlet baruâ€¦": buat outlet DULU.
     // Akun butuh id outlet nyata; kalau pembuatan outlet gagal, akun
     // tidak dibuat dan semua isian tetap ada di layar.
     let finalOutletId = outletId;
@@ -127,7 +127,7 @@ export function AccountFormModal({
       finalOutletId = result.outletId;
     }
 
-    // Langkah 2 — validasi cepat di klien (server tetap memvalidasi
+    // Langkah 2 â€” validasi cepat di klien (server tetap memvalidasi
     // ulang; ini hanya supaya pesan muncul seketika tanpa round-trip).
     const inputOutlet = finalOutletId || null;
     if (outletRequired && !inputOutlet) {
@@ -139,7 +139,7 @@ export function AccountFormModal({
       return;
     }
 
-    // Langkah 3 — buat/ubah akun.
+    // Langkah 3 â€” buat/ubah akun.
     const result = user
       ? await updateAccount({
           userId: user.id,
@@ -180,13 +180,13 @@ export function AccountFormModal({
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.3, ease: EASE }}
-        className="glass-card relative flex max-h-[94dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-slate-700/80 shadow-2xl"
+        className="glass-card relative flex max-h-[94dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border-slate-300/80 dark:border-slate-700/80 shadow-2xl"
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Tutup"
-          className="absolute top-5 right-5 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+          className="absolute top-5 right-5 rounded-lg p-1 text-slate-500 dark:text-slate-400 transition-colors hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
         >
           <LuX className="h-5 w-5" />
         </button>
@@ -206,10 +206,10 @@ export function AccountFormModal({
             )}
           </div>
           <div className="min-w-0">
-            <h3 className="truncate text-lg font-extrabold text-white">
-              {user ? `Ubah Akun — ${user.name}` : "Tambah Akun Baru"}
+            <h3 className="truncate text-lg font-extrabold text-slate-900 dark:text-white">
+              {user ? `Ubah Akun â€” ${user.name}` : "Tambah Akun Baru"}
             </h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               {user ? (
                 <span
                   className={`rounded-lg border px-1.5 py-0.5 text-[10px] font-extrabold tracking-wider uppercase ${rb.badge}`}
@@ -225,7 +225,7 @@ export function AccountFormModal({
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-2 sm:px-8">
           {error && (
-            <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-400">
+            <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400">
               {error}
             </p>
           )}
@@ -236,7 +236,7 @@ export function AccountFormModal({
             </label>
             <input
               id="acc-name"
-              className="glass-input w-full rounded-xl px-4 py-2.5 text-xs text-white transition focus:outline-none"
+              className="glass-input w-full rounded-xl px-4 py-2.5 text-xs transition focus:outline-none"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Contoh: Budi Santoso"
@@ -252,7 +252,7 @@ export function AccountFormModal({
             <input
               id="acc-email"
               type="email"
-              className="glass-input w-full rounded-xl px-4 py-2.5 text-xs text-white transition focus:outline-none"
+              className="glass-input w-full rounded-xl px-4 py-2.5 text-xs transition focus:outline-none"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="nama@warung.id"
@@ -271,12 +271,12 @@ export function AccountFormModal({
                   id="acc-password"
                   value={password}
                   onChange={setPassword}
-                  placeholder="••••••••"
+                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                   showChecklist
                 />
               </div>
               <span className="mt-1 block text-[10px] text-slate-500">
-                Minimal 8 karakter — wajib ada huruf besar, angka, dan simbol.
+                Minimal 8 karakter â€” wajib ada huruf besar, angka, dan simbol.
               </span>
             </div>
           )}
@@ -311,7 +311,7 @@ export function AccountFormModal({
               >
                 <option value="">
                   {outletRequired
-                    ? "— pilih outlet —"
+                    ? "â€” pilih outlet â€”"
                     : "Akses Global (Semua Outlet)"}
                 </option>
                 {outlets.map((o) => (
@@ -319,22 +319,22 @@ export function AccountFormModal({
                     {o.name}
                   </option>
                 ))}
-                {/* Pintu yang sama seperti "+ Kategori baru…" di form
-                    produk: pilih, isi nama, selesai — tanpa keluar dari
+                {/* Pintu yang sama seperti "+ Kategori baruâ€¦" di form
+                    produk: pilih, isi nama, selesai â€” tanpa keluar dari
                     form akun. */}
-                <option value={NEW_OUTLET}>+ Outlet baru…</option>
+                <option value={NEW_OUTLET}>+ Outlet baruâ€¦</option>
               </SelectInput>
             </div>
           </div>
 
           {creatingOutlet && (
             <div className="space-y-2 rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
-              <p className="flex items-center gap-1.5 text-xs font-bold text-blue-300">
+              <p className="flex items-center gap-1.5 text-xs font-bold text-blue-700 dark:text-blue-300">
                 <LuMapPin className="h-3.5 w-3.5" />
                 Outlet baru
               </p>
               <input
-                className="glass-input w-full rounded-xl px-4 py-2.5 text-xs text-white transition focus:outline-none"
+                className="glass-input w-full rounded-xl px-4 py-2.5 text-xs transition focus:outline-none"
                 value={newOutletName}
                 onChange={(e) => setNewOutletName(e.target.value)}
                 placeholder="Nama outlet (mis. Warung Bu Sari 2)"
@@ -342,7 +342,7 @@ export function AccountFormModal({
                 autoComplete="off"
               />
               <input
-                className="glass-input w-full rounded-xl px-4 py-2.5 text-xs text-white transition focus:outline-none"
+                className="glass-input w-full rounded-xl px-4 py-2.5 text-xs transition focus:outline-none"
                 value={newOutletAddress}
                 onChange={(e) => setNewOutletAddress(e.target.value)}
                 placeholder="Alamat (opsional)"
@@ -358,25 +358,25 @@ export function AccountFormModal({
           )}
 
           {user && (
-            <label className="flex items-center gap-2.5 rounded-xl border border-slate-700 px-3 py-2.5">
+            <label className="flex items-center gap-2.5 rounded-xl border border-slate-300 dark:border-slate-700 px-3 py-2.5">
               <input
                 type="checkbox"
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
                 className="h-4 w-4 accent-blue-500"
               />
-              <span className="text-sm font-medium text-slate-200">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
                 Akun aktif (bisa login)
               </span>
             </label>
           )}
         </div>
 
-        <div className="flex shrink-0 items-center justify-end space-x-3 border-t border-slate-800 px-6 pt-4 pb-6 sm:px-8">
+        <div className="flex shrink-0 items-center justify-end space-x-3 border-t border-slate-200 dark:border-slate-800 px-6 pt-4 pb-6 sm:px-8">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-300 transition-all hover:bg-slate-800"
+            className="rounded-xl border border-slate-300 dark:border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 transition-all hover:bg-slate-200 dark:hover:bg-slate-800"
           >
             Batal
           </button>

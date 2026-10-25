@@ -1,4 +1,8 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Boxes, ClipboardList } from "lucide-react";
+import { AuroraBackground } from "@/components/aurora-background";
+import { ThemeHeaderActions } from "@/components/theme-header-actions";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import {
@@ -53,12 +57,12 @@ export default async function OwnerStockPage() {
   if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER")
     redirect("/cashier");
   if (!session.user.goToken) {
-    throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
+    throw new Error("Sesi tidak memiliki token backend â€” silakan login ulang.");
   }
   const goToken = session.user.goToken;
 
   // Produk aktif + 200 gerakan terakhir + total gerakan, semuanya dari
-  // backend-go — kartu stok dan kasir membaca angka yang sama.
+  // backend-go â€” kartu stok dan kasir membaca angka yang sama.
   const [productsResult, movementsResult] = await Promise.all([
     goFetch<GoProduct[]>(goToken, "/products"),
     goFetch<{ total: number; rows: GoMovement[] }>(
@@ -83,7 +87,7 @@ export default async function OwnerStockPage() {
 
   // Rows are plain serializable objects. Display strings are prepared on
   // the server so the client render stays hydration-safe. Gerakan OUT
-  // yang terikat nomor struk = penjualan kasir — ditampilkan SALE agar
+  // yang terikat nomor struk = penjualan kasir â€” ditampilkan SALE agar
   // makna barisnya sama dengan era sebelumnya.
   const movementRows: StockMovementRow[] = movementsResult.data.rows.map(
     (movement) => ({
@@ -125,12 +129,44 @@ export default async function OwnerStockPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    // Shell aurora (v1.8.0): kartu stok memakai kaca, ikut tema pengguna.
+    // Header + tombol kembali kini ada di halaman ini (dulu telanjang).
+    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
+      <AuroraBackground />
+      <header className="relative z-10 shrink-0 border-b border-slate-200/80 bg-white/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-md shadow-emerald-500/20">
+              <ClipboardList className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
+                Kartu Stok
+              </h1>
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                Restok, opname, dan jejak gerakan barang
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <ThemeHeaderActions />
+            <Link
+              href="/owner"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+            >
+              <Boxes className="h-4 w-4" />
+              Dashboard
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
           Kartu Stok
-        </h1>
-        <p className="text-sm text-slate-500">
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           Catat restok dan hasil opname. Setiap perubahan stok terekam di
           riwayat, terbaru paling atas.
         </p>
@@ -142,14 +178,14 @@ export default async function OwnerStockPage() {
           return (
             <div
               key={stat.label}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+              className="glass-card rounded-2xl p-4 sm:p-5"
             >
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              <dt className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
                 {stat.label}
               </dt>
               <dd
                 className={`mt-1 text-2xl font-bold tabular-nums ${
-                  warn ? "text-amber-600" : "text-slate-900"
+                  warn ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-slate-100"
                 }`}
               >
                 {stat.value}
@@ -160,6 +196,7 @@ export default async function OwnerStockPage() {
       </dl>
 
       <StockClient products={productOptions} rows={movementRows} />
+      </main>
     </div>
   );
 }

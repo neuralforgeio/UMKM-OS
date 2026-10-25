@@ -1,5 +1,5 @@
 "use client";
-// Papan tanda tangan — Pointer Events (mouse + jari + stylus).
+// Papan tanda tangan â€” Pointer Events (mouse + jari + stylus).
 // touch-action:none supaya halaman gak ikut scroll saat pembeli
 // menggambar di HP.
 import { useEffect, useRef, useState } from "react";
@@ -85,10 +85,13 @@ export default function SignaturePad({
         onPointerLeave={up}
         onPointerCancel={up}
         style={{ touchAction: "none" }}
-        className="h-40 w-full cursor-crosshair rounded-lg border-2 border-dashed border-slate-300 bg-white"
+        // Kanvas tanda tangan = KERTAS bukti (PNG berlatar putih, tinta
+        // gelap) â€” sengaja TETAP PUTIH di kedua tema (v1.8.0), seperti
+        // kertas struk; garis batasnya saja yang mengikuti tema.
+        className="h-40 w-full cursor-crosshair rounded-lg border-2 border-dashed border-slate-300 bg-white dark:border-slate-700"
       />
       <div className="mt-1 flex items-center justify-between">
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-slate-500 dark:text-slate-400">
           {empty
             ? "Tanda tangan pembeli di kotak atas"
             : "Sudah ada tanda tangan"}
@@ -96,7 +99,7 @@ export default function SignaturePad({
         <button
           type="button"
           onClick={clear}
-          className="text-xs text-red-600 underline"
+          className="text-xs text-red-600 dark:text-red-400 underline"
         >
           Hapus
         </button>

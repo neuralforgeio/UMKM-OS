@@ -15,6 +15,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatRupiah } from "@/lib/format";
 import { enterMaintenance } from "@/app/dev/maintenance-actions";
+import { AuroraBackground } from "@/components/aurora-background";
+import { ThemeHeaderActions } from "@/components/theme-header-actions";
 
 export const instant = false;
 
@@ -26,13 +28,14 @@ function formatWib(date: Date): string {
   }).format(date);
 }
 
-// Drill-down outlet (Task 34 Fase B) — data bisnis READ-ONLY by design:
+// Drill-down outlet (Task 34 Fase B) â€” data bisnis READ-ONLY by design:
 // developer MEMBACA untuk memantau, mengubah hanya lewat jalurnya
 // masing-masing (produk/stok oleh owner outlet, akun oleh /dev/users).
 // Task 35 menambah pintu MAINTENANCE: developer bisa membuka konsol
-// owner & POS kasir outlet ini "menjadi stafnya" — memakai cookie
+// owner & POS kasir outlet ini "menjadi stafnya" â€” memakai cookie
 // dev_outlet yang disuntikkan ke sesi (lihat lib/auth.ts), keluar
 // kapan saja lewat banner amber.
+// v1.6.0: design aurora + glass sadar tema â€” logika data tidak berubah.
 export default async function DevOutletDetailPage({
   params,
 }: {
@@ -78,7 +81,7 @@ export default async function DevOutletDetailPage({
         },
       }),
       prisma.user.findMany({
-        // Task 35: akun terhapus tidak pernah tampil di sini — dari
+        // Task 35: akun terhapus tidak pernah tampil di sini â€” dari
         // sudut pandang daftar, hapus = selamanya.
         where: { outletId: outlet.id, deletedAt: null },
         orderBy: [{ role: "asc" }, { name: "asc" }],
@@ -128,49 +131,101 @@ export default async function DevOutletDetailPage({
   const activeUsers = users.filter((u) => u.isActive).length;
 
   const statCards = [
-    { label: "Produk", value: String(products.length), icon: Boxes },
+    {
+      label: "Produk",
+      value: String(products.length),
+      icon: Boxes,
+      tint: "border-blue-500/20 bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    },
     {
       label: "Stok Menipis",
       value: String(lowStockCount),
       icon: TriangleAlert,
+      tint: "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400",
     },
-    { label: "Pengguna Aktif", value: String(activeUsers), icon: Users },
+    {
+      label: "Pengguna Aktif",
+      value: String(activeUsers),
+      icon: Users,
+      tint: "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    },
     {
       label: "Omzet Hari Ini",
       value: formatRupiah(omzetToday),
       icon: Store,
+      tint: "border-cyan-500/20 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
     },
   ];
 
   return (
-    <div className="min-h-dvh bg-slate-100">
-      <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:py-8">
+    <div className="relative min-h-dvh bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
+      <AuroraBackground />
+
+      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+        {/* ===== Topbar: brand + breadcrumb + tema ===== */}
+        <header className="sticky top-0 z-40 -mx-4 mb-5 border-b border-slate-200/80 bg-slate-100/70 px-4 backdrop-blur-xl sm:-mx-6 sm:px-6 dark:border-slate-800/80 dark:bg-slate-950/70">
+          <div className="flex h-16 items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-4">
+              <Link href="/dev" className="flex items-center space-x-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 p-[1px] shadow-md shadow-blue-500/20">
+                  <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-white dark:bg-slate-950">
+                    <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <span className="block max-w-[200px] truncate text-base leading-none font-extrabold tracking-tight text-slate-900 sm:max-w-none dark:text-white">
+                    {outlet.name}
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                    Drill-down outlet Â· baca-saja
+                  </span>
+                </div>
+              </Link>
+
+              <div className="hidden items-center space-x-2 border-l border-slate-200 pl-4 text-xs font-medium text-slate-500 md:flex dark:border-slate-800 dark:text-slate-400">
+                <Link
+                  href="/dev"
+                  className="text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+                >
+                  Konsol
+                </Link>
+                <span className="text-slate-400 dark:text-slate-600">/</span>
+                <span className="truncate font-semibold text-slate-700 dark:text-slate-300">
+                  {outlet.name}
+                </span>
+              </div>
+            </div>
+
+            <ThemeHeaderActions />
+          </div>
+        </header>
+
         <Link
           href="/dev"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-violet-700"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           Kembali ke konsol developer
         </Link>
 
-        <header className="mt-3 flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-sm">
+        <header className="mt-4 mb-4 flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20">
             <Building2 className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold leading-tight text-slate-900">
+            <h1 className="truncate text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
               {outlet.name}
             </h1>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
               {outlet.address ?? "alamat belum diisi"}
-              {outlet.phone ? ` · ${outlet.phone}` : ""}
+              {outlet.phone ? ` Â· ${outlet.phone}` : ""}
               {!outlet.isActive && (
-                <span className="ml-2 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                <span className="ml-2 rounded-full border border-slate-400/20 bg-slate-400/10 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
                   nonaktif
                 </span>
               )}
             </p>
-            <p className="mt-0.5 text-[11px] text-slate-400">
+            <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">
               Data bisnis tampil baca-saja; mode maintenance di bawah untuk
               membuka konsol owner / kasir outlet ini.
             </p>
@@ -178,24 +233,25 @@ export default async function DevOutletDetailPage({
         </header>
 
         {/* Mode maintenance (Task 35): developer "menjadi" staf outlet ini
-            — membuka /owner atau /cashier yang isinya mengikuti outlet.
+            â€” membuka /owner atau /cashier yang isinya mengikuti outlet.
             Masuk & keluar tercatat (DEV_MAINTENANCE_ENTER/EXIT). */}
-        <section className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-amber-900">
-            <Wrench className="h-5 w-5 text-amber-600" />
+        <section className="mt-2 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-5 dark:border-amber-500/20 dark:bg-amber-950/20">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-amber-900 dark:text-amber-300">
+            <Wrench className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             Akses Maintenance
           </h2>
-          <p className="mt-0.5 text-sm text-amber-800/90">
+          <p className="mt-0.5 text-sm text-amber-800/90 dark:text-amber-200/80">
             Buka area owner atau kasir outlet {outlet.name} seolah Anda
-            stafnya — untuk men-debug, melatih, atau memperbaiki. Banner
+            stafnya â€” untuk men-debug, melatih, atau memperbaiki. Banner
             amber di halaman tersebut jadi pengingat bahwa Anda sedang
-            bertindak sebagai developer; tekan "Keluar Mode" untuk kembali.
+            bertindak sebagai developer; tekan &quot;Keluar Mode&quot; untuk
+            kembali.
           </p>
           <div className="mt-3 flex flex-wrap gap-2.5">
             <form action={enterMaintenance.bind(null, outlet.id, "owner")}>
               <button
                 type="submit"
-                className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98]"
               >
                 <LayoutDashboard className="h-4 w-4" />
                 Buka Konsol Owner
@@ -204,7 +260,7 @@ export default async function DevOutletDetailPage({
             <form action={enterMaintenance.bind(null, outlet.id, "cashier")}>
               <button
                 type="submit"
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98]"
               >
                 <Calculator className="h-4 w-4" />
                 Buka Kasir (POS)
@@ -215,19 +271,20 @@ export default async function DevOutletDetailPage({
 
         <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {statCards.map((card) => (
-            <div
-              key={card.label}
-              className="rounded-2xl bg-white p-4 shadow-sm"
-            >
-              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                <card.icon className="h-3.5 w-3.5" />
-                {card.label}
+            <div key={card.label} className="glass-card rounded-2xl p-4">
+              <p className="flex items-center justify-between text-[11px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400">
+                <span className="font-medium">{card.label}</span>
+                <span
+                  className={`flex h-8 w-8 items-center justify-center rounded-xl border ${card.tint}`}
+                >
+                  <card.icon className="h-4 w-4" />
+                </span>
               </p>
               <p
-                className={`mt-1.5 truncate text-lg font-bold tabular-nums sm:text-xl ${
+                className={`mt-1.5 truncate text-lg font-black tabular-nums sm:text-xl ${
                   card.label === "Stok Menipis" && lowStockCount > 0
-                    ? "text-amber-600"
-                    : "text-slate-900"
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-slate-900 dark:text-white"
                 }`}
               >
                 {card.value}
@@ -236,21 +293,21 @@ export default async function DevOutletDetailPage({
           ))}
         </section>
 
-        <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">
+        <section className="glass-card mt-4 rounded-2xl border-slate-200/80 p-5 dark:border-slate-800/80">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
             Produk &amp; Stok (200 teratas)
           </h2>
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[680px] text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-left text-[11px] uppercase tracking-wider text-slate-500">
-                  <th className="pb-2 pr-4 font-semibold">Produk</th>
-                  <th className="pb-2 pr-4 font-semibold">Kategori</th>
-                  <th className="pb-2 pr-4 text-right font-semibold">
+                <tr className="border-b border-slate-200/80 bg-slate-100/70 text-left text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-400">
+                  <th className="px-4 py-3 font-semibold">Produk</th>
+                  <th className="px-4 py-3 font-semibold">Kategori</th>
+                  <th className="px-4 py-3 text-right font-semibold">
                     Harga
                   </th>
-                  <th className="pb-2 pr-4 text-right font-semibold">Stok</th>
-                  <th className="pb-2 font-semibold">Status</th>
+                  <th className="px-4 py-3 text-right font-semibold">Stok</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -259,36 +316,36 @@ export default async function DevOutletDetailPage({
                   return (
                     <tr
                       key={p.id}
-                      className="border-b border-slate-100 last:border-0"
+                      className="border-b border-slate-200/60 transition-colors last:border-0 hover:bg-slate-100/60 dark:border-slate-800/50 dark:hover:bg-slate-800/30"
                     >
-                      <td className="py-2.5 pr-4 font-semibold text-slate-900">
+                      <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
                         {p.name}
                         {!p.isActive && (
-                          <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                          <span className="ml-2 rounded-full border border-slate-400/20 bg-slate-400/10 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
                             arsip
                           </span>
                         )}
-                        <p className="font-mono text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                        <p className="font-mono text-[11px] font-medium tracking-wide text-slate-400 uppercase dark:text-slate-500">
                           {p.sku}
                         </p>
                       </td>
-                      <td className="py-2.5 pr-4 text-slate-500">
-                        {p.category?.name ?? "—"}
+                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                        {p.category?.name ?? "â€”"}
                       </td>
-                      <td className="py-2.5 pr-4 text-right font-semibold tabular-nums text-slate-700">
+                      <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-600 dark:text-slate-300">
                         {formatRupiah(Math.round(Number(p.price)))}
                       </td>
-                      <td className="py-2.5 pr-4 text-right tabular-nums text-slate-700">
+                      <td className="px-4 py-3 text-right tabular-nums text-slate-600 dark:text-slate-300">
                         {p.stock} {p.unit}
                       </td>
-                      <td className="py-2.5">
+                      <td className="px-4 py-3">
                         {low ? (
-                          <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+                          <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
                             menipis
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-400">
-                            {p.isActive ? "aman" : "—"}
+                          <span className="text-xs text-slate-400 dark:text-slate-500">
+                            {p.isActive ? "aman" : "â€”"}
                           </span>
                         )}
                       </td>
@@ -299,7 +356,7 @@ export default async function DevOutletDetailPage({
                   <tr>
                     <td
                       colSpan={5}
-                      className="py-6 text-center text-sm text-slate-400"
+                      className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
                     >
                       Outlet ini belum punya produk.
                     </td>
@@ -311,15 +368,15 @@ export default async function DevOutletDetailPage({
         </section>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">
+          <section className="glass-card rounded-2xl border-slate-200/80 p-5 dark:border-slate-800/80">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
               Pengguna Outlet
             </h2>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
               Kelola akun (reset password, nonaktif, hapus) lewat{" "}
               <Link
                 href="/dev/users"
-                className="font-semibold text-violet-700 hover:underline"
+                className="font-semibold text-violet-700 hover:underline dark:text-violet-400"
               >
                 Kelola Akun
               </Link>
@@ -328,34 +385,38 @@ export default async function DevOutletDetailPage({
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[420px] text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left text-[11px] uppercase tracking-wider text-slate-500">
-                    <th className="pb-2 pr-4 font-semibold">Nama</th>
-                    <th className="pb-2 pr-4 font-semibold">Peran</th>
-                    <th className="pb-2 font-semibold">Status</th>
+                  <tr className="border-b border-slate-200/80 bg-slate-100/70 text-left text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-400">
+                    <th className="px-4 py-3 font-semibold">Nama</th>
+                    <th className="px-4 py-3 font-semibold">Peran</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
                     <tr
                       key={u.id}
-                      className="border-b border-slate-100 last:border-0"
+                      className="border-b border-slate-200/60 transition-colors last:border-0 hover:bg-slate-100/60 dark:border-slate-800/50 dark:hover:bg-slate-800/30"
                     >
-                      <td className="py-2.5 pr-4">
-                        <p className="font-semibold text-slate-900">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-900 dark:text-white">
                           {u.name}
                         </p>
-                        <p className="truncate text-xs text-slate-400">
+                        <p className="truncate text-xs text-slate-400 dark:text-slate-500">
                           {u.email}
                         </p>
                       </td>
-                      <td className="py-2.5 pr-4 text-slate-600">{u.role}</td>
-                      <td className="py-2.5">
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                        {u.role}
+                      </td>
+                      <td className="px-4 py-3">
                         {u.isActive ? (
-                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-600">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                             aktif
                           </span>
                         ) : (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-500/20 bg-slate-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                             nonaktif
                           </span>
                         )}
@@ -366,7 +427,7 @@ export default async function DevOutletDetailPage({
                     <tr>
                       <td
                         colSpan={3}
-                        className="py-6 text-center text-sm text-slate-400"
+                        className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
                       >
                         Belum ada pengguna terikat outlet ini.
                       </td>
@@ -377,45 +438,47 @@ export default async function DevOutletDetailPage({
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-slate-900">
+          <section className="glass-card rounded-2xl border-slate-200/80 p-5 dark:border-slate-800/80">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
               Transaksi Terbaru
             </h2>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Hari ini: {todayAgg._count} transaksi ·{" "}
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              Hari ini: {todayAgg._count} transaksi Â·{" "}
               {formatRupiah(omzetToday)}
             </p>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[460px] text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-left text-[11px] uppercase tracking-wider text-slate-500">
-                    <th className="pb-2 pr-4 font-semibold">Struk</th>
-                    <th className="pb-2 pr-4 font-semibold">Waktu (WIB)</th>
-                    <th className="pb-2 pr-4 font-semibold">Kasir</th>
-                    <th className="pb-2 text-right font-semibold">Total</th>
+                  <tr className="border-b border-slate-200/80 bg-slate-100/70 text-left text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-400">
+                    <th className="px-4 py-3 font-semibold">Struk</th>
+                    <th className="px-4 py-3 font-semibold">Waktu (WIB)</th>
+                    <th className="px-4 py-3 font-semibold">Kasir</th>
+                    <th className="px-4 py-3 text-right font-semibold">
+                      Total
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {transactions.map((t) => (
                     <tr
                       key={t.id}
-                      className="border-b border-slate-100 last:border-0"
+                      className="border-b border-slate-200/60 transition-colors last:border-0 hover:bg-slate-100/60 dark:border-slate-800/50 dark:hover:bg-slate-800/30"
                     >
-                      <td className="py-2.5 pr-4 font-mono text-xs font-semibold text-slate-700">
+                      <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-600 dark:text-slate-300">
                         {t.code}
                         {t.status === "REFUNDED" && (
-                          <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 font-sans text-[10px] font-bold text-red-600">
+                          <span className="ml-2 rounded-full border border-rose-500/25 bg-rose-500/10 px-2 py-0.5 font-sans text-[10px] font-bold text-rose-600 dark:text-rose-400">
                             refund
                           </span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap py-2.5 pr-4 text-xs text-slate-500">
+                      <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500 dark:text-slate-400">
                         {formatWib(t.createdAt)}
                       </td>
-                      <td className="py-2.5 pr-4 text-xs text-slate-500">
-                        {t.cashier?.name ?? "—"}
+                      <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">
+                        {t.cashier?.name ?? "â€”"}
                       </td>
-                      <td className="py-2.5 text-right font-semibold tabular-nums text-slate-700">
+                      <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-600 dark:text-slate-300">
                         {formatRupiah(Math.round(Number(t.total)))}
                       </td>
                     </tr>
@@ -424,7 +487,7 @@ export default async function DevOutletDetailPage({
                     <tr>
                       <td
                         colSpan={4}
-                        className="py-6 text-center text-sm text-slate-400"
+                        className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
                       >
                         Belum ada transaksi di outlet ini.
                       </td>

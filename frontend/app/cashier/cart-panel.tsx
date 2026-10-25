@@ -91,17 +91,17 @@ export function CartPanel({
     // 13px rows, inline "uang pas") so the item list keeps as much of
     // the panel height as possible and several rows show without scroll.
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5">
-        <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-          <ShoppingCart className="h-3.5 w-3.5 text-slate-400" />
-          Keranjang <span className="text-slate-300">·</span> {itemCount} item
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/60 px-4 py-2.5">
+        <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <ShoppingCart className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
+          Keranjang <span className="text-slate-300">Â·</span> {itemCount} item
         </h2>
         <div className="flex items-center gap-1">
           {itemCount > 0 && (
             <button
               type="button"
               onClick={onClear}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-500 transition hover:bg-red-50"
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-500 transition hover:bg-red-50 dark:hover:bg-red-950/40"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Kosongkan
@@ -112,7 +112,7 @@ export function CartPanel({
               type="button"
               onClick={onClose}
               aria-label="Tutup keranjang"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               <X className="h-4 w-4" />
             </button>
@@ -122,13 +122,13 @@ export function CartPanel({
 
       {lines.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
-            <ShoppingBasket className="h-7 w-7 text-slate-400" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-900">
+            <ShoppingBasket className="h-7 w-7 text-slate-400 dark:text-slate-500" />
           </div>
-          <p className="mt-3 text-sm font-medium text-slate-500">
+          <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
             Keranjang masih kosong
           </p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
             Klik produk di kiri untuk menambahkan.
           </p>
         </div>
@@ -137,7 +137,7 @@ export function CartPanel({
           {/* The ONLY scrollable part of the panel: the item list.
               Thin scrollbar + overscroll-contain keep the dense list
               tidy without leaking scroll to the page. */}
-          <ul className="min-h-0 flex-1 divide-y divide-slate-100 overscroll-contain overflow-y-auto px-4 [scrollbar-width:thin] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar]:w-1.5">
+          <ul className="min-h-0 flex-1 divide-y divide-slate-100 overscroll-contain overflow-y-auto px-4 [scrollbar-width:thin] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-200 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar]:w-1.5">
             {lines.map(({ product, qty }) => (
               <li key={product.id} className="flex items-center gap-2.5 py-1.5">
                 {product.thumbImageId ? (
@@ -155,10 +155,10 @@ export function CartPanel({
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 text-[13px] font-medium leading-tight text-slate-900">
+                  <p className="line-clamp-2 text-[13px] font-medium leading-tight text-slate-900 dark:text-slate-100">
                     {product.name}
                   </p>
-                  <p className="mt-0.5 text-[11px] leading-tight text-slate-400">
+                  <p className="mt-0.5 text-[11px] leading-tight text-slate-400 dark:text-slate-500">
                     {displayRp(priceSen(product))} / {product.unit}
                   </p>
                 </div>
@@ -167,11 +167,11 @@ export function CartPanel({
                     type="button"
                     aria-label="Kurangi jumlah"
                     onClick={() => onSetQty(product.id, qty - 1)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-700 transition hover:bg-slate-50 lg:h-7 lg:w-7"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60 lg:h-7 lg:w-7"
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </button>
-                  <span className="w-7 text-center text-[13px] font-semibold tabular-nums text-slate-900">
+                  <span className="w-7 text-center text-[13px] font-semibold tabular-nums text-slate-900 dark:text-slate-100">
                     {qty}
                   </span>
                   <button
@@ -179,12 +179,12 @@ export function CartPanel({
                     aria-label="Tambah jumlah"
                     onClick={() => onSetQty(product.id, qty + 1)}
                     disabled={qty >= product.stock}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 lg:h-7 lg:w-7"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60 disabled:cursor-not-allowed disabled:opacity-40 lg:h-7 lg:w-7"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <span className="w-24 shrink-0 text-right text-[13px] font-semibold tabular-nums text-slate-900">
+                <span className="w-24 shrink-0 text-right text-[13px] font-semibold tabular-nums text-slate-900 dark:text-slate-100">
                   {displayRp(priceSen(product) * qty)}
                 </span>
               </li>
@@ -192,10 +192,10 @@ export function CartPanel({
           </ul>
 
           {/* Everything from here down is pinned - never scrolls. */}
-          <div className="shrink-0 space-y-2 border-t border-slate-100 px-4 py-2.5">
+          <div className="shrink-0 space-y-2 border-t border-slate-100 dark:border-slate-800/60 px-4 py-2.5">
             <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500">Subtotal</span>
-              <span className="font-medium tabular-nums text-slate-900">
+              <span className="text-slate-500 dark:text-slate-400">Subtotal</span>
+              <span className="font-medium tabular-nums text-slate-900 dark:text-slate-100">
                 {displayRp(subtotalSen)}
               </span>
             </div>
@@ -204,19 +204,19 @@ export function CartPanel({
                 Both values survive mode switches; the amount shown is
                 always recomputed from the subtotal. */}
             <div className="flex items-center justify-between gap-2 text-[13px]">
-              <span className="flex shrink-0 items-center gap-1.5 text-slate-500">
-                <Tag className="h-3.5 w-3.5 text-slate-400" />
+              <span className="flex shrink-0 items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                <Tag className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                 Diskon
               </span>
               <div className="flex items-center gap-2">
-                <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+                <div className="flex rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-0.5">
                   <button
                     type="button"
                     onClick={() => switchDiscountMode("RP")}
                     className={`rounded-md px-2 py-0.5 text-xs font-bold transition ${
                       discountState.mode === "RP"
                         ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-800"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 "
                     }`}
                   >
                     Rp
@@ -227,7 +227,7 @@ export function CartPanel({
                     className={`rounded-md px-2 py-0.5 text-xs font-bold transition ${
                       discountState.mode === "PERCENT"
                         ? "bg-slate-900 text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-800"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 "
                     }`}
                   >
                     %
@@ -255,27 +255,27 @@ export function CartPanel({
               </div>
             </div>
             {discountSen > 0 && !discountInvalid && (
-              <p className="text-right text-xs font-medium tabular-nums text-emerald-600">
+              <p className="text-right text-xs font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
                 Potongan -{displayRp(discountSen)}
               </p>
             )}
             {discountInvalid && (
-              <p className="text-right text-xs text-red-600">
+              <p className="text-right text-xs text-red-600 dark:text-red-400">
                 Diskon melebihi subtotal.
               </p>
             )}
-            <div className="flex items-center justify-between border-t border-dashed border-slate-200 pt-2">
-              <span className="text-[13px] font-semibold text-slate-700">
+            <div className="flex items-center justify-between border-t border-dashed border-slate-200 dark:border-slate-800 pt-2">
+              <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">
                 Total
               </span>
-              <span className="text-base font-bold tabular-nums text-slate-900">
+              <span className="text-base font-bold tabular-nums text-slate-900 dark:text-slate-100">
                 {displayRp(totalSen)}
               </span>
             </div>
           </div>
 
-          <div className="shrink-0 border-t border-slate-100 px-4 py-2.5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <div className="shrink-0 border-t border-slate-100 dark:border-slate-800/60 px-4 py-2.5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               Metode Pembayaran
             </p>
             <div className="mt-1.5 grid grid-cols-3 gap-1.5">
@@ -287,7 +287,7 @@ export function CartPanel({
                   className={`flex items-center justify-center gap-1 rounded-lg border py-2 text-[13px] font-semibold transition ${
                     method === paymentMethod
                       ? "border-blue-600 bg-blue-600 text-white shadow-sm"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                      : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900  text-slate-600 dark:text-slate-400  hover:border-slate-300 dark:hover:border-slate-700  hover:bg-slate-50 dark:hover:bg-slate-800/60 "
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
@@ -298,8 +298,8 @@ export function CartPanel({
           </div>
 
           {paymentMethod === "CASH" && (
-            <div className="shrink-0 space-y-1.5 border-t border-slate-100 px-4 py-2.5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <div className="shrink-0 space-y-1.5 border-t border-slate-100 dark:border-slate-800/60 px-4 py-2.5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 Uang Dibayar
               </p>
               <div className="flex items-center gap-2">
@@ -313,14 +313,14 @@ export function CartPanel({
                 <button
                   type="button"
                   onClick={() => onPaidSenChange(totalSen)}
-                  className="shrink-0 whitespace-nowrap rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                  className="shrink-0 whitespace-nowrap rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/40 px-3 py-2.5 text-xs font-semibold text-blue-700 dark:text-blue-300 transition hover:bg-blue-100"
                 >
                   Uang pas
                 </button>
               </div>
               <p
                 className={`text-right text-[13px] font-semibold tabular-nums ${
-                  changeSen < 0 ? "text-red-600" : "text-emerald-600"
+                  changeSen < 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
                 }`}
               >
                 {changeSen < 0
@@ -332,13 +332,13 @@ export function CartPanel({
 
           {error && (
             <div className="shrink-0 px-4 pb-2">
-              <div className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-700">
+              <div className="rounded-xl bg-red-50 dark:bg-red-950/40 px-3 py-2 text-[13px] text-red-700 dark:text-red-300">
                 {error}
               </div>
             </div>
           )}
 
-          <div className="shrink-0 border-t border-slate-100 px-4 py-3">
+          <div className="shrink-0 border-t border-slate-100 dark:border-slate-800/60 px-4 py-3">
             <button
               type="button"
               onClick={onPay}

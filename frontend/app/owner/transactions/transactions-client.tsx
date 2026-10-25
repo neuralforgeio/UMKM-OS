@@ -16,6 +16,8 @@ import {
 import { formatRupiah } from "@/lib/format";
 import { getTransactionDetail, refundTransaction } from "./actions";
 import type { ProfitSummary, TransactionDetail, TransactionRow } from "./types";
+import { AuroraBackground } from "@/components/aurora-background";
+import { ThemeHeaderActions } from "@/components/theme-header-actions";
 import { TablePagination } from "@/components/table-pagination";
 
 type Tab = "riwayat" | "laba";
@@ -24,22 +26,22 @@ type StatusFilter = "ALL" | "COMPLETED" | "REFUNDED";
 
 // Same color language as the owner dashboard method cards.
 const METHOD_META: Record<string, { label: string; badge: string }> = {
-  CASH: { label: "Tunai", badge: "bg-blue-50 text-blue-700" },
-  QRIS: { label: "QRIS", badge: "bg-emerald-50 text-emerald-700" },
-  DEBIT: { label: "Debit", badge: "bg-amber-50 text-amber-700" },
+  CASH: { label: "Tunai", badge: "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300" },
+  QRIS: { label: "QRIS", badge: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300" },
+  DEBIT: { label: "Debit", badge: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300" },
 };
 
 const HANDOVER_META: Record<string, { label: string; badge: string }> = {
-  SERVED: { label: "Disajikan", badge: "bg-teal-50 text-teal-700" },
+  SERVED: { label: "Disajikan", badge: "bg-teal-50 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300" },
   COURIER_CLAIMED: {
     label: "Diklaim kurir",
-    badge: "bg-amber-50 text-amber-700",
+    badge: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300",
   },
   CONFIRMED: {
     label: "Terkonfirmasi",
-    badge: "bg-emerald-50 text-emerald-700",
+    badge: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300",
   },
-  DISPUTED: { label: "Sengketa", badge: "bg-red-50 text-red-700" },
+  DISPUTED: { label: "Sengketa", badge: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300" },
 };
 
 const PERIOD_FILTERS: { key: 7 | 30; label: string }[] = [
@@ -72,15 +74,15 @@ const formatTime = (iso: string) =>
   });
 
 const formatPct = (value: number | null) =>
-  value === null ? "—" : `${value.toFixed(1)}%`;
+  value === null ? "â€”" : `${value.toFixed(1)}%`;
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-2xl glass-card p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
         {label}
       </p>
-      <p className="mt-1 truncate text-lg font-bold tabular-nums text-slate-900">
+      <p className="mt-1 truncate text-lg font-bold tabular-nums text-slate-900 dark:text-slate-100">
         {value}
       </p>
     </div>
@@ -101,20 +103,20 @@ function ProfitStat({
   icon: ReactNode;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl bg-white p-5 shadow-sm">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+    <div className="flex items-start gap-3 rounded-2xl glass-card p-5">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-semibold text-slate-500">{label}</p>
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
         <p
           className={`mt-0.5 truncate text-xl font-bold tabular-nums ${
-            valueClass ?? "text-slate-900"
+            valueClass ?? "text-slate-900 dark:text-slate-100"
           }`}
         >
           {value}
         </p>
-        <p className="mt-0.5 truncate text-[11px] text-slate-400">{sub}</p>
+        <p className="mt-0.5 truncate text-[11px] text-slate-400 dark:text-slate-500">{sub}</p>
       </div>
     </div>
   );
@@ -130,7 +132,7 @@ function ChipGroup<T extends string | number>({
   onChange: (next: T) => void;
 }) {
   return (
-    <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-0.5">
+    <div className="flex rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-0.5">
       {options.map((option) => (
         <button
           key={String(option.key)}
@@ -139,7 +141,7 @@ function ChipGroup<T extends string | number>({
           className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
             value === option.key
               ? "bg-blue-600 text-white shadow-sm"
-              : "text-slate-600 hover:bg-slate-100"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 "
           }`}
         >
           {option.label}
@@ -160,10 +162,10 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1.5">
-      <span className="text-xs text-slate-500">{label}</span>
+      <span className="text-xs text-slate-500 dark:text-slate-400">{label}</span>
       <span
         className={`text-sm font-semibold tabular-nums ${
-          valueClass ?? "text-slate-900"
+          valueClass ?? "text-slate-900 dark:text-slate-100"
         }`}
       >
         {value}
@@ -195,9 +197,9 @@ function DetailPanel({
 }) {
   if (detailLoading) {
     return (
-      <div className="flex items-center gap-2 px-4 py-6 text-sm text-slate-500">
+      <div className="flex items-center gap-2 px-4 py-6 text-sm text-slate-500 dark:text-slate-400">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Memuat detail…
+        Memuat detailâ€¦
       </div>
     );
   }
@@ -205,13 +207,13 @@ function DetailPanel({
   if (detailError || !detail) {
     return (
       <div className="flex flex-wrap items-center gap-3 px-4 py-6">
-        <p className="text-sm text-red-600">
+        <p className="text-sm text-red-600 dark:text-red-400">
           {detailError ?? "Detail tidak tersedia."}
         </p>
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          className="rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
         >
           Coba lagi
         </button>
@@ -225,11 +227,11 @@ function DetailPanel({
     : null;
 
   return (
-    <div className="space-y-4 border-t border-slate-100 bg-slate-50/60 px-4 py-4">
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <div className="space-y-4 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/60 px-4 py-4 dark:bg-slate-900/40">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-100 text-left text-[11px] uppercase tracking-wide text-slate-500">
+            <tr className="border-b border-slate-100 dark:border-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
               <th className="px-3 py-2 font-semibold">Produk</th>
               <th className="px-3 py-2 text-center font-semibold">Qty</th>
               <th className="px-3 py-2 text-right font-semibold">Harga</th>
@@ -239,17 +241,17 @@ function DetailPanel({
           <tbody className="divide-y divide-slate-100">
             {detail.items.map((item, index) => (
               <tr key={index}>
-                <td className="px-3 py-2 text-slate-900">
+                <td className="px-3 py-2 text-slate-900 dark:text-slate-100">
                   {item.productName}
-                  <span className="text-xs text-slate-400"> / {item.unit}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500"> / {item.unit}</span>
                 </td>
-                <td className="px-3 py-2 text-center tabular-nums text-slate-700">
+                <td className="px-3 py-2 text-center tabular-nums text-slate-700 dark:text-slate-300">
                   {item.quantity}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                <td className="px-3 py-2 text-right tabular-nums text-slate-700 dark:text-slate-300">
                   {formatRupiah(item.priceAtSaleRupiah)}
                 </td>
-                <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900">
+                <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900 dark:text-slate-100">
                   {formatRupiah(item.subtotalRupiah)}
                 </td>
               </tr>
@@ -259,7 +261,7 @@ function DetailPanel({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2">
           <DetailRow
             label="Subtotal"
             value={formatRupiah(detail.subtotalRupiah)}
@@ -267,11 +269,11 @@ function DetailPanel({
           {detail.discountRupiah > 0 && (
             <DetailRow
               label="Diskon"
-              value={`− ${formatRupiah(detail.discountRupiah)}`}
-              valueClass="text-red-600"
+              value={`âˆ’ ${formatRupiah(detail.discountRupiah)}`}
+              valueClass="text-red-600 dark:text-red-400"
             />
           )}
-          <div className="my-1 border-t border-slate-100" />
+          <div className="my-1 border-t border-slate-100 dark:border-slate-800/60" />
           <DetailRow
             label="Total"
             value={formatRupiah(detail.totalRupiah)}
@@ -283,7 +285,7 @@ function DetailPanel({
             value={formatRupiah(detail.changeRupiah)}
           />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2">
           <DetailRow label="Waktu" value={formatTime(detail.createdAtIso)} />
           <DetailRow label="Kasir" value={detail.cashierName} />
           <DetailRow
@@ -292,14 +294,14 @@ function DetailPanel({
           />
           <DetailRow
             label="Kode klaim"
-            value={detail.claimCode ?? "—"}
+            value={detail.claimCode ?? "â€”"}
             valueClass="font-mono"
           />
           <DetailRow
             label="Serah terima"
-            value={handover?.label ?? "—"}
+            value={handover?.label ?? "â€”"}
             valueClass={
-              handover ? `text-xs ${handover.badge}` : "text-slate-400"
+              handover ? `text-xs ${handover.badge}` : "text-slate-400 dark:text-slate-500"
             }
           />
         </div>
@@ -311,8 +313,8 @@ function DetailPanel({
             Refund transaksi ini
           </p>
           {detail.handoverStatus === "SERVED" ? (
-            <p className="mt-0.5 text-xs font-semibold text-amber-700">
-              Struk ini tercatat SUDAH DISAJIKAN — refund tetap bisa dilakukan,
+            <p className="mt-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+              Struk ini tercatat SUDAH DISAJIKAN â€” refund tetap bisa dilakukan,
               tetapi WAJIB menyertakan alasan (tercatat permanen untuk
               evaluasi).
             </p>
@@ -329,13 +331,13 @@ function DetailPanel({
             maxLength={120}
             placeholder={
               detail.handoverStatus === "SERVED"
-                ? "Alasan (WAJIB — struk tercatat sudah disajikan)"
+                ? "Alasan (WAJIB â€” struk tercatat sudah disajikan)"
                 : "Alasan (opsional, mis. barang rusak / salah input)"
             }
-            className="mt-2 w-full resize-none rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100"
+            className="mt-2 w-full resize-none rounded-lg border border-red-200 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100 dark:focus:ring-red-500/20"
           />
           {refundError && (
-            <p className="mt-2 text-xs font-semibold text-red-700">
+            <p className="mt-2 text-xs font-semibold text-red-700 dark:text-red-300">
               {refundError}
             </p>
           )}
@@ -353,12 +355,12 @@ function DetailPanel({
             ) : (
               <RotateCcw className="h-4 w-4" />
             )}
-            {refundPending ? "Memproses…" : "Refund & kembalikan stok"}
+            {refundPending ? "Memprosesâ€¦" : "Refund & kembalikan stok"}
           </button>
         </div>
       ) : (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
-          Transaksi ini sudah direfund — stok telah dikembalikan dan uang
+        <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/40 px-3 py-2.5 text-sm text-red-700 dark:text-red-300">
+          Transaksi ini sudah direfund â€” stok telah dikembalikan dan uang
           dianggap kembali ke pembeli.
         </div>
       )}
@@ -498,26 +500,29 @@ export function TransactionsClient({
   );
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-100">
-      <header className="shrink-0 border-b border-slate-200 bg-white">
+    // Shell aurora (v1.8.0): riwayat & laba memakai kartu kaca, ikut tema.
+    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
+      <AuroraBackground />
+      <header className="relative z-10 shrink-0 border-b border-slate-200/80 bg-white/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-500/20">
               <ReceiptText className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-base font-bold leading-tight text-slate-900">
-                Riwayat Transaksi — {outletName}
+              <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
+                Riwayat Transaksi â€” {outletName}
               </h1>
-              <p className="truncate text-xs text-slate-500">
-                {userName} · Pemilik
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                {userName} Â· Pemilik
               </p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <ThemeHeaderActions />
             <Link
               href="/owner"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               Beranda
             </Link>
@@ -525,15 +530,15 @@ export function TransactionsClient({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6">
-        <div className="flex w-fit gap-1 rounded-2xl bg-white p-1 shadow-sm">
+      <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6">
+        <div className="flex w-fit gap-1 rounded-2xl glass-card p-1">
           <button
             type="button"
             onClick={() => setTab("riwayat")}
             className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
               tab === "riwayat"
                 ? "bg-blue-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50"
+                : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 "
             }`}
           >
             Riwayat
@@ -544,7 +549,7 @@ export function TransactionsClient({
             className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
               tab === "laba"
                 ? "bg-blue-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50"
+                : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 "
             }`}
           >
             Laba
@@ -553,15 +558,15 @@ export function TransactionsClient({
 
         {tab === "riwayat" ? (
           <>
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <div className="rounded-2xl glass-card p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative min-w-[200px] flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Cari kode struk… (mis. TRX-20261022)"
-                    className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="Cari kode strukâ€¦ (mis. TRX-20261022)"
+                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20"
                   />
                 </div>
                 <ChipGroup
@@ -594,18 +599,18 @@ export function TransactionsClient({
               <MiniStat label="Refund" value={`${refundCount} transaksi`} />
             </div>
 
-            <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-              <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
-                <h2 className="text-sm font-bold text-slate-900">
+            <div className="overflow-hidden rounded-2xl glass-card">
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/60 px-4 py-3">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                   Daftar Transaksi
                 </h2>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-slate-400 dark:text-slate-500">
                   {rows.length} transaksi terakhir dimuat
                 </p>
               </div>
               {filtered.length === 0 ? (
                 <div className="px-4 py-10 text-center">
-                  <p className="text-sm text-slate-400">
+                  <p className="text-sm text-slate-400 dark:text-slate-500">
                     Tidak ada transaksi yang cocok dengan filter.
                   </p>
                 </div>
@@ -620,20 +625,20 @@ export function TransactionsClient({
                         <button
                           type="button"
                           onClick={() => toggleDetail(row.id)}
-                          className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3 text-left transition hover:bg-slate-50"
+                          className="flex w-full flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
                         >
                           <div className="min-w-0 flex-1 basis-48">
-                            <p className="truncate text-sm font-semibold text-slate-900">
+                            <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
                               {row.code}
                             </p>
-                            <p className="mt-0.5 truncate text-xs text-slate-500">
-                              {formatTime(row.createdAtIso)} · {row.itemCount}{" "}
-                              item · {row.cashierName}
+                            <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">
+                              {formatTime(row.createdAtIso)} Â· {row.itemCount}{" "}
+                              item Â· {row.cashierName}
                             </p>
                           </div>
                           <span
                             className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                              methodMeta?.badge ?? "bg-slate-100 text-slate-600"
+                              methodMeta?.badge ?? "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 "
                             }`}
                           >
                             {methodMeta?.label ?? row.paymentMethod}
@@ -641,8 +646,8 @@ export function TransactionsClient({
                           <span
                             className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
                               isRefunded
-                                ? "bg-red-50 text-red-700"
-                                : "bg-emerald-50 text-emerald-700"
+                                ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 "
+                                : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 "
                             }`}
                           >
                             {isRefunded ? "Refund" : "Selesai"}
@@ -650,16 +655,16 @@ export function TransactionsClient({
                           <p
                             className={`shrink-0 text-sm font-bold tabular-nums ${
                               isRefunded
-                                ? "text-slate-400 line-through"
-                                : "text-slate-900"
+                                ? "text-slate-400 dark:text-slate-500 line-through"
+                                : "text-slate-900 dark:text-slate-100"
                             }`}
                           >
                             {formatRupiah(row.totalRupiah)}
                           </p>
                           {expanded ? (
-                            <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
+                            <ChevronUp className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
                           ) : (
-                            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+                            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" />
                           )}
                         </button>
                         {expanded && (
@@ -694,14 +699,14 @@ export function TransactionsClient({
           </>
         ) : (
           <>
-            <div className="flex w-fit rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm">
+            <div className="flex w-fit rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-0.5 shadow-sm">
               <button
                 type="button"
                 onClick={() => setProfitDays(7)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                   profitDays === 7
                     ? "bg-blue-600 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-50"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 "
                 }`}
               >
                 7 hari
@@ -712,7 +717,7 @@ export function TransactionsClient({
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                   profitDays === 30
                     ? "bg-blue-600 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-50"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 "
                 }`}
               >
                 30 hari
@@ -738,8 +743,8 @@ export function TransactionsClient({
                 sub="omzet dikurangi HPP"
                 valueClass={
                   activeSummary.profitRupiah >= 0
-                    ? "text-emerald-600"
-                    : "text-red-600"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-600 dark:text-red-400"
                 }
                 icon={<Calculator className="h-4 w-4" />}
               />
@@ -749,33 +754,33 @@ export function TransactionsClient({
                 sub="laba dibagi omzet"
                 valueClass={
                   (activeSummary.marginPct ?? 0) >= 0
-                    ? "text-emerald-600"
-                    : "text-red-600"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-600 dark:text-red-400"
                 }
                 icon={<TrendingUp className="h-4 w-4" />}
               />
             </div>
 
             {activeSummary.rows.length === 0 ? (
-              <div className="rounded-2xl bg-white p-5 shadow-sm">
-                <div className="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400">
+              <div className="rounded-2xl glass-card p-5">
+                <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-800 px-4 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
                   Belum ada penjualan selesai pada periode ini.
                 </div>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-                <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
-                  <h2 className="text-sm font-bold text-slate-900">
+              <div className="overflow-hidden rounded-2xl glass-card">
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/60 px-4 py-3">
+                  <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                     Laba per Produk
                   </h2>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">
                     {activeSummary.rows.length} produk terjual
                   </p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-slate-100 text-left text-[11px] uppercase tracking-wide text-slate-500">
+                      <tr className="border-b border-slate-100 dark:border-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         <th className="px-4 py-2 font-semibold">Produk</th>
                         <th className="px-4 py-2 text-right font-semibold">
                           Terjual
@@ -797,32 +802,32 @@ export function TransactionsClient({
                     <tbody className="divide-y divide-slate-100">
                       {profitPageRows.map((row) => (
                         <tr key={row.productId}>
-                          <td className="px-4 py-2.5 text-slate-900">
+                          <td className="px-4 py-2.5 text-slate-900 dark:text-slate-100">
                             {row.name}
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs text-slate-400 dark:text-slate-500">
                               {" "}
                               / {row.unit}
                             </span>
                           </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">
+                          <td className="px-4 py-2.5 text-right tabular-nums text-slate-700 dark:text-slate-300">
                             {row.soldQuantity}
                           </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">
+                          <td className="px-4 py-2.5 text-right tabular-nums text-slate-700 dark:text-slate-300">
                             {formatRupiah(row.revenueRupiah)}
                           </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-slate-500">
+                          <td className="px-4 py-2.5 text-right tabular-nums text-slate-500 dark:text-slate-400">
                             {formatRupiah(row.costRupiah)}
                           </td>
                           <td
                             className={`px-4 py-2.5 text-right font-semibold tabular-nums ${
                               row.profitRupiah >= 0
-                                ? "text-emerald-600"
-                                : "text-red-600"
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-red-600 dark:text-red-400"
                             }`}
                           >
                             {formatRupiah(row.profitRupiah)}
                           </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-slate-500">
+                          <td className="px-4 py-2.5 text-right tabular-nums text-slate-500 dark:text-slate-400">
                             {formatPct(row.marginPct)}
                           </td>
                         </tr>
@@ -841,9 +846,9 @@ export function TransactionsClient({
               </div>
             )}
 
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">
               Catatan: HPP dihitung memakai harga beli terkini tiap produk
-              (harga beli tidak di-snapshot saat penjualan) — angka laba adalah
+              (harga beli tidak di-snapshot saat penjualan) â€” angka laba adalah
               perkiraan yang wajar untuk warung. Transaksi refund tidak
               dihitung.
             </p>

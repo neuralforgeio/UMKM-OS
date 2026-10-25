@@ -17,6 +17,8 @@ import {
   X,
 } from "lucide-react";
 import { formatRupiah } from "@/lib/format";
+import { AuroraBackground } from "@/components/aurora-background";
+import { ThemeHeaderActions } from "@/components/theme-header-actions";
 import { TablePagination } from "@/components/table-pagination";
 import {
   categoryAvatarClass,
@@ -46,27 +48,27 @@ const ROW_GRID =
 function StockBadge({ product }: { product: ProductRow }) {
   if (product.stock <= 0) {
     return (
-      <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-bold text-red-600">
+      <span className="inline-flex items-center rounded-full bg-red-50 dark:bg-red-950/40 px-2 py-0.5 text-[11px] font-bold text-red-600 dark:text-red-400">
         Habis
       </span>
     );
   }
   if (product.stock <= product.minStock) {
     return (
-      <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold tabular-nums text-amber-700">
-        {product.stock} {product.unit} · menipis
+      <span className="inline-flex items-center rounded-full bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 text-[11px] font-bold tabular-nums text-amber-700 dark:text-amber-300">
+        {product.stock} {product.unit} Â· menipis
       </span>
     );
   }
   return (
-    <span className="text-xs font-semibold tabular-nums text-slate-600">
+    <span className="text-xs font-semibold tabular-nums text-slate-600 dark:text-slate-400">
       {product.stock} {product.unit}
     </span>
   );
 }
 
 // Product identity tile: the chosen photo when one exists, otherwise
-// the colored category initials — the same fallback language as the POS.
+// the colored category initials â€” the same fallback language as the POS.
 function ProductAvatar({ product }: { product: ProductRow }) {
   if (product.thumbImageId) {
     return (
@@ -103,21 +105,21 @@ function ProductRowItem({
     // actions. Desktop: the shared seven-column table grid.
     <li
       className={`grid grid-cols-2 items-center gap-x-3 gap-y-2 px-4 py-3 lg:gap-3 lg:py-2.5 ${ROW_GRID} ${
-        product.isActive ? "" : "bg-slate-50/60"
+        product.isActive ? "" : "bg-slate-50/60 dark:bg-slate-900/40"
       }`}
     >
       <div className="col-span-2 flex min-w-0 items-center gap-2.5 lg:col-span-1">
         <ProductAvatar product={product} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-slate-900">
+          <p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
             {product.name}
             {!product.isActive && (
-              <span className="ml-1.5 rounded-full bg-slate-200 px-1.5 py-0.5 align-middle text-[10px] font-bold text-slate-500">
+              <span className="ml-1.5 rounded-full bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 align-middle text-[10px] font-bold text-slate-500 dark:text-slate-400">
                 Arsip
               </span>
             )}
           </p>
-          <p className="truncate font-mono text-[11px] font-medium uppercase tracking-wide text-slate-400">
+          <p className="truncate font-mono text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
             {product.sku}
           </p>
         </div>
@@ -131,19 +133,19 @@ function ProductRowItem({
             {product.categoryName}
           </span>
         ) : (
-          <span className="text-[11px] text-slate-300">—</span>
+          <span className="text-[11px] text-slate-300">â€”</span>
         )}
       </div>
 
-      <p className="text-right text-sm font-bold tabular-nums text-blue-600">
-        <span className="mr-1 text-[11px] font-semibold text-slate-400 lg:hidden">
+      <p className="text-right text-sm font-bold tabular-nums text-blue-600 dark:text-blue-400">
+        <span className="mr-1 text-[11px] font-semibold text-slate-400 dark:text-slate-500 lg:hidden">
           Jual{" "}
         </span>
         {formatRupiah(product.priceRupiah)}
       </p>
 
-      <p className="text-left text-[13px] tabular-nums text-slate-500 lg:text-right">
-        <span className="mr-1 text-[11px] font-semibold text-slate-400 lg:hidden">
+      <p className="text-left text-[13px] tabular-nums text-slate-500 dark:text-slate-400 lg:text-right">
+        <span className="mr-1 text-[11px] font-semibold text-slate-400 dark:text-slate-500 lg:hidden">
           Beli{" "}
         </span>
         {formatRupiah(product.costRupiah)}
@@ -153,14 +155,14 @@ function ProductRowItem({
         <StockBadge product={product} />
       </div>
 
-      <p className="text-xs font-semibold tabular-nums text-slate-500">
+      <p className="text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
         {product.soldLast30Days > 0 ? (
           <>
             {product.soldLast30Days}{" "}
-            <span className="font-normal text-slate-400">{product.unit}</span>
+            <span className="font-normal text-slate-400 dark:text-slate-500">{product.unit}</span>
           </>
         ) : (
-          <span className="font-normal text-slate-300">—</span>
+          <span className="font-normal text-slate-300">â€”</span>
         )}
       </p>
 
@@ -169,7 +171,7 @@ function ProductRowItem({
           type="button"
           onClick={onEdit}
           aria-label={`Ubah ${product.name}`}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-600 transition hover:bg-slate-50"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
@@ -184,8 +186,8 @@ function ProductRowItem({
           }
           className={`flex h-8 w-8 items-center justify-center rounded-lg border transition disabled:cursor-not-allowed disabled:opacity-40 ${
             product.isActive
-              ? "border-slate-300 text-red-500 hover:bg-red-50"
-              : "border-slate-300 text-emerald-600 hover:bg-emerald-50"
+              ? "border-slate-300 dark:border-slate-700 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 "
+              : "border-slate-300 dark:border-slate-700 text-emerald-600 dark:text-emerald-400  hover:bg-emerald-50 dark:hover:bg-emerald-950/40 "
           }`}
         >
           {toggling ? (
@@ -302,24 +304,27 @@ export function ProductsClient({
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-100">
-      <header className="shrink-0 border-b border-slate-200 bg-white">
+    // Shell aurora (v1.8.0): kartu produk & filter memakai kaca, ikut tema.
+    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
+      <AuroraBackground />
+      <header className="relative z-10 shrink-0 border-b border-slate-200/80 bg-white/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-500/20">
               <Boxes className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h1 className="truncate text-base font-bold leading-tight text-slate-900">
-                Manajemen Produk — {outletName}
+              <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
+                Manajemen Produk â€” {outletName}
               </h1>
-              <p className="truncate text-xs text-slate-500">
-                {summary.activeCount} produk aktif · {summary.archivedCount}{" "}
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                {summary.activeCount} produk aktif Â· {summary.archivedCount}{" "}
                 arsip
               </p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <ThemeHeaderActions />
             <button
               type="button"
               onClick={() => setEditingId(null)}
@@ -331,7 +336,7 @@ export function ProductsClient({
             </button>
             <Link
               href="/owner"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               <ArrowLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -341,8 +346,8 @@ export function ProductsClient({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-4 sm:py-6">
-        <section className="rounded-2xl bg-white p-3 shadow-sm sm:p-4">
+      <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 px-4 py-4 sm:py-6">
+        <section className="rounded-2xl glass-card p-3 sm:p-4">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-44 flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -351,20 +356,20 @@ export function ProductsClient({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Cari nama produk atau SKU..."
-                className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-9 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 pl-9 pr-9 text-sm text-slate-900 dark:text-slate-100 outline-none transition placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20"
               />
               {query && (
                 <button
                   type="button"
                   aria-label="Bersihkan pencarian"
                   onClick={() => setQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
-            <div className="flex shrink-0 rounded-xl border border-slate-200 bg-slate-50 p-0.5">
+            <div className="flex shrink-0 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-0.5">
               {STATUS_TABS.map((tab) => (
                 <button
                   key={tab.key}
@@ -373,7 +378,7 @@ export function ProductsClient({
                   className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
                     status === tab.key
                       ? "bg-slate-900 text-white shadow-sm"
-                      : "text-slate-500 hover:text-slate-800"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 "
                   }`}
                 >
                   {tab.label}
@@ -390,7 +395,7 @@ export function ProductsClient({
                 className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition ${
                   categoryId === null
                     ? "bg-slate-900 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400  hover:bg-slate-200 dark:hover:bg-slate-800 "
                 }`}
               >
                 Semua
@@ -407,7 +412,7 @@ export function ProductsClient({
                   className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition ${
                     categoryId === category.id
                       ? "bg-slate-900 text-white shadow-sm"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      : "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400  hover:bg-slate-200 dark:hover:bg-slate-800 "
                   }`}
                 >
                   {category.name}
@@ -416,7 +421,7 @@ export function ProductsClient({
             </div>
           )}
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-3 text-xs text-slate-500">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 dark:border-slate-800/60 pt-3 text-xs text-slate-500 dark:text-slate-400">
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               {summary.activeCount} aktif
@@ -429,7 +434,7 @@ export function ProductsClient({
               <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
               {summary.lowCount} perlu restok
             </span>
-            <span className="ml-auto font-semibold text-slate-700">
+            <span className="ml-auto font-semibold text-slate-700 dark:text-slate-300">
               Nilai stok (harga beli) {formatRupiah(summary.stockValue)}
             </span>
           </div>
@@ -438,29 +443,29 @@ export function ProductsClient({
         {listError && (
           <div
             role="alert"
-            className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700"
+            className="mt-4 rounded-2xl bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm text-red-700 dark:text-red-300"
           >
             {listError}
           </div>
         )}
 
-        <section className="mt-4 overflow-hidden rounded-2xl bg-white shadow-sm">
+        <section className="mt-4 overflow-hidden rounded-2xl glass-card">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-4 py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100">
-                <Package className="h-7 w-7 text-slate-400" />
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-900">
+                <Package className="h-7 w-7 text-slate-400 dark:text-slate-500" />
               </div>
-              <p className="mt-3 text-sm font-medium text-slate-500">
+              <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
                 Tidak ada produk yang cocok
               </p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                 Coba ubah kata kunci, kategori, atau status.
               </p>
               {hasFilters && (
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="mt-3 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                  className="mt-3 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-400 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
                 >
                   Hapus filter
                 </button>
@@ -469,7 +474,7 @@ export function ProductsClient({
           ) : (
             <>
               <div
-                className={`hidden lg:grid ${ROW_GRID} gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400`}
+                className={`hidden lg:grid ${ROW_GRID} gap-3 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500`}
               >
                 <span>Produk</span>
                 <span>Kategori</span>

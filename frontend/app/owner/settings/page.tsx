@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { FileSpreadsheet, Settings } from "lucide-react";
+import { AuroraBackground } from "@/components/aurora-background";
+import { ThemeHeaderActions } from "@/components/theme-header-actions";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { OutletLogoForm, OutletProfileForm } from "./settings-forms";
@@ -14,7 +16,7 @@ export default async function SettingsPage() {
     redirect("/cashier");
   }
 
-  // Select only identity fields — the logo BYTES never leave the
+  // Select only identity fields â€” the logo BYTES never leave the
   // server; the client gets a cache-busted URL instead.
   const outletSelect = {
     name: true,
@@ -36,11 +38,13 @@ export default async function SettingsPage() {
     : null;
 
   const INPUT_CLASS =
-    "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+    "w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20";
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-100">
-      <header className="shrink-0 border-b border-slate-200 bg-white">
+    // Shell aurora (v1.8.0): header kaca + latar ambient, ikut tema pengguna.
+    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
+      <AuroraBackground />
+      <header className="relative z-10 shrink-0 border-b border-slate-200/80 bg-white/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             {logoUrl ? (
@@ -56,24 +60,25 @@ export default async function SettingsPage() {
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="truncate text-base font-bold leading-tight text-slate-900">
-                Pengaturan — {outlet.name}
+              <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
+                Pengaturan â€” {outlet.name}
               </h1>
-              <p className="truncate text-xs text-slate-500">
-                {session.user.name ?? "Pemilik"} · Pemilik
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                {session.user.name ?? "Pemilik"} Â· Pemilik
               </p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <ThemeHeaderActions />
             <Link
               href="/owner"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               Laporan
             </Link>
             <Link
               href="/"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               Beranda
             </Link>
@@ -81,10 +86,10 @@ export default async function SettingsPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-6">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">Profil Warung</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-500">
+      <main className="relative z-10 mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-6">
+        <section className="rounded-2xl glass-card p-6">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Profil Warung</h2>
+          <p className="mt-1 mb-5 text-sm text-slate-500 dark:text-slate-400">
             Identitas yang tercetak di setiap struk dan tampil di aplikasi.
           </p>
           <OutletProfileForm
@@ -96,26 +101,26 @@ export default async function SettingsPage() {
           />
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">Logo UMKM</h2>
-          <p className="mt-1 mb-5 text-sm text-slate-500">
-            Logo warungmu — muncul di struk, header kasir, dan ikon browser.
+        <section className="rounded-2xl glass-card p-6">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Logo UMKM</h2>
+          <p className="mt-1 mb-5 text-sm text-slate-500 dark:text-slate-400">
+            Logo warungmu â€” muncul di struk, header kasir, dan ikon browser.
           </p>
           <OutletLogoForm logoUrl={logoUrl} />
         </section>
 
-        {/* Unduh log outlet (Task 35): GET form biasa ke route export —
+        {/* Unduh log outlet (Task 35): GET form biasa ke route export â€”
             owner otomatis di-scope ke outletnya sendiri di server, jadi
             tidak ada parameter outlet yang bisa (perlu) diutak-atik. */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
-            <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+        <section className="rounded-2xl glass-card p-6">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+            <FileSpreadsheet className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
             Log Aktivitas &amp; Analisa
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Unduh jejak audit outlet ini sebagai Excel: tabel log yang rapi
             (bisa difilter), grafik tren periodik, aktivitas per jam, top
-            aksi, dan pivot harian — siap untuk analisa.
+            aksi, dan pivot harian â€” siap untuk analisa.
           </p>
           <form
             method="get"
@@ -125,7 +130,7 @@ export default async function SettingsPage() {
             <div>
               <label
                 htmlFor="log-from"
-                className="block text-xs font-semibold uppercase tracking-wide text-slate-500"
+                className="block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400"
               >
                 Dari tanggal (WIB)
               </label>
@@ -139,7 +144,7 @@ export default async function SettingsPage() {
             <div>
               <label
                 htmlFor="log-to"
-                className="block text-xs font-semibold uppercase tracking-wide text-slate-500"
+                className="block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400"
               >
                 Sampai tanggal (WIB)
               </label>
@@ -158,21 +163,22 @@ export default async function SettingsPage() {
               Unduh Excel (.xlsx)
             </button>
           </form>
-          <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
-            Rentang kosong = semua waktu. Maksimal 10.000 baris per unduhan —
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
+            Rentang kosong = semua waktu. Maksimal 10.000 baris per unduhan â€”
             untuk penelusuran panjang, unduh per rentang bulan. Hanya event
             outlet {outlet.name} yang ikut.
           </p>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-900">
+        <section className="rounded-2xl glass-card p-6">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
             Pratinjau Kop Struk
           </h2>
-          <p className="mt-1 mb-5 text-sm text-slate-500">
+          <p className="mt-1 mb-5 text-sm text-slate-500 dark:text-slate-400">
             Beginilah bagian atas strukmu akan tercetak.
           </p>
-          <div className="mx-auto w-full max-w-[280px] bg-white px-4 py-4 font-mono text-[11px] text-slate-900 ring-1 ring-slate-200">
+          {/* Kertas struk fisik: TETAP PUTIH di kedua tema (v1.8.0). */}
+          <div className="mx-auto w-full max-w-[280px] bg-white px-4 py-4 font-mono text-[11px] text-slate-900 ring-1 ring-slate-200 dark:shadow-black/40">
             {logoUrl ? (
               <div className="flex items-start gap-2.5">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -213,8 +219,8 @@ export default async function SettingsPage() {
               </div>
             )}
             <div className="my-2 border-t border-dashed border-neutral-400" />
-            <p className="text-center text-[9px] text-slate-400">
-              … sisa struk menyusul di halaman kasir
+            <p className="text-center text-[9px] text-slate-400 dark:text-slate-500">
+              â€¦ sisa struk menyusul di halaman kasir
             </p>
           </div>
         </section>

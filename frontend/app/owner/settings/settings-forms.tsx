@@ -20,13 +20,13 @@ const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const MAX_LOGO_BYTES = 900 * 1024;
 
 const inputClass =
-  "mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100";
+  "mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20";
 
 function Notice({ state }: { state: SettingsActionState }) {
   if (!state.message) return null;
   if (state.ok) {
     return (
-      <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-600">
+      <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
         <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
         {state.message}
       </p>
@@ -55,7 +55,7 @@ export function OutletProfileForm({
       <div>
         <label
           htmlFor="outlet-name"
-          className="block text-sm font-medium text-slate-700"
+          className="block text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           Nama warung
         </label>
@@ -68,14 +68,14 @@ export function OutletProfileForm({
           defaultValue={outlet.name}
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
           Tampil di kop struk dan header aplikasi.
         </p>
       </div>
       <div>
         <label
           htmlFor="outlet-address"
-          className="block text-sm font-medium text-slate-700"
+          className="block text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           Alamat (opsional)
         </label>
@@ -86,14 +86,14 @@ export function OutletProfileForm({
           defaultValue={outlet.address ?? ""}
           className={inputClass}
         />
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
           Dicetak di bawah nama warung pada struk.
         </p>
       </div>
       <div>
         <label
           htmlFor="outlet-phone"
-          className="block text-sm font-medium text-slate-700"
+          className="block text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           Telepon (opsional)
         </label>
@@ -170,7 +170,7 @@ export function OutletLogoForm({ logoUrl }: { logoUrl: string | null }) {
   return (
     <div className="space-y-4">
       <form action={uploadAction} className="space-y-4">
-        <div className="flex h-36 items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50">
+        <div className="flex h-36 items-center justify-center rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950">
           {shown ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -181,10 +181,10 @@ export function OutletLogoForm({ logoUrl }: { logoUrl: string | null }) {
           ) : (
             <div className="text-center">
               <ImagePlus className="mx-auto h-8 w-8 text-slate-300" />
-              <p className="mt-2 text-sm font-medium text-slate-500">
+              <p className="mt-2 text-sm font-medium text-slate-500 dark:text-slate-400">
                 Belum ada logo
               </p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 dark:text-slate-500">
                 Struk mencetak nama warung di tengah.
               </p>
             </div>
@@ -202,7 +202,7 @@ export function OutletLogoForm({ logoUrl }: { logoUrl: string | null }) {
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            className="flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 shadow-sm transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
           >
             <ImagePlus className="h-4 w-4" />
             {shown ? "Ganti Gambar" : "Pilih Gambar"}
@@ -234,7 +234,7 @@ export function OutletLogoForm({ logoUrl }: { logoUrl: string | null }) {
           <button
             type="submit"
             disabled={removePending}
-            className="flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
+            className="flex items-center gap-2 rounded-xl border border-rose-200 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60"
           >
             {removePending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -249,10 +249,10 @@ export function OutletLogoForm({ logoUrl }: { logoUrl: string | null }) {
         </form>
       )}
 
-      <p className="text-xs leading-relaxed text-slate-400">
+      <p className="text-xs leading-relaxed text-slate-400 dark:text-slate-500">
         Tips: gambar persegi (minimal 256 x 256 piksel); PNG dengan latar
-        transparan paling rapi. Logo tampil di pojok kiri atas struk — tetap
-        berwarna saat dicetak — serta di header kasir dan ikon tab browser.
+        transparan paling rapi. Logo tampil di pojok kiri atas struk â€” tetap
+        berwarna saat dicetak â€” serta di header kasir dan ikon tab browser.
       </p>
     </div>
   );

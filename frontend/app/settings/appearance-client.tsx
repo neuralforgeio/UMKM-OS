@@ -1,8 +1,10 @@
 "use client";
 
 // Pemilih tema (v1.3.0): System (default) / Gelap / Terang.
-// Kartu berisi PRATINJAU tampilan yang sebenarnya — pengguna melihat
+// Kartu berisi PRATINJAU tampilan yang sebenarnya â€” pengguna melihat
 // bedanya sebelum mengeklik. Terapkan seketika lewat next-themes.
+// v1.6.0: tombol "Kembali" sadar peran (prop dari server component
+// induk) â€” kasir pulang ke POS, owner ke konsol, developer ke /dev.
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
@@ -28,13 +30,13 @@ const OPTIONS: {
   {
     value: "system",
     label: "Gunakan Pengaturan Sistem",
-    desc: "Otomatis mengikuti tema perangkat — berganti sendiri saat perangkat berganti.",
+    desc: "Otomatis mengikuti tema perangkat â€” berganti sendiri saat perangkat berganti.",
     icon: LuMonitor,
   },
   {
     value: "dark",
     label: "Mode Gelap",
-    desc: "Cocok untuk jadwal malam dan ruangan remang — hemat mata & baterai.",
+    desc: "Cocok untuk jadwal malam dan ruangan remang â€” hemat mata & baterai.",
     icon: LuMoon,
   },
   {
@@ -45,7 +47,7 @@ const OPTIONS: {
   },
 ];
 
-// Mockup jendela mini — masing-masing kartu memperlihatkan tema pilihannya.
+// Mockup jendela mini â€” masing-masing kartu memperlihatkan tema pilihannya.
 function ThemePreview({ mode }: { mode: ThemeOption }) {
   const dark = mode === "dark";
   const light = mode === "light";
@@ -100,7 +102,13 @@ function ThemePreview({ mode }: { mode: ThemeOption }) {
   );
 }
 
-export function AppearanceSettings() {
+export function AppearanceSettings({
+  backHref,
+  backLabel,
+}: {
+  backHref: string;
+  backLabel: string;
+}) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -116,11 +124,11 @@ export function AppearanceSettings() {
 
       <div className="relative z-10 mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
         <Link
-          href="/login"
+          href={backHref}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
         >
           <LuArrowLeft className="h-3.5 w-3.5" />
-          Kembali
+          {backLabel}
         </Link>
 
         <motion.div
@@ -131,7 +139,7 @@ export function AppearanceSettings() {
         >
           <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3.5 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-300">
             <LuSparkles className="h-3.5 w-3.5" />
-            Pengaturan — akan terus berkembang
+            Pengaturan â€” akan terus berkembang
           </div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
             Tampilan
@@ -141,7 +149,7 @@ export function AppearanceSettings() {
             <b className="text-slate-700 dark:text-slate-200">
               Pengaturan Sistem
             </b>{" "}
-            — aplikasi mengikuti tema perangkatmu secara otomatis.
+            â€” aplikasi mengikuti tema perangkatmu secara otomatis.
           </p>
         </motion.div>
 
@@ -196,9 +204,12 @@ export function AppearanceSettings() {
         </div>
 
         <p className="mt-8 rounded-2xl border border-slate-200/80 bg-white/60 p-4 text-[11px] leading-relaxed text-slate-500 backdrop-blur dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-400">
-          Pilihan tersimpan di perangkat ini (localStorage) dan diterapkan
-          seketika. Halaman login, pengaturan, dan konsol Kelola Akun sudah
-          mendukung penuh dua tema — halaman lain menyusul didandani
+          Pilihan tersimpan di mesin ini (localStorage) dengan kunci khusus
+          AKUNMU â€” tema mengikuti orang, bukan browser: dua orang yang
+          berbagi satu komputer tetap punya tema masing-masing, dan tema
+          terakhir tersimpan juga sebagai tema halaman masuk. Halaman login,
+          pengaturan, konsol Kelola Akun, dan seluruh area developer sudah
+          mendukung penuh dua tema â€” area owner & kasir menyusul didandani
           bertahap.
         </p>
       </div>

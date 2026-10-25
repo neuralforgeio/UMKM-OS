@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PackagePlus, Settings, ShieldCheck, ReceiptText } from "lucide-react";
 import ForecastSection from "@/components/forecast/forecast-section";
+import { AuroraBackground } from "@/components/aurora-background";
+import { ThemeHeaderActions } from "@/components/theme-header-actions";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { goFetch } from "@/lib/api";
@@ -10,17 +12,17 @@ import { formatRupiah } from "@/lib/format";
 export const instant = false;
 
 // =====================================================================
-// Dashboard owner — Tahap 4a (frontend v1.0.0, file dilengkapi di v1.0.1).
+// Dashboard owner â€” Tahap 4a (frontend v1.0.0, file dilengkapi di v1.0.1).
 //
 // SELURUH angka statistik kini datang dari backend-go lewat satu
 // panggilan GET /api/v1/reports/dashboard: ringkasan hari ini & kemarin,
 // grafik 7 hari (gap-free), porsi metode pembayaran, 5 produk terlaris,
 // stok menipis + saran restok, dan 6 transaksi terbaru. Frontend tidak
-// lagi menghitung agregat sendiri — PostgreSQL tetap satu-satunya sumber
+// lagi menghitung agregat sendiri â€” PostgreSQL tetap satu-satunya sumber
 // data lewat tangan Go, dan kasir/owner/peluncur melihat angka yang sama.
 //
 // Satu-satunya yang masih Prisma: identitas outlet (nama & logo) untuk
-// header — pindah ke backend-go menyusul pada fase multi-outlet.
+// header â€” pindah ke backend-go menyusul pada fase multi-outlet.
 // =====================================================================
 
 // Compact chart labels: 1250000 -> "1,3 jt", 45000 -> "45 rb".
@@ -38,21 +40,21 @@ const METHOD_META = [
     label: "Tunai",
     dot: "bg-blue-500",
     bar: "bg-blue-500",
-    badge: "bg-blue-50 text-blue-700",
+    badge: "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300",
   },
   {
     key: "QRIS",
     label: "QRIS",
     dot: "bg-emerald-500",
     bar: "bg-emerald-500",
-    badge: "bg-emerald-50 text-emerald-700",
+    badge: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300",
   },
   {
     key: "DEBIT",
     label: "Debit",
     dot: "bg-amber-500",
     bar: "bg-amber-500",
-    badge: "bg-amber-50 text-amber-700",
+    badge: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300",
   },
 ] as const;
 
@@ -289,21 +291,21 @@ function StatCard({
   iconBg: string;
 }) {
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm">
+    <div className="rounded-2xl glass-card p-5">
       <div className="flex items-center gap-3">
         <div
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg}`}
         >
           {icon}
         </div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
           {label}
         </p>
       </div>
-      <p className="mt-3 text-2xl font-bold tabular-nums text-slate-900">
+      <p className="mt-3 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
         {value}
       </p>
-      <div className="mt-1 text-xs text-slate-500">{sub}</div>
+      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{sub}</div>
     </div>
   );
 }
@@ -311,7 +313,7 @@ function StatCard({
 // Label hari singkat ("Sen", "Sel", ...) dari tanggal "YYYY-MM-DD" milik
 // backend. String diparse sebagai UTC lalu dibaca dengan timeZone UTC
 // supaya hari tidak pernah bergeser akibat zona waktu server (container
-// defaultnya UTC, mesin lokal bisa WIB — keduanya dapat hasil sama).
+// defaultnya UTC, mesin lokal bisa WIB â€” keduanya dapat hasil sama).
 const weekdayShortId = (iso: string) => {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1)).toLocaleDateString(
@@ -321,7 +323,7 @@ const weekdayShortId = (iso: string) => {
 };
 
 // Bentuk respons GET /reports/dashboard (backend-go v1.1.0+). Uang sudah
-// berupa Rupiah bulat (BIGINT) — tidak ada lagi konversi Prisma Decimal.
+// berupa Rupiah bulat (BIGINT) â€” tidak ada lagi konversi Prisma Decimal.
 type DashboardData = {
   today: { revenue: number; transactions: number; items_sold: number };
   yesterday: { revenue: number; transactions: number };
@@ -355,10 +357,10 @@ export default async function OwnerPage() {
   if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER")
     redirect("/cashier");
   if (!session.user.goToken) {
-    throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
+    throw new Error("Sesi tidak memiliki token backend â€” silakan login ulang.");
   }
 
-  // Identitas outlet (nama & logo) masih dari Prisma — menyusul pindah
+  // Identitas outlet (nama & logo) masih dari Prisma â€” menyusul pindah
   // ke backend-go pada fase multi-outlet, sama seperti halaman peluncur.
   const outlet = session.user.outletId
     ? await prisma.outlet.findUnique({ where: { id: session.user.outletId } })
@@ -372,7 +374,7 @@ export default async function OwnerPage() {
 
   // Satu panggilan untuk seluruh dashboard. Backend mati = halaman gagal
   // dengan pesan yang jelas (pola yang sama dengan halaman kelola produk)
-  // — tidak ada angka palsu yang ditampilkan.
+  // â€” tidak ada angka palsu yang ditampilkan.
   const dash = await goFetch<DashboardData>(
     session.user.goToken,
     "/reports/dashboard",
@@ -445,14 +447,17 @@ export default async function OwnerPage() {
         minute: "2-digit",
       }),
       methodLabel: meta?.label ?? r.payment_method,
-      methodBadge: meta?.badge ?? "bg-slate-100 text-slate-600",
+      methodBadge: meta?.badge ?? "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400",
       total: r.total,
     };
   });
 
   return (
-    <div className="flex min-h-dvh flex-col bg-slate-100">
-      <header className="shrink-0 border-b border-slate-200 bg-white">
+    // Shell aurora (v1.8.0): latar ambient + kartu kaca â€” ikut tema
+    // terang/gelap milik pengguna yang sedang membuka dashboard ini.
+    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
+      <AuroraBackground />
+      <header className="relative z-10 shrink-0 border-b border-slate-200/80 bg-white/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             {logoUrl ? (
@@ -468,32 +473,33 @@ export default async function OwnerPage() {
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="truncate text-base font-bold leading-tight text-slate-900">
+              <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
                 Laporan - {outlet.name}
               </h1>
-              <p className="truncate text-xs text-slate-500">
-                {session.user.name ?? "Pemilik"} · Pemilik
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                {session.user.name ?? "Pemilik"} Â· Pemilik
               </p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <ThemeHeaderActions />
             <Link
               href="/owner/verify"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               <ShieldCheck className="h-4 w-4" />
               <span className="hidden sm:inline">Verifikasi Struk</span>
             </Link>
             <Link
               href="/owner/settings"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Pengaturan</span>
             </Link>
             <Link
               href="/owner/transactions"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               <ReceiptText className="h-4 w-4" />
               <span className="hidden sm:inline">Riwayat Transaksi</span>
@@ -509,7 +515,7 @@ export default async function OwnerPage() {
             </Link>
             <Link
               href="/"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               Beranda
             </Link>
@@ -517,18 +523,18 @@ export default async function OwnerPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6">
+      <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            icon={<WalletIcon className="h-5 w-5 text-blue-600" />}
-            iconBg="bg-blue-50"
+            icon={<WalletIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
+            iconBg="bg-blue-50 dark:bg-blue-950/40"
             label="Omzet Hari Ini"
             value={formatRupiah(omzetToday)}
             sub={
               deltaPct !== null ? (
                 <span
                   className={`inline-flex items-center gap-1 font-semibold ${
-                    deltaPct >= 0 ? "text-emerald-600" : "text-red-600"
+                    deltaPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                   }`}
                 >
                   {deltaPct >= 0 ? (
@@ -540,27 +546,27 @@ export default async function OwnerPage() {
                   {deltaPct}% vs kemarin
                 </span>
               ) : (
-                <span>vs kemarin —</span>
+                <span>vs kemarin â€”</span>
               )
             }
           />
           <StatCard
-            icon={<ReceiptIcon className="h-5 w-5 text-violet-600" />}
+            icon={<ReceiptIcon className="h-5 w-5 text-violet-600 dark:text-violet-400" />}
             iconBg="bg-violet-50"
             label="Transaksi Hari Ini"
             value={String(trxToday)}
             sub={<span>{yesterday.transactions} struk kemarin</span>}
           />
           <StatCard
-            icon={<PackageIcon className="h-5 w-5 text-emerald-600" />}
-            iconBg="bg-emerald-50"
+            icon={<PackageIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
+            iconBg="bg-emerald-50 dark:bg-emerald-950/40"
             label="Item Terjual Hari Ini"
             value={String(itemsToday)}
             sub={<span>unit terjual</span>}
           />
           <StatCard
-            icon={<BasketIcon className="h-5 w-5 text-amber-600" />}
-            iconBg="bg-amber-50"
+            icon={<BasketIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
+            iconBg="bg-amber-50 dark:bg-amber-950/40"
             label="Rata-rata per Struk"
             value={formatRupiah(avgToday)}
             sub={<span>dari {trxToday} struk</span>}
@@ -568,20 +574,20 @@ export default async function OwnerPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <section className="rounded-2xl bg-white p-5 shadow-sm lg:col-span-2">
+          <section className="rounded-2xl glass-card p-5 lg:col-span-2">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                   Penjualan 7 Hari Terakhir
                 </h2>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Total {formatRupiah(weekTotal)} · {weekCount} transaksi
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  Total {formatRupiah(weekTotal)} Â· {weekCount} transaksi
                 </p>
               </div>
               <ChartIcon className="h-5 w-5 shrink-0 text-slate-300" />
             </div>
             {weekCount === 0 ? (
-              <div className="mt-8 rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400">
+              <div className="mt-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 px-4 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
                 Belum ada penjualan dalam 7 hari terakhir.
               </div>
             ) : (
@@ -589,7 +595,7 @@ export default async function OwnerPage() {
                 {days.map((d, i) => {
                   const barColor =
                     d.total === 0
-                      ? "bg-slate-200"
+                      ? "bg-slate-200 dark:bg-slate-800"
                       : i === days.length - 1
                         ? "bg-blue-600"
                         : "bg-blue-400";
@@ -598,7 +604,7 @@ export default async function OwnerPage() {
                       key={d.key}
                       className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5"
                     >
-                      <span className="text-[10px] font-semibold tabular-nums text-slate-500">
+                      <span className="text-[10px] font-semibold tabular-nums text-slate-500 dark:text-slate-400">
                         {compactRp(d.total)}
                       </span>
                       <div className="flex w-full flex-1 items-end">
@@ -616,8 +622,8 @@ export default async function OwnerPage() {
                       <span
                         className={`text-[11px] font-semibold ${
                           i === days.length - 1
-                            ? "text-blue-600"
-                            : "text-slate-500"
+                            ? "text-blue-600 dark:text-blue-400"
+                            : "text-slate-500 dark:text-slate-400"
                         }`}
                       >
                         {d.label}
@@ -629,13 +635,13 @@ export default async function OwnerPage() {
             )}
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-sm">
+          <section className="rounded-2xl glass-card p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                   Metode Pembayaran
                 </h2>
-                <p className="mt-0.5 text-xs text-slate-500">7 hari terakhir</p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">7 hari terakhir</p>
               </div>
               <WalletIcon className="h-5 w-5 shrink-0 text-slate-300" />
             </div>
@@ -647,22 +653,22 @@ export default async function OwnerPage() {
                 return (
                   <div key={m.key}>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2 font-medium text-slate-700">
+                      <span className="flex items-center gap-2 font-medium text-slate-700 dark:text-slate-300">
                         <span className={`h-2.5 w-2.5 rounded-full ${m.dot}`} />
                         {m.label}
                       </span>
-                      <span className="font-semibold tabular-nums text-slate-900">
+                      <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">
                         {formatRupiah(revenue)}
                       </span>
                     </div>
-                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-900">
                       <div
                         className={`h-full rounded-full ${m.bar}`}
                         style={{ width: `${share}%` }}
                       />
                     </div>
-                    <p className="mt-1 text-[11px] text-slate-400">
-                      {count} struk · {Math.round(share)}%
+                    <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                      {count} struk Â· {Math.round(share)}%
                     </p>
                   </div>
                 );
@@ -674,18 +680,18 @@ export default async function OwnerPage() {
         <ForecastSection />
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-2xl bg-white p-5 shadow-sm">
+          <section className="rounded-2xl glass-card p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                   Produk Terlaris
                 </h2>
-                <p className="mt-0.5 text-xs text-slate-500">7 hari terakhir</p>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">7 hari terakhir</p>
               </div>
               <TrophyIcon className="h-5 w-5 shrink-0 text-slate-300" />
             </div>
             {topList.length === 0 ? (
-              <div className="mt-8 rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400">
+              <div className="mt-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 px-4 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
                 Belum ada penjualan minggu ini.
               </div>
             ) : (
@@ -698,21 +704,21 @@ export default async function OwnerPage() {
                     <span
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         i === 0
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-slate-100 text-slate-500"
+                          ? "bg-amber-100 text-amber-700 dark:text-amber-300 "
+                          : "bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 "
                       }`}
                     >
                       {i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-900">
+                      <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
                         {item.name}
                       </p>
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-slate-400 dark:text-slate-500">
                         {item.qty} {item.unit} terjual
                       </p>
                     </div>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
                       {formatRupiah(item.revenue)}
                     </span>
                   </li>
@@ -721,18 +727,18 @@ export default async function OwnerPage() {
             )}
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-sm">
+          <section className="rounded-2xl glass-card p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">
+                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                   Stok Perlu Restok
                 </h2>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                   stok di bawah atau sama dengan batas minimum
                 </p>
               </div>
               {lowStock.length > 0 ? (
-                <span className="shrink-0 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                <span className="shrink-0 rounded-full bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">
                   {lowStock.length} produk
                 </span>
               ) : (
@@ -740,9 +746,9 @@ export default async function OwnerPage() {
               )}
             </div>
             {lowStock.length === 0 ? (
-              <div className="mt-4 flex items-center gap-3 rounded-xl bg-emerald-50 px-4 py-3.5">
-                <CheckIcon className="h-4 w-4 shrink-0 text-emerald-600" />
-                <p className="text-sm text-emerald-700">
+              <div className="mt-4 flex items-center gap-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3.5">
+                <CheckIcon className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <p className="text-sm text-emerald-700 dark:text-emerald-300">
                   Semua stok aman di atas batas minimum.
                 </p>
               </div>
@@ -751,22 +757,22 @@ export default async function OwnerPage() {
                 {lowStock.map((p) => (
                   <li key={p.id} className="flex items-center gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-900">
+                      <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
                         {p.name}
                       </p>
-                      <p className="text-xs text-slate-400">
-                        {p.sku ? `${p.sku} · ` : ""}min {p.minStock} {p.unit}
+                      <p className="text-xs text-slate-400 dark:text-slate-500">
+                        {p.sku ? `${p.sku} Â· ` : ""}min {p.minStock} {p.unit}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
                       <p
                         className={`text-xs font-bold ${
-                          p.stock === 0 ? "text-red-600" : "text-amber-600"
+                          p.stock === 0 ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"
                         }`}
                       >
                         {p.stock === 0 ? "Habis" : `sisa ${p.stock}`}
                       </p>
-                      <p className="text-[11px] font-medium text-blue-600">
+                      <p className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
                         restok +{p.restock}
                       </p>
                     </div>
@@ -777,20 +783,20 @@ export default async function OwnerPage() {
           </section>
         </div>
 
-        <section className="rounded-2xl bg-white p-5 shadow-sm">
+        <section className="rounded-2xl glass-card p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-bold text-slate-900">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                 Transaksi Terakhir
               </h2>
-              <p className="mt-0.5 text-xs text-slate-500">
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                 6 transaksi terbaru
               </p>
             </div>
             <ClockIcon className="h-5 w-5 shrink-0 text-slate-300" />
           </div>
           {recent.length === 0 ? (
-            <div className="mt-8 rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400">
+            <div className="mt-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 px-4 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
               Belum ada transaksi tercatat.
             </div>
           ) : (
@@ -798,11 +804,11 @@ export default async function OwnerPage() {
               {recent.map((r) => (
                 <li key={r.code} className="flex items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold tabular-nums text-slate-900">
+                    <p className="text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
                       {r.code}
                     </p>
-                    <p className="truncate text-xs text-slate-400">
-                      {r.cashier} · {r.time}
+                    <p className="truncate text-xs text-slate-400 dark:text-slate-500">
+                      {r.cashier} Â· {r.time}
                     </p>
                   </div>
                   <span
@@ -810,7 +816,7 @@ export default async function OwnerPage() {
                   >
                     {r.methodLabel}
                   </span>
-                  <span className="w-28 shrink-0 text-right text-sm font-semibold tabular-nums text-slate-900">
+                  <span className="w-28 shrink-0 text-right text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
                     {formatRupiah(r.total)}
                   </span>
                 </li>

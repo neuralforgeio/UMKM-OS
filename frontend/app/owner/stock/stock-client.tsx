@@ -49,15 +49,15 @@ type TypeFilter = "ALL" | "IN" | "SALE" | "ADJUST";
 const TYPE_META: Record<string, { label: string; badge: string }> = {
   IN: {
     label: "Masuk",
-    badge: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+    badge: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-500/30",
   },
   SALE: {
     label: "Penjualan",
-    badge: "bg-rose-50 text-rose-700 ring-1 ring-rose-200",
+    badge: "bg-rose-50 text-rose-700 ring-1 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:ring-rose-500/30",
   },
   ADJUST: {
     label: "Opname",
-    badge: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+    badge: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-500/30",
   },
 };
 
@@ -72,13 +72,13 @@ const FILTERS: { key: TypeFilter; label: string }[] = [
 const PAGE_SIZE = 20;
 
 const INPUT_CLASS =
-  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
+  "w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700";
 
 function typeMeta(type: string) {
   return (
     TYPE_META[type] ?? {
       label: type,
-      badge: "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
+      badge: "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 ring-1 ring-slate-200",
     }
   );
 }
@@ -89,13 +89,13 @@ function typeMeta(type: string) {
 function signedQuantity(row: StockMovementRow) {
   if (row.type === "IN") return `+${row.quantity}`;
   if (row.type === "SALE") return `-${row.quantity}`;
-  return `±${row.quantity}`;
+  return `Â±${row.quantity}`;
 }
 
 function quantityColor(row: StockMovementRow) {
-  if (row.type === "IN") return "text-emerald-600";
+  if (row.type === "IN") return "text-emerald-600 dark:text-emerald-400";
   if (row.type === "SALE") return "text-rose-600";
-  return "text-amber-600";
+  return "text-amber-600 dark:text-amber-400";
 }
 
 export function StockClient({
@@ -176,7 +176,7 @@ export function StockClient({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Cari produk, SKU, struk, atau catatan..."
-            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+            className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2.5 pl-10 pr-3 text-sm text-slate-900 dark:text-slate-100 outline-none transition placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700"
           />
         </div>
         <button
@@ -191,11 +191,11 @@ export function StockClient({
       </div>
 
       {lowStock.length > 0 && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/40 p-4 sm:p-5">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
-            <h2 className="text-sm font-semibold text-amber-900">
-              Perlu Restok — {lowStock.length} produk di bawah batas minimum
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <h2 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+              Perlu Restok â€” {lowStock.length} produk di bawah batas minimum
             </h2>
           </div>
           <ul className="mt-2 divide-y divide-amber-100">
@@ -208,8 +208,8 @@ export function StockClient({
                   <p className="truncate text-sm font-medium text-amber-950">
                     {product.name}
                   </p>
-                  <p className="text-xs text-amber-700">
-                    {product.sku} · sisa {product.stock} {product.unit} · min{" "}
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    {product.sku} Â· sisa {product.stock} {product.unit} Â· min{" "}
                     {product.minStock}
                   </p>
                 </div>
@@ -238,13 +238,13 @@ export function StockClient({
               className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
                 active
                   ? "bg-slate-900 text-white"
-                  : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                  : "border border-slate-200 dark:border-slate-800  bg-white dark:bg-slate-900  text-slate-600 dark:text-slate-400  hover:border-slate-300 dark:hover:border-slate-700 "
               }`}
             >
               {filter.label}
               <span
                 className={`ml-1.5 tabular-nums ${
-                  active ? "text-slate-300" : "text-slate-400"
+                  active ? "text-slate-300" : "text-slate-400 dark:text-slate-500"
                 }`}
               >
                 {countFor(filter.key)}
@@ -255,12 +255,12 @@ export function StockClient({
       </div>
 
       {banner && (
-        <div className="flex items-start justify-between gap-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-200">
+        <div className="flex items-start justify-between gap-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-sm text-emerald-800 ring-1 ring-emerald-200 dark:ring-emerald-500/30">
           <p>{banner}</p>
           <button
             type="button"
             onClick={() => setBanner(null)}
-            className="shrink-0 rounded p-1 text-emerald-600 transition hover:bg-emerald-100"
+            className="shrink-0 rounded p-1 text-emerald-600 dark:text-emerald-400 transition hover:bg-emerald-100"
             aria-label="Tutup notifikasi"
           >
             <X className="h-4 w-4" />
@@ -269,21 +269,21 @@ export function StockClient({
       )}
 
       {!canRecord && (
-        <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-amber-200">
+        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-200 ring-1 ring-amber-200 dark:ring-amber-500/30">
           Belum ada produk aktif. Tambahkan produk dulu di menu Produk sebelum
           mencatat gerakan stok.
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl glass-card">
         {filteredRows.length === 0 ? (
           <div className="px-6 py-14 text-center">
-            <p className="text-sm font-medium text-slate-700">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
               {rows.length === 0
                 ? "Belum ada gerakan stok"
                 : "Tidak ada gerakan yang cocok"}
             </p>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
               {rows.length === 0
                 ? "Klik Catat Gerakan untuk mencatat restok pertama kamu."
                 : "Coba ubah kata kunci atau filter tipenya."}
@@ -294,7 +294,7 @@ export function StockClient({
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     <th className="px-4 py-3 font-medium">Waktu</th>
                     <th className="px-4 py-3 font-medium">Produk</th>
                     <th className="px-4 py-3 font-medium">Tipe</th>
@@ -309,20 +309,20 @@ export function StockClient({
                   {pageRows.map((row) => {
                     const meta = typeMeta(row.type);
                     return (
-                      <tr key={row.id} className="transition hover:bg-slate-50">
-                        <td className="whitespace-nowrap px-4 py-3 text-slate-500">
+                      <tr key={row.id} className="transition hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                        <td className="whitespace-nowrap px-4 py-3 text-slate-500 dark:text-slate-400">
                           <p>{row.timeLabel}</p>
                           {row.userName && (
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-slate-400 dark:text-slate-500">
                               oleh {row.userName}
                             </p>
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          <p className="font-medium text-slate-900">
+                          <p className="font-medium text-slate-900 dark:text-slate-100">
                             {row.productName}
                           </p>
-                          <p className="text-xs text-slate-400">{row.sku}</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-500">{row.sku}</p>
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -331,7 +331,7 @@ export function StockClient({
                             {meta.label}
                           </span>
                           {row.transactionCode && (
-                            <p className="mt-1 font-mono text-[11px] text-slate-400">
+                            <p className="mt-1 font-mono text-[11px] text-slate-400 dark:text-slate-500">
                               {row.transactionCode}
                             </p>
                           )}
@@ -340,17 +340,17 @@ export function StockClient({
                           className={`whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums ${quantityColor(row)}`}
                         >
                           {signedQuantity(row)}{" "}
-                          <span className="text-xs font-normal text-slate-400">
+                          <span className="text-xs font-normal text-slate-400 dark:text-slate-500">
                             {row.unit}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-600">
+                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-600 dark:text-slate-400">
                           {row.unitCostRupiah
                             ? formatRupiah(row.unitCostRupiah)
                             : "-"}
                         </td>
                         <td
-                          className="max-w-[16rem] truncate px-4 py-3 text-slate-500"
+                          className="max-w-[16rem] truncate px-4 py-3 text-slate-500 dark:text-slate-400"
                           title={row.note ?? undefined}
                         >
                           {row.note || "-"}
@@ -369,10 +369,10 @@ export function StockClient({
                   <li key={row.id} className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-slate-900">
+                        <p className="truncate font-medium text-slate-900 dark:text-slate-100">
                           {row.productName}
                         </p>
-                        <p className="text-xs text-slate-400">{row.sku}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">{row.sku}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <span
@@ -381,7 +381,7 @@ export function StockClient({
                           {meta.label}
                         </span>
                         {row.transactionCode && (
-                          <span className="shrink-0 font-mono text-[11px] text-slate-400">
+                          <span className="shrink-0 font-mono text-[11px] text-slate-400 dark:text-slate-500">
                             {row.transactionCode}
                           </span>
                         )}
@@ -393,16 +393,16 @@ export function StockClient({
                       >
                         {signedQuantity(row)} {row.unit}
                       </span>
-                      <span className="tabular-nums text-slate-600">
+                      <span className="tabular-nums text-slate-600 dark:text-slate-400">
                         {row.unitCostRupiah
                           ? formatRupiah(row.unitCostRupiah)
                           : "biaya -"}
                       </span>
                     </div>
-                    <div className="mt-1.5 flex items-center justify-between gap-3 text-xs text-slate-400">
+                    <div className="mt-1.5 flex items-center justify-between gap-3 text-xs text-slate-400 dark:text-slate-500">
                       <span className="whitespace-nowrap">
                         {row.timeLabel}
-                        {row.userName ? ` · ${row.userName}` : ""}
+                        {row.userName ? ` Â· ${row.userName}` : ""}
                       </span>
                       {row.note && <span className="truncate">{row.note}</span>}
                     </div>
@@ -515,29 +515,29 @@ function RecordMovementModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 backdrop-blur-[2px] sm:items-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 backdrop-blur-md sm:items-center sm:p-6 dark:bg-slate-950/80"
       onClick={onClose}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Catat gerakan stok"
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+        className="glass-card max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl shadow-xl sm:rounded-2xl dark:shadow-black/50"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-slate-100 bg-white px-5 py-4">
+        <div className="sticky top-0 flex items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-800/60 bg-white/90 px-5 py-4 backdrop-blur-xl dark:bg-slate-950/90">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
               Catat Gerakan Stok
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Stok produk ikut diperbarui otomatis.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-lg p-2 text-slate-400 dark:text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-400"
             aria-label="Tutup"
           >
             <X className="h-4 w-4" />
@@ -555,7 +555,7 @@ function RecordMovementModal({
           <div>
             <label
               htmlFor="productId"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
+              className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
               Produk
             </label>
@@ -569,23 +569,23 @@ function RecordMovementModal({
               <option value="">Pilih produk...</option>
               {products.map((product) => (
                 <option key={product.id} value={product.id}>
-                  {product.name} · stok {product.stock} {product.unit}
+                  {product.name} Â· stok {product.stock} {product.unit}
                 </option>
               ))}
             </select>
             {selected && (
-              <p className="mt-1.5 text-xs text-slate-500">
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
                 Stok sekarang:{" "}
-                <span className="font-medium tabular-nums text-slate-700">
+                <span className="font-medium tabular-nums text-slate-700 dark:text-slate-300">
                   {selected.stock} {selected.unit}
                 </span>{" "}
-                · batas minimum {selected.minStock}
+                Â· batas minimum {selected.minStock}
               </p>
             )}
           </div>
 
           <div>
-            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">
               Tipe gerakan
             </span>
             <div className="grid grid-cols-2 gap-2">
@@ -595,7 +595,7 @@ function RecordMovementModal({
                 className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
                   type === "IN"
                     ? "border-emerald-600 bg-emerald-600 text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                    : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900  text-slate-600 dark:text-slate-400  hover:border-slate-300 dark:hover:border-slate-700 "
                 }`}
               >
                 <PackagePlus className="h-4 w-4" />
@@ -607,14 +607,14 @@ function RecordMovementModal({
                 className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
                   type === "ADJUST"
                     ? "border-amber-500 bg-amber-500 text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                    : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900  text-slate-600 dark:text-slate-400  hover:border-slate-300 dark:hover:border-slate-700 "
                 }`}
               >
                 <ClipboardCheck className="h-4 w-4" />
                 Opname
               </button>
             </div>
-            <p className="mt-1.5 text-xs text-slate-500">
+            <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
               {type === "IN"
                 ? "Barang masuk dari supplier atau pembelian."
                 : "Samakan stok sistem dengan hasil hitung fisik. Selisihnya dicatat otomatis."}
@@ -624,7 +624,7 @@ function RecordMovementModal({
           <div>
             <label
               htmlFor="quantity"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
+              className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
               {quantityLabel}
             </label>
@@ -641,23 +641,23 @@ function RecordMovementModal({
               className={`${INPUT_CLASS} tabular-nums`}
             />
             {stockAfter !== null && (
-              <p className="mt-1.5 text-xs text-slate-500">
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
                 Stok setelah dicatat:{" "}
-                <span className="font-medium tabular-nums text-emerald-700">
+                <span className="font-medium tabular-nums text-emerald-700 dark:text-emerald-300">
                   {stockAfter} {selected?.unit}
                 </span>
               </p>
             )}
             {adjustDelta !== null && (
-              <p className="mt-1.5 text-xs text-slate-500">
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
                 Selisih yang akan dicatat:{" "}
                 <span
                   className={`font-medium tabular-nums ${
                     adjustDelta > 0
-                      ? "text-emerald-600"
+                      ? "text-emerald-600 dark:text-emerald-400"
                       : adjustDelta < 0
                         ? "text-rose-600"
-                        : "text-slate-600"
+                        : "text-slate-600 dark:text-slate-400"
                   }`}
                 >
                   {adjustDelta > 0 ? `+${adjustDelta}` : adjustDelta}{" "}
@@ -671,10 +671,10 @@ function RecordMovementModal({
             <div>
               <label
                 htmlFor="unitCost"
-                className="mb-1.5 block text-sm font-medium text-slate-700"
+                className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
                 Biaya satuan{" "}
-                <span className="font-normal text-slate-400">(opsional)</span>
+                <span className="font-normal text-slate-400 dark:text-slate-500">(opsional)</span>
               </label>
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">
@@ -694,7 +694,7 @@ function RecordMovementModal({
                   className={`${INPUT_CLASS} pl-10 text-right font-semibold tabular-nums`}
                 />
               </div>
-              <p className="mt-1.5 text-xs text-slate-500">
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
                 Tersimpan sebagai snapshot biaya untuk laporan laba.
               </p>
             </div>
@@ -703,10 +703,10 @@ function RecordMovementModal({
           <div>
             <label
               htmlFor="note"
-              className="mb-1.5 block text-sm font-medium text-slate-700"
+              className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
               Catatan{" "}
-              <span className="font-normal text-slate-400">(opsional)</span>
+              <span className="font-normal text-slate-400 dark:text-slate-500">(opsional)</span>
             </label>
             <input
               id="note"
@@ -728,7 +728,7 @@ function RecordMovementModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              className="flex-1 rounded-xl border border-slate-200 dark:border-slate-800 px-4 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               Batal
             </button>

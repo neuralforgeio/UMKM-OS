@@ -1,16 +1,16 @@
 // Penerjemah aksi audit -> bahasa manusia + tingkat keseriusan (Task 35).
 //
 // Permintaan pemilik: log developer tidak boleh hanya menampilkan nama
-// method (LOGIN_FAILED) — harus terbaca "Login gagal", dan langsung
+// method (LOGIN_FAILED) â€” harus terbaca "Login gagal", dan langsung
 // kelihatan mana yang error/sensitif. Dua konsep:
-//   1. LABEL — nama aksi dalam bahasa Indonesia yang enak dibaca,
-//   2. LEVEL — SUKSES (hijau) / PERINGATAN (amber, aksi sensitif) /
+//   1. LABEL â€” nama aksi dalam bahasa Indonesia yang enak dibaca,
+//   2. LEVEL â€” SUKSES (hijau) / PERINGATAN (amber, aksi sensitif) /
 //      GAGAL (merah, semua aksi berakhiran _FAILED).
 // Satu file dipakai: halaman /dev/logs, konsol /dev, dan export XLSX.
 
 export type LogLevel = "SUKSES" | "PERINGATAN" | "GAGAL";
 
-// Aksi yang sah tapi sensitif — perlu menonjol saat di-scroll cepat.
+// Aksi yang sah tapi sensitif â€” perlu menonjol saat di-scroll cepat.
 const WARN_ACTIONS: string[] = [
   "ACCOUNT_DELETE",
   "ACCOUNT_PASSWORD_RESET",
@@ -71,15 +71,20 @@ export function actionLabel(action: string): string {
   if (known) return known;
   if (action.endsWith("_FAILED")) {
     const base = ACTION_LABELS[action.slice(0, -"_FAILED".length)];
-    if (base) return `${base} — GAGAL`;
+    if (base) return `${base} â€” GAGAL`;
     return `Gagal: ${action}`;
   }
   return action;
 }
 
-// Kelas chip badge per tingkat — dipakai tabel log konsol & /dev/logs.
+// Kelas chip badge per tingkat â€” dipakai tabel log konsol & /dev/logs.
+// Sadar tema (v1.6.0): tint terang (bg-*-50) di tema terang, tint gelap
+// dengan teks pucat di tema gelap supaya tetap terbaca di dua-duanya.
 export const LEVEL_BADGE: Record<LogLevel, string> = {
-  SUKSES: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
-  PERINGATAN: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
-  GAGAL: "bg-red-50 text-red-700 ring-1 ring-red-200",
+  SUKSES:
+    "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-500/30",
+  PERINGATAN:
+    "bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-500/30",
+  GAGAL:
+    "bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-500/30",
 };

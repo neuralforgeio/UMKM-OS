@@ -1,6 +1,6 @@
 "use client";
 
-// Antrean Penyajian — jantung anti-lupa Verifikasi Struk v3 (dine-in).
+// Antrean Penyajian â€” jantung anti-lupa Verifikasi Struk v3 (dine-in).
 // Semua transaksi hari ini yang belum ditandai SERVED tampil di sini
 // lengkap dengan umur pesanan; kasir cukup satu tap "Sudah Disajikan"
 // saat makanan/meja diserahkan. Dipakai di layar kasir (floating bar)
@@ -34,7 +34,7 @@ function ageBadge(age: number) {
 }
 
 // Re-render every 30s so the queue ages stay honest without touching
-// the server — the row DATA itself refreshes separately.
+// the server â€” the row DATA itself refreshes separately.
 function useNowTick() {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -100,7 +100,7 @@ export function ServeButton({
           onChange={(e) => setNote(e.target.value)}
           maxLength={200}
           placeholder="Alasan penutupan (opsional, tercatat permanen)"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+          className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 outline-none transition placeholder:text-slate-300 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700"
         />
       )}
       <button
@@ -114,11 +114,11 @@ export function ServeButton({
         }
       >
         {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-        {pending ? "Menyimpan…" : "Sudah Disajikan"}
+        {pending ? "Menyimpanâ€¦" : "Sudah Disajikan"}
       </button>
       {error && (
         <p
-          className={`text-xs font-semibold text-red-600 ${compact ? "max-w-[10rem] text-right" : ""}`}
+          className={`text-xs font-semibold text-red-600 dark:text-red-400 ${compact ? "max-w-[10rem] text-right" : ""}`}
         >
           {error}
         </p>
@@ -130,13 +130,13 @@ export function ServeButton({
 function ServeRow({ row, now }: { row: ServeQueueRow; now: number }) {
   const age = ageMinutes(row.createdAtIso, now);
   return (
-    <li className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
+    <li className="flex items-center gap-3 rounded-2xl glass-card p-3">
       <div className="min-w-0 flex-1">
-        <p className="truncate font-mono text-xs font-bold text-slate-900">
+        <p className="truncate font-mono text-xs font-bold text-slate-900 dark:text-slate-100">
           {row.code}
         </p>
-        <p className="mt-0.5 truncate text-[11px] text-slate-500">
-          {timeFmt.format(new Date(row.createdAtIso))} · {row.itemCount} item ·{" "}
+        <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
+          {timeFmt.format(new Date(row.createdAtIso))} Â· {row.itemCount} item Â·{" "}
           {formatRupiah(row.totalRupiah)}
         </p>
       </div>
@@ -161,13 +161,13 @@ export function ServeQueuePanel({
   return (
     <section className="mt-4">
       <div className="mb-2 flex items-baseline justify-between">
-        <p className="text-sm font-bold text-slate-800">Antrean Penyajian</p>
-        <p className="text-[11px] text-slate-400">
-          {rows.length} menunggu · segar tiap 30 dtk
+        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Antrean Penyajian</p>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500">
+          {rows.length} menunggu Â· segar tiap 30 dtk
         </p>
       </div>
       {rows.length === 0 ? (
-        <div className="rounded-2xl bg-white p-5 text-center text-sm text-slate-400 shadow-sm">
+        <div className="rounded-2xl glass-card p-5 text-center text-sm text-slate-400 dark:text-slate-500">
           Semua pesanan hari ini sudah ditandai disajikan.
         </div>
       ) : (
@@ -199,16 +199,16 @@ export function ServeQueueBar({
     <div className="fixed inset-x-0 bottom-0 z-40 print:hidden">
       {open && (
         <div className="mx-auto w-full max-w-md px-3 pb-2">
-          <div className="rounded-2xl bg-white p-3 shadow-xl ring-1 ring-slate-200">
+          <div className="rounded-2xl glass-card p-3 shadow-xl">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-bold text-slate-800">
+              <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
                 Antrean Penyajian
               </p>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Tutup antrean"
-                className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100"
+                className="rounded-lg p-1 text-slate-400 dark:text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -220,7 +220,7 @@ export function ServeQueueBar({
             </ul>
             <Link
               href="/owner/verify"
-              className="mt-2 block text-center text-xs font-semibold text-blue-600"
+              className="mt-2 block text-center text-xs font-semibold text-blue-600 dark:text-blue-400"
             >
               Buka Konsol Verifikasi
             </Link>
@@ -236,11 +236,11 @@ export function ServeQueueBar({
               ? "bg-red-600"
               : oldest >= 5
                 ? "bg-amber-500"
-                : "bg-slate-800"
+                : "bg-slate-800 dark:bg-slate-700"
           }`}
         >
           <UtensilsCrossed className="h-4 w-4" />
-          {rows.length} pesanan belum disajikan · tertua {oldest} mnt
+          {rows.length} pesanan belum disajikan Â· tertua {oldest} mnt
         </button>
       </div>
     </div>

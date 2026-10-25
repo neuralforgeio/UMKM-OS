@@ -1,6 +1,6 @@
 // Pemetaan DTO backend-go -> baris tabel akun + util tampilan MURNI.
 // Sengaja dipisah dari komponen/halaman supaya bisa diuji unit
-// (tests/ frontend) tanpa menyalakan server Next — lihat
+// (tests/ frontend) tanpa menyalakan server Next â€” lihat
 // tests/view-helpers.test.ts.
 
 import type { OutletOption, UserRow } from "./types";
@@ -20,7 +20,7 @@ export type GoUserDTO = {
 };
 
 // Bentuk respons GET /api/v1/outlets (backend-go internal/handler/outlet.go,
-// struct OutletResponse) — form akun hanya butuh id + nama.
+// struct OutletResponse) â€” form akun hanya butuh id + nama.
 export type GoOutletDTO = {
   id: number;
   name: string;
@@ -75,11 +75,11 @@ export function initials(name: string): string {
 }
 
 // Tanggal singkat WIB (mis. "25 Okt 2026") untuk kolom "transaksi
-// terakhir". Nilai null (belum pernah jualan) tampil sebagai "—".
+// terakhir". Nilai null (belum pernah jualan) tampil sebagai "â€”".
 // Zona waktu eksplisit Asia/Jakarta: tanggal tidak boleh ikut bergeser
 // mengikuti zona mesin yang membuka halaman.
 export function formatWibShort(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "â€”";
   return new Intl.DateTimeFormat("id-ID", {
     dateStyle: "medium",
     timeZone: "Asia/Jakarta",
@@ -88,7 +88,7 @@ export function formatWibShort(iso: string | null): string {
 
 export type RoleView = {
   label: string;
-  // Kelas badge peran (Tailwind) — dipakai tabel & filter chips.
+  // Kelas badge peran (Tailwind) â€” dipakai tabel & filter chips.
   badge: string;
 };
 
@@ -115,11 +115,13 @@ export function roleView(role: UserRow["role"]): RoleView {
   }
 }
 
-// Badge peran versi konsol gelap "Kelola Akun" (design v1.5.0): label
-// HURUF BESAR, badge kotak rounded-lg dengan tint /15 + border /30.
-// Warna mengikuti identitas hirarki akses: ungu developer, biru owner,
-// hijau kasir — supaya tabel, kartu metrik, dan modal tidak pernah
-// menampilkan dua warna berbeda untuk peran yang sama.
+// Badge peran konsol "Kelola Akun" (design v1.5.0): label HURUF BESAR,
+// badge kotak rounded-lg dengan tint /15 + border /30. Sadar tema:
+// teks pekat (blue-600 dst.) di tema terang, pucat (blue-300 dst.) di
+// tema gelap â€” supaya terbaca di dua-duanya. Warna mengikuti identitas
+// hirarki akses: ungu developer, biru owner, hijau kasir â€” supaya tabel,
+// kartu metrik, dan modal tidak pernah menampilkan dua warna berbeda
+// untuk peran yang sama.
 export function roleBadgeDark(role: UserRow["role"]): {
   label: string;
   badge: string;
@@ -128,22 +130,25 @@ export function roleBadgeDark(role: UserRow["role"]): {
     case "DEVELOPER":
       return {
         label: "DEVELOPER",
-        badge: "border-purple-500/30 bg-purple-500/15 text-purple-300",
+        badge:
+          "border-purple-500/30 bg-purple-500/15 text-purple-700 dark:text-purple-300",
       };
     case "OWNER":
       return {
         label: "OWNER",
-        badge: "border-blue-500/30 bg-blue-500/15 text-blue-300",
+        badge:
+          "border-blue-500/30 bg-blue-500/15 text-blue-700 dark:text-blue-300",
       };
     default:
       return {
         label: "KASIR",
-        badge: "border-emerald-500/30 bg-emerald-500/15 text-emerald-300",
+        badge:
+          "border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
       };
   }
 }
 
-// Gradien avatar per peran — persis kartu "Hirarki Akses": ungu developer,
+// Gradien avatar per peran â€” persis kartu "Hirarki Akses": ungu developer,
 // biru-cyan owner, hijau kasir.
 export function avatarGradient(role: UserRow["role"]): string {
   switch (role) {
@@ -157,11 +162,11 @@ export function avatarGradient(role: UserRow["role"]): string {
 }
 
 // Tanggal + jam WIB (mis. "23 Okt 2026 (14:20 WIB)") untuk kolom
-// "transaksi terakhir" versi lengkap; null tetap "—". Jam diformat
+// "transaksi terakhir" versi lengkap; null tetap "â€”". Jam diformat
 // dengan locale en-GB supaya pemisahnya ":" (id-ID memakai titik "14.20")
-// — tanggal tetap locale Indonesia. Zona waktu eksplisit Asia/Jakarta.
+// â€” tanggal tetap locale Indonesia. Zona waktu eksplisit Asia/Jakarta.
 export function formatWibDateTime(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "â€”";
   const d = new Date(iso);
   const tanggal = new Intl.DateTimeFormat("id-ID", {
     dateStyle: "medium",

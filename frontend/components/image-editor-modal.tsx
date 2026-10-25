@@ -18,7 +18,7 @@ import {
 //   - zoom   : slider + pan by dragging outside the crop box
 // The transform is baked into an offscreen canvas at natural resolution;
 // the preview renders that canvas, and the export copies the crop region
-// straight from it — preview and result can never disagree.
+// straight from it â€” preview and result can never disagree.
 //
 // Shape notes (lint-clean React 19 patterns):
 //   - the baked canvas lives in a ref (only touched in callbacks),
@@ -355,7 +355,7 @@ export function ImageEditorModal({
   };
 
   const TOOL_BTN =
-    "flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-blue-400 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40";
+    "flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 transition hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 disabled:cursor-not-allowed disabled:opacity-40";
 
   return (
     <div
@@ -365,28 +365,28 @@ export function ImageEditorModal({
       aria-label={`Sunting foto ${productName}`}
     >
       <div
-        className="absolute inset-0 bg-slate-900/70"
+        className="absolute inset-0 bg-slate-950/60 backdrop-blur-md dark:bg-slate-950/80"
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative flex max-h-[94dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl">
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+      <div className="glass-card relative flex max-h-[94dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl shadow-2xl sm:rounded-2xl dark:shadow-black/50">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800/60 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-500/20">
               <FlipHorizontal className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <h2 className="truncate text-base font-bold leading-tight text-slate-900">
+              <h2 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
                 Sunting Foto
               </h2>
-              <p className="truncate text-xs text-slate-500">{productName}</p>
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400">{productName}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Tutup editor"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <X className="h-4 w-4" />
           </button>
@@ -394,7 +394,7 @@ export function ImageEditorModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {loadError ? (
-            <div className="rounded-xl bg-red-50 px-4 py-8 text-center text-sm font-medium text-red-700">
+            <div className="rounded-xl bg-red-50 dark:bg-red-950/40 px-4 py-8 text-center text-sm font-medium text-red-700 dark:text-red-300">
               Berkas tidak bisa dibaca sebagai gambar. Pilih foto lain.
             </div>
           ) : (
@@ -404,12 +404,12 @@ export function ImageEditorModal({
                 className="relative h-72 w-full touch-none overflow-hidden rounded-xl bg-slate-900 sm:h-80"
               >
                 {!ready || box.w === 0 ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-400 dark:text-slate-500">
                     <Loader2
                       className="h-6 w-6 animate-spin"
                       aria-hidden="true"
                     />
-                    <p className="text-xs font-medium">Memuat foto…</p>
+                    <p className="text-xs font-medium">Memuat fotoâ€¦</p>
                   </div>
                 ) : (
                   <div
@@ -450,7 +450,7 @@ export function ImageEditorModal({
                         }}
                       >
                         <span className="absolute -top-6 left-0 rounded-md bg-blue-600 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white shadow">
-                          {Math.round(effCrop.w)}×{Math.round(effCrop.h)}
+                          {Math.round(effCrop.w)}Ã—{Math.round(effCrop.h)}
                         </span>
                         {(
                           [
@@ -464,7 +464,7 @@ export function ImageEditorModal({
                             key={corner}
                             type="button"
                             aria-label={`Ubah sudut ${corner}`}
-                            className={`absolute h-3.5 w-3.5 touch-none rounded-full border-2 border-blue-600 bg-white shadow ${position}`}
+                            className={`absolute h-3.5 w-3.5 touch-none rounded-full border-2 border-blue-600 bg-white dark:bg-slate-900 shadow ${position}`}
                             onPointerDown={(event) => {
                               event.stopPropagation();
                               if (exporting) return;
@@ -535,8 +535,8 @@ export function ImageEditorModal({
                   <RefreshCw className="h-4 w-4" />
                 </button>
                 <div className="ml-auto flex min-w-40 flex-1 items-center gap-2">
-                  <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-500">
-                    {zoom.toFixed(2).replace(".", ",")}×
+                  <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-500 dark:text-slate-400">
+                    {zoom.toFixed(2).replace(".", ",")}Ã—
                   </span>
                   <input
                     type="range"
@@ -552,7 +552,7 @@ export function ImageEditorModal({
                 </div>
               </div>
 
-              <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
+              <p className="mt-3 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
                 Geser kotak untuk memilih bagian foto, tarik sudutnya untuk
                 mengubah ukuran, dan seret area gelap untuk menggeser foto.
                 Hasilnya disimpan sebagai JPEG maksimal 1280px.
@@ -561,11 +561,11 @@ export function ImageEditorModal({
           )}
         </div>
 
-        <div className="flex shrink-0 gap-2 border-t border-slate-100 px-5 py-4">
+        <div className="flex shrink-0 gap-2 border-t border-slate-100 dark:border-slate-800/60 px-5 py-4">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 sm:flex-none sm:px-5"
+            className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60 sm:flex-none sm:px-5"
           >
             Batal
           </button>
@@ -578,7 +578,7 @@ export function ImageEditorModal({
             {exporting && (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             )}
-            {exporting ? "Menyiapkan…" : "Gunakan Foto"}
+            {exporting ? "Menyiapkanâ€¦" : "Gunakan Foto"}
           </button>
         </div>
       </div>

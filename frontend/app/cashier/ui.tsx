@@ -11,14 +11,14 @@ export const displayRp = (sen: number) => formatRupiah(sen / 100);
 // Stable hue per category: product chips and cart avatars share the same
 // color language so the eye can group items at a glance.
 const CATEGORY_STYLES: Record<string, { chip: string; avatar: string }> = {
-  Minuman: { chip: "bg-sky-100 text-sky-700", avatar: "bg-sky-500" },
-  Makanan: { chip: "bg-amber-100 text-amber-700", avatar: "bg-amber-500" },
-  Sembako: { chip: "bg-lime-100 text-lime-700", avatar: "bg-lime-600" },
-  Snack: { chip: "bg-rose-100 text-rose-700", avatar: "bg-rose-500" },
-  Perawatan: { chip: "bg-violet-100 text-violet-700", avatar: "bg-violet-500" },
+  Minuman: { chip: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300", avatar: "bg-sky-500" },
+  Makanan: { chip: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300", avatar: "bg-amber-500" },
+  Sembako: { chip: "bg-lime-100 text-lime-700 dark:bg-lime-500/15 dark:text-lime-300", avatar: "bg-lime-600" },
+  Snack: { chip: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300", avatar: "bg-rose-500" },
+  Perawatan: { chip: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300", avatar: "bg-violet-500" },
 };
 const FALLBACK = {
-  chip: "bg-slate-100 text-slate-600",
+  chip: "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400",
   avatar: "bg-slate-400",
 };
 
@@ -58,7 +58,7 @@ export function MoneyInput({
 
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-semibold text-slate-400">
+      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-semibold text-slate-400 dark:text-slate-500">
         Rp
       </span>
       <input
@@ -73,7 +73,7 @@ export function MoneyInput({
           const rupiah = digits ? parseInt(digits, 10) : 0;
           onChangeSen(rupiah * 100);
         }}
-        className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-10 pr-3 text-right text-sm font-semibold tabular-nums text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 pl-10 pr-3 text-right text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100 outline-none transition placeholder:font-normal placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20"
       />
     </div>
   );
@@ -105,9 +105,9 @@ export function PercentInput({
           const percent = digits ? Math.min(100, parseInt(digits, 10)) : 0;
           onChange(percent);
         }}
-        className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-3 pr-9 text-right text-sm font-semibold tabular-nums text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 py-2 pl-3 pr-9 text-right text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100 outline-none transition placeholder:font-normal placeholder:text-slate-300 dark:placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20"
       />
-      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-sm font-semibold text-slate-400">
+      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-sm font-semibold text-slate-400 dark:text-slate-500">
         %
       </span>
     </div>

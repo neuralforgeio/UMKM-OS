@@ -36,9 +36,9 @@ export function BuyerConfirmForm({ code }: { code: string }) {
         onChange={(e) => setBuyerName(e.target.value)}
         placeholder="Nama kamu (opsional)"
         maxLength={40}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
       />
-      <label className="flex items-start gap-2 text-xs text-slate-600">
+      <label className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400">
         <input
           type="checkbox"
           checked={agreed}
@@ -50,7 +50,7 @@ export function BuyerConfirmForm({ code }: { code: string }) {
           benar.
         </span>
       </label>
-      {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+      {error && <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>}
       <button
         onClick={submit}
         disabled={pending}
@@ -83,12 +83,12 @@ export function BuyerDisputeButton({ code }: { code: string }) {
       {!open ? (
         <button
           onClick={() => setOpen(true)}
-          className="w-full rounded-lg border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-600"
+          className="w-full rounded-lg border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400"
         >
           Saya TIDAK menerima pesanan ini
         </button>
       ) : (
-        <div className="space-y-2 rounded-xl bg-red-50 p-3">
+        <div className="space-y-2 rounded-xl bg-red-50 dark:bg-red-950/40 p-3">
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
@@ -100,7 +100,7 @@ export function BuyerDisputeButton({ code }: { code: string }) {
           <div className="flex gap-2">
             <button
               onClick={() => setOpen(false)}
-              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-600"
+              className="flex-1 rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-xs text-slate-600 dark:text-slate-400"
             >
               Batal
             </button>
@@ -112,7 +112,7 @@ export function BuyerDisputeButton({ code }: { code: string }) {
               {pending ? "Mengirim..." : "Kirim Pembantahan"}
             </button>
           </div>
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
         </div>
       )}
     </div>

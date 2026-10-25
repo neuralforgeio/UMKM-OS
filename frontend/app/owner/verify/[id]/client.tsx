@@ -36,9 +36,9 @@ export function ConfirmInAppForm({ transactionId }: { transactionId: string }) {
         onChange={(e) => setBuyerName(e.target.value)}
         placeholder="Nama pembeli (opsional)"
         maxLength={40}
-        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+        className="w-full rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm"
       />
-      <label className="flex items-start gap-2 text-xs text-slate-600">
+      <label className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400">
         <input
           type="checkbox"
           checked={agreed}
@@ -49,7 +49,7 @@ export function ConfirmInAppForm({ transactionId }: { transactionId: string }) {
           Pembeli menyatakan pesanan ini diterima dengan lengkap dan benar.
         </span>
       </label>
-      {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+      {error && <p className="text-sm font-medium text-red-600 dark:text-red-400">{error}</p>}
       <button
         onClick={submit}
         disabled={pending}
@@ -89,13 +89,13 @@ export function ClaimDeliveredButton({
       <button
         onClick={submit}
         disabled={pending}
-        className="w-full rounded-lg border border-amber-500 px-4 py-2.5 text-sm font-semibold text-amber-700 disabled:opacity-50"
+        className="w-full rounded-lg border border-amber-500 px-4 py-2.5 text-sm font-semibold text-amber-700 dark:text-amber-300 disabled:opacity-50"
       >
         {pending
           ? "Menyimpan..."
-          : "Sudah Diantar — Klaim Kurir (tanpa tanda tangan)"}
+          : "Sudah Diantar â€” Klaim Kurir (tanpa tanda tangan)"}
       </button>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );
 }
@@ -131,9 +131,9 @@ export function CopyButton({ text, label }: { text: string; label?: string }) {
   return (
     <button
       onClick={copy}
-      className="rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-600"
+      className="rounded-md border border-slate-300 dark:border-slate-700 px-2 py-1 text-[11px] text-slate-600 dark:text-slate-400"
     >
-      {copied ? "Tersalin ✓" : (label ?? "Salin")}
+      {copied ? "Tersalin âœ“" : (label ?? "Salin")}
     </button>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-// Formulir ganti password Akun Saya. Satu komponen dipakai semua peran —
+// Formulir ganti password Akun Saya. Satu komponen dipakai semua peran â€”
 // perbedaan peran hanya soal dari halaman mana pintasannya ditempel
 // (header kasir, pengaturan owner, konsol developer).
 import { useActionState, useState } from "react";
@@ -8,7 +8,7 @@ import { Check, KeyRound, Loader2, TriangleAlert } from "lucide-react";
 import { PasswordInput } from "@/components/password-input";
 import { changePasswordAction, type AccountActionState } from "./actions";
 
-const labelClass = "block text-sm font-medium text-slate-700";
+const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300";
 
 export function AccountForm() {
   const [state, formAction, pending] = useActionState(changePasswordAction, {
@@ -84,7 +84,7 @@ export function AccountForm() {
       {state.message && (
         <p
           className={`flex items-center gap-1.5 text-sm font-medium ${
-            state.ok ? "text-emerald-600" : "text-rose-600"
+            state.ok ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600"
           }`}
         >
           {state.ok ? (
