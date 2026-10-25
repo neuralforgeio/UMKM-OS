@@ -114,3 +114,64 @@ export function roleView(role: UserRow["role"]): RoleView {
       };
   }
 }
+
+// Badge peran versi konsol gelap "Kelola Akun" (design v1.5.0): label
+// HURUF BESAR, badge kotak rounded-lg dengan tint /15 + border /30.
+// Warna mengikuti identitas hirarki akses: ungu developer, biru owner,
+// hijau kasir — supaya tabel, kartu metrik, dan modal tidak pernah
+// menampilkan dua warna berbeda untuk peran yang sama.
+export function roleBadgeDark(role: UserRow["role"]): {
+  label: string;
+  badge: string;
+} {
+  switch (role) {
+    case "DEVELOPER":
+      return {
+        label: "DEVELOPER",
+        badge: "border-purple-500/30 bg-purple-500/15 text-purple-300",
+      };
+    case "OWNER":
+      return {
+        label: "OWNER",
+        badge: "border-blue-500/30 bg-blue-500/15 text-blue-300",
+      };
+    default:
+      return {
+        label: "KASIR",
+        badge: "border-emerald-500/30 bg-emerald-500/15 text-emerald-300",
+      };
+  }
+}
+
+// Gradien avatar per peran — persis kartu "Hirarki Akses": ungu developer,
+// biru-cyan owner, hijau kasir.
+export function avatarGradient(role: UserRow["role"]): string {
+  switch (role) {
+    case "DEVELOPER":
+      return "from-purple-600 to-indigo-600";
+    case "OWNER":
+      return "from-blue-600 to-cyan-500";
+    default:
+      return "from-emerald-500 to-teal-500";
+  }
+}
+
+// Tanggal + jam WIB (mis. "23 Okt 2026 (14:20 WIB)") untuk kolom
+// "transaksi terakhir" versi lengkap; null tetap "—". Jam diformat
+// dengan locale en-GB supaya pemisahnya ":" (id-ID memakai titik "14.20")
+// — tanggal tetap locale Indonesia. Zona waktu eksplisit Asia/Jakarta.
+export function formatWibDateTime(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const tanggal = new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "medium",
+    timeZone: "Asia/Jakarta",
+  }).format(d);
+  const jam = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Jakarta",
+  }).format(d);
+  return `${tanggal} (${jam} WIB)`;
+}

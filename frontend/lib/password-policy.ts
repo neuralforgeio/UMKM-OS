@@ -1,11 +1,13 @@
-// Kebijakan password UMKM OS (Task 35).
+// Kebijakan password UMKM OS (Task 35, diperketat v1.5.0).
 //
 // SATU sumber kebenaran untuk dua pihak yang WAJIB setuju:
 //   1. komponen <PasswordInput> — checklist hidup (hijau saat mengetik),
 //   2. server actions — validasi final (UI bisa dipalsukan, server tidak).
 // Syarat persis sesuai permintaan pemilik: minimal 8 karakter, ada huruf
-// besar, ada simbol. Spasi tidak dihitung sebagai simbol supaya "a b c"
-// tidak dianggap kuat.
+// besar, ada ANGKA, ada simbol. Spasi tidak dihitung sebagai simbol supaya
+// "a b c" tidak dianggap kuat. (Syarat "angka" ditambahkan kemudian —
+// password lama tidak ikut divalidasi ulang saat login, hanya password
+// BARU yang harus memenuhi lantai ini.)
 
 export type PasswordRule = {
   key: string;
@@ -25,6 +27,11 @@ export const PASSWORD_RULES: PasswordRule[] = [
     test: (v) => /[A-Z]/.test(v),
   },
   {
+    key: "digit",
+    label: "Ada angka (0–9)",
+    test: (v) => /[0-9]/.test(v),
+  },
+  {
     key: "symbol",
     label: "Ada simbol (!@#$%^&*…)",
     test: (v) => /[^A-Za-z0-9\s]/.test(v),
@@ -39,7 +46,7 @@ export function isPasswordValid(value: string): boolean {
 // Daftar label syarat yang GAGAL — dipakai menyusun pesan error ramah di
 // server, mis. "Password belum memenuhi: huruf besar, simbol."
 export function failedPasswordRules(value: string): string[] {
-  return PASSWORD_RULES.filter((rule) => !rule.test(value)).map(
-    (rule) => rule.label.toLowerCase(),
+  return PASSWORD_RULES.filter((rule) => !rule.test(value)).map((rule) =>
+    rule.label.toLowerCase(),
   );
 }

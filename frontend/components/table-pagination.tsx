@@ -47,12 +47,12 @@ export function TablePagination({
     `flex h-8 min-w-[2rem] items-center justify-center rounded-lg px-2 text-xs font-bold tabular-nums transition ${
       active
         ? "bg-blue-600 text-white shadow-sm"
-        : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+        : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
     }`;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-3">
-      <p className="text-[11px] text-slate-400">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-3 dark:border-slate-800">
+      <p className="text-[11px] text-slate-400 dark:text-slate-500">
         Menampilkan {from}–{to} dari {total} {unit}
       </p>
       <div className="flex items-center gap-1">
@@ -61,7 +61,7 @@ export function TablePagination({
           aria-label="Halaman sebelumnya"
           disabled={page <= 1}
           onClick={() => onPage(page - 1)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -89,7 +89,7 @@ export function TablePagination({
           aria-label="Halaman berikutnya"
           disabled={page >= pageCount}
           onClick={() => onPage(page + 1)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           <ChevronRight className="h-4 w-4" />
         </button>

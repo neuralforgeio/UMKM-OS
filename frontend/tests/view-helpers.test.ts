@@ -5,11 +5,14 @@ import { describe, expect, it } from "vitest";
 // jaringan/database, jadi hasilnya pasti sama di mesin mana pun.
 
 import {
+  avatarGradient,
+  formatWibDateTime,
   formatWibShort,
   initials,
   mapGoOutlets,
   mapGoUsers,
   normalizeRole,
+  roleBadgeDark,
   roleView,
   toGoRole,
   type GoOutletDTO,
@@ -163,5 +166,64 @@ describe("roleView", () => {
     expect(roleView("OWNER").label).toBe("Owner");
     expect(roleView("KASIR").label).toBe("Kasir");
     expect(roleView("DEVELOPER").label).toBe("Developer");
+  });
+});
+
+describe("roleBadgeDark (konsol gelap v1.5.0)", () => {
+  it("label peran huruf besar untuk badge tabel gelap", () => {
+    expect(roleBadgeDark("OWNER").label).toBe("OWNER");
+    expect(roleBadgeDark("KASIR").label).toBe("KASIR");
+    expect(roleBadgeDark("DEVELOPER").label).toBe("DEVELOPER");
+  });
+
+  it("warna tiap peran beda: ungu developer, biru owner, hijau kasir", () => {
+    expect(roleBadgeDark("DEVELOPER").badge).toContain("purple");
+    expect(roleBadgeDark("OWNER").badge).toContain("blue");
+    expect(roleBadgeDark("KASIR").badge).toContain("emerald");
+  });
+
+  it("badge selalu memuat border + tint supaya konsisten di kartu gelap", () => {
+    for (const role of ["OWNER", "KASIR", "DEVELOPER"] as const) {
+      const { badge } = roleBadgeDark(role);
+      expect(badge).toContain("border-");
+      expect(badge).toContain("bg-");
+      expect(badge).toContain("text-");
+    }
+  });
+});
+
+describe("avatarGradient", () => {
+  it("gradien tiap peran mengikuti warna hirarki akses", () => {
+    expect(avatarGradient("DEVELOPER")).toContain("purple");
+    expect(avatarGradient("OWNER")).toContain("cyan");
+    expect(avatarGradient("KASIR")).toContain("emerald");
+  });
+
+  it("tiap peran menghasilkan kelas from- dan to- yang lengkap", () => {
+    for (const role of ["OWNER", "KASIR", "DEVELOPER"] as const) {
+      const g = avatarGradient(role);
+      expect(g).toMatch(/^from-/);
+      expect(g).toContain(" to-");
+    }
+  });
+});
+
+describe("formatWibDateTime", () => {
+  it("null (belum pernah jualan) tampil sebagai —", () => {
+    expect(formatWibDateTime(null)).toBe("—");
+  });
+
+  it("tanggal + jam UTC dikonversi ke WIB dengan pemisah jam ':'", () => {
+    // 23 Okt 2026 07:20 UTC = 23 Okt 2026 14:20 WIB.
+    expect(formatWibDateTime("2026-10-23T07:20:00Z")).toBe(
+      "23 Okt 2026 (14:20 WIB)",
+    );
+  });
+
+  it("lewat tengah malam UTC bergeser ke tanggal WIB berikutnya", () => {
+    // 25 Okt 2026 20:00 UTC = 26 Okt 2026 03:00 WIB.
+    expect(formatWibDateTime("2026-10-25T20:00:00Z")).toBe(
+      "26 Okt 2026 (03:00 WIB)",
+    );
   });
 });

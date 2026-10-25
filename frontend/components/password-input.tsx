@@ -2,15 +2,17 @@
 
 // Input password + toggle lihat/sembunyi + checklist syarat hidup
 // (Task 35). Dipakai di form akun developer (buat akun, reset password)
-// dan siap dipakai Fase C (Akun Saya). Checklist berubah hijau SAAT
-// MENGETIK, bukan setelah submit — pengelola langsung tahu syarat mana
-// yang sudah dipenuhi.
+// dan Akun Saya. Checklist berubah hijau SAAT MENGETIK, bukan setelah
+// submit — pengelola langsung tahu syarat mana yang sudah dipenuhi.
+// v1.5.0: styling kini sadar-tema — di konsol gelap (wrapper .dark)
+// input mengikuti bahasa desain glass (bg slate gelap, teks terang,
+// focus biru), sehingga teks yang diketik selalu terbaca.
 import { useState } from "react";
 import { Check, Eye, EyeOff, X } from "lucide-react";
 import { PASSWORD_RULES } from "@/lib/password-policy";
 
 const INPUT_BASE =
-  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-10 font-mono text-sm text-slate-900 outline-none transition placeholder:font-sans placeholder:text-slate-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-100";
+  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 pr-10 font-mono text-sm text-slate-900 outline-none transition placeholder:font-sans placeholder:text-slate-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-100 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 dark:focus:ring-blue-500/20";
 
 export function PasswordInput({
   id,
@@ -30,7 +32,7 @@ export function PasswordInput({
   onChange: (value: string) => void;
   placeholder?: string;
   autoComplete?: string;
-  // true = render 3 baris checklist di bawah input (hijau = terpenuhi).
+  // true = render baris checklist di bawah input (hijau = terpenuhi).
   showChecklist?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
@@ -57,7 +59,7 @@ export function PasswordInput({
           onClick={() => setVisible((v) => !v)}
           aria-label={visible ? "Sembunyikan password" : "Lihat password"}
           title={visible ? "Sembunyikan password" : "Lihat password"}
-          className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 transition hover:text-slate-600"
+          className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-200"
         >
           {visible ? (
             <EyeOff className="h-4 w-4" />
@@ -75,7 +77,9 @@ export function PasswordInput({
               <li
                 key={rule.key}
                 className={`flex items-center gap-1.5 text-[11px] font-medium transition-colors ${
-                  ok ? "text-emerald-600" : "text-slate-400"
+                  ok
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-slate-400 dark:text-slate-500"
                 }`}
               >
                 {ok ? (

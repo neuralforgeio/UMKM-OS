@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
+import { AuroraBackground } from "@/components/aurora-background";
 import { UsersClient } from "./users-client";
 import {
   mapGoOutlets,
@@ -28,15 +29,16 @@ export default async function DevUsersPage() {
   ]);
 
   // Backend tidak terjangkau: kartu error yang jelas, bukan crash —
-  // pola yang sama dengan halaman owner/kasir era v1.0.x.
+  // mengikuti design gelap konsol ini (wrapper "dark" + aurora).
   if (!usersRes.ok || !outletsRes.ok) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-slate-100 p-4 dark:bg-slate-950">
-        <div className="glass-card w-full max-w-md p-8 text-center">
-          <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+      <div className="dark relative flex min-h-dvh items-center justify-center bg-slate-950 p-4 font-sans text-slate-100 antialiased">
+        <AuroraBackground />
+        <div className="glass-card relative z-10 w-full max-w-md rounded-2xl p-8 text-center">
+          <p className="text-sm font-extrabold text-white">
             Kelola Akun tidak bisa dimuat
           </p>
-          <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+          <p className="mt-2 text-xs leading-relaxed text-slate-400">
             Backend-go tidak merespons di{" "}
             {usersRes.ok ? "daftar outlet" : "daftar akun"}. Pastikan container
             backend-go jalan (docker compose ps), lalu muat ulang halaman ini.
