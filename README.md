@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![backend-go](https://img.shields.io/badge/backend--go-v1.3.0-00ADD8?logo=go&logoColor=white)](#versi-komponen)
-[![frontend](https://img.shields.io/badge/frontend--next.js-v1.1.0-black?logo=nextdotjs)](#versi-komponen)
+[![frontend](https://img.shields.io/badge/frontend--next.js-v1.3.0-black?logo=nextdotjs)](#versi-komponen)
 [![ml-service](https://img.shields.io/badge/ml--fastapi-v1.0.0-009688?logo=python&logoColor=white)](#versi-komponen)
 [![Go](https://img.shields.io/badge/Go-1.27%2B-00ADD8?logo=go&logoColor=white)](backend-go/)
 

@@ -1,26 +1,175 @@
 @import "tailwindcss";
 
+/* Dark mode berbasis CLASS (dikendalikan next-themes di <html>) —
+   pilihan pengguna dari halaman /settings menimpa preferensi OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
+.dark {
+  --background: #020617;
+  --foreground: #e2e8f0;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-jakarta), var(--font-geist-sans), ui-sans-serif,
+    system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-jakarta), var(--font-geist-sans), system-ui,
+    -apple-system, sans-serif;
+}
+
+/* =====================================================================
+   Design language UMKM OS v1.3.0 — glassmorphism + ambient aurora.
+   Dipakai halaman login, pengaturan tampilan, dan konsol kelola akun;
+   dua tema (terang/gelap) dalam satu definisi.
+   ===================================================================== */
+
+/* ---- Animasi ambient (GPU-accelerated, ringan) ---- */
+@keyframes auroraGlow1 {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(12%, -8%) scale(1.12);
+    opacity: 0.75;
+  }
+}
+@keyframes auroraGlow2 {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translate(-12%, 10%) scale(1.15);
+    opacity: 0.65;
+  }
+}
+.aurora-1 {
+  animation: auroraGlow1 16s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+.aurora-2 {
+  animation: auroraGlow2 20s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+
+/* Gelombang SVG yang mengalir dari panel kiri ke kanan (halaman login). */
+@keyframes waveFlow {
+  0% {
+    transform: translateX(0) scaleY(1);
+  }
+  50% {
+    transform: translateX(-40px) scaleY(1.08);
+  }
+  100% {
+    transform: translateX(0) scaleY(1);
+  }
+}
+.animate-wave-flow {
+  animation: waveFlow 10s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Kartu mengambang lembut (login). */
+@keyframes floatSlow {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(0.5deg);
+  }
+}
+.animate-float {
+  animation: floatSlow 7s ease-in-out infinite;
+  will-change: transform;
+}
+.animate-float-delayed {
+  animation: floatSlow 8s ease-in-out 2s infinite;
+  will-change: transform;
+}
+
+/* ---- Glassmorphism ---- */
+.glass-card {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px -8px rgba(15, 23, 42, 0.1);
+}
+.dark .glass-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.glass-input {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+}
+.dark .glass-input {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+}
+.glass-input::placeholder {
+  color: #94a3b8;
+}
+.dark .glass-input::placeholder {
+  color: #64748b;
+}
+.glass-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 20px -3px rgba(59, 130, 246, 0.35);
+  outline: none;
+}
+.glass-input option {
+  color: #0f172a;
+  background: #ffffff;
+}
+
+/* ---- Pola titik grid latar ---- */
+.bg-grid-pattern {
+  background-image: radial-gradient(
+    rgba(15, 23, 42, 0.07) 1.5px,
+    transparent 1.5px
+  );
+  background-size: 28px 28px;
+}
+.dark .bg-grid-pattern {
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.08) 1.5px,
+    transparent 1.5px
+  );
+}
+
+/* ---- Scrollbar ramping (tema gelap) ---- */
+.dark ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #334155;
 }
