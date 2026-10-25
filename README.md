@@ -2,11 +2,27 @@
 
 > Sistem operasi untuk warung dan UMKM Indonesia — kasir (POS), manajemen stok, laporan penjualan, dan analitik dalam satu platform.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![backend-go](https://img.shields.io/badge/backend--go-v1.3.0-00ADD8?logo=go&logoColor=white)](#versi-komponen)
-[![frontend](https://img.shields.io/badge/frontend--next.js-v1.3.0-black?logo=nextdotjs)](#versi-komponen)
-[![ml-service](https://img.shields.io/badge/ml--fastapi-v1.0.0-009688?logo=python&logoColor=white)](#versi-komponen)
-[![Go](https://img.shields.io/badge/Go-1.27%2B-00ADD8?logo=go&logoColor=white)](backend-go/)
+<p align="center">
+  <img src="frontend/public/icon/umkm-icon.png" alt="Logo UMKM OS" width="150" />
+</p>
+
+<p align="center">
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" />
+  </a>
+  <a href="#versi-komponen">
+    <img src="https://img.shields.io/badge/backend--go-v1.3.0-00ADD8?logo=go&logoColor=white" alt="Backend Go" />
+  </a>
+  <a href="#versi-komponen">
+    <img src="https://img.shields.io/badge/frontend--next.js-v1.3.0-black?logo=nextdotjs" alt="Frontend Next.js" />
+  </a>
+  <a href="#versi-komponen">
+    <img src="https://img.shields.io/badge/ml--fastapi-v1.0.0-009688?logo=python&logoColor=white" alt="ML FastAPI" />
+  </a>
+  <a href="backend-go/">
+    <img src="https://img.shields.io/badge/Go-1.27%2B-00ADD8?logo=go&logoColor=white" alt="Go Version" />
+  </a>
+</p>
 
 ## Tentang
 

@@ -249,7 +249,7 @@ export default function LoginClient({
               custom={0.4}
               className="relative z-10 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/60 pt-4 text-xs text-slate-500 dark:border-slate-800/60 dark:text-slate-500"
             >
-              <p>© 2026 UMKM OS · Dirancang Khusus Warung Nusantara</p>
+              <p>© {new Date().getFullYear()} UMKM OS · Dirancang Khusus Warung Nusantara</p>
               <div className="flex items-center gap-4">
                 <Link
                   href="/settings"
