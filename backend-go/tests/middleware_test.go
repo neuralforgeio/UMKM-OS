@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/neuralforgeio/internal/auth"
+	"github.com/neuralforgeio/internal/logger"
 	"github.com/neuralforgeio/internal/middleware"
 )
 
@@ -279,6 +280,10 @@ func TestRequireRoleIn(t *testing.T) {
 
 func TestRecovererMenangkapPanic(t *testing.T) {
 	t.Setenv("LOG_DIR", t.TempDir()) // error-nya dicatat logger — arahkan ke folder sementara
+	// Tutup file log SEBELUM TempDir dihapus (cleanup LIFO: yang
+	// didaftarkan terakhir dijalankan duluan). Tanpa ini Windows
+	// menolak menghapus folder karena file CSV masih dipegang proses.
+	t.Cleanup(logger.Close)
 
 	h := middleware.Recoverer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		panic("simulasi bug di handler")
@@ -305,6 +310,7 @@ func TestRecovererMenangkapPanic(t *testing.T) {
 
 func TestLoggerMeloloskanRequest(t *testing.T) {
 	t.Setenv("LOG_DIR", t.TempDir())
+	t.Cleanup(logger.Close) // sama seperti TestRecoverer: lepas pegangan file dulu
 
 	h := middleware.Logger(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound) // sengaja 404: cek status tercatat & diteruskan
