@@ -157,10 +157,9 @@ export default async function DevOutletDetailPage({
     <div className="relative min-h-dvh bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
       <AuroraBackground />
 
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
-        {/* ===== Topbar: brand + breadcrumb + tema ===== */}
-        <header className="sticky top-0 z-40 -mx-4 mb-5 border-b border-slate-200/80 bg-slate-100/70 px-4 backdrop-blur-xl sm:-mx-6 sm:px-6 dark:border-slate-800/80 dark:bg-slate-950/70">
-          <div className="flex h-16 items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-slate-100/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
+        {/* ===== Topbar full-width (v2.2.1): baris dalam dibatasi max-w-7xl ===== */}
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-4">
               <Link href="/dev" className="flex items-center space-x-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 p-[1px] shadow-md shadow-blue-500/20">
@@ -196,13 +195,15 @@ export default async function DevOutletDetailPage({
           </div>
         </header>
 
-        <Link
-          href="/dev"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Kembali ke konsol developer
-        </Link>
+        {/* v2.2.1: konten dibatasi kolom max-w-7xl — topbar tetap full-width. */}
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
+          <Link
+            href="/dev"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Kembali ke konsol developer
+          </Link>
 
         <header className="mt-4 mb-4 flex items-start gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20">

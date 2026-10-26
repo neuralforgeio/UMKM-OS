@@ -1,12 +1,18 @@
-// Test penjaga navbar & profil v2.2.0.
+// Test penjaga navbar & profil v2.2.0 + v2.2.1.
 //
-// Dua keluarga invariant yang dikunci di sini:
+// Keluarga invariant yang dikunci di sini:
 //   1. TEMA hanya diatur di /settings (dan /login pra-autentikasi) —
 //      toggle tema TIDAK boleh kembali menempel di navbar halaman mana
 //      pun. components/theme-header-actions.tsx sudah dihapus total.
 //   2. Chip profil UserMenu (avatar + nama + email -> menu
 //      Profil / Pengaturan / Keluar) wajib ada di SETIAP shell
 //      halaman ber-autentikasi.
+//   3. (v2.2.1) Dropdown menu dirender lewat PORTAL ke document.body
+//      dengan z-[100] — tidak lagi terkurung stacking context header,
+//      sehingga tidak mungkin tertindih kartu konten halaman.
+//   4. (v2.2.1) Tidak ada chip profil kedua yang tertinggal; navbar
+//      area developer full-width ala kasir/owner; terminal jejak
+//      audit hidup di konsol dev & mode terminal /dev/logs.
 // Standar: Bahasa Indonesia, stdlib Node saja, tanpa DB, tanpa jaringan.
 import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
@@ -158,5 +164,59 @@ describe("helper avatar (lib/avatar.ts) — murni dan konsisten", () => {
     expect(userPhotoUrl(null)).toBeNull();
     expect(userPhotoUrl(undefined)).toBeNull();
     expect(userPhotoUrl(3)).toBe("/api/user/photo?v=3");
+  });
+});
+
+describe("v2.2.1 — dropdown portal selalu paling depan", () => {
+  it("menu dirender lewat createPortal ke document.body, fixed z-[100]", () => {
+    // Akar bug "tertumpuk": dropdown lama hidup di dalam stacking
+    // context header (relative z-10) sehingga <main> yang datang
+    // belakangan di DOM melukis menindihnya. Portal + fixed + z-[100]
+    // mengeluarkan menu dari urutan stacking halaman sama sekali.
+    const isi = baca("components/user-menu.tsx");
+    expect(isi).toContain("createPortal");
+    expect(isi).toContain("document.body");
+    expect(isi).toContain("z-[100]");
+    expect(isi).toContain('position: "fixed"');
+  });
+
+  it("chip profil lama tidak lagi dobel di konsol Kelola Akun", () => {
+    // v2.2.0 sempat menampilkan DUA profil di /dev/users: UserMenu baru
+    // + chip developer lama (inisial + nama + email statis). Chip lama
+    // dihapus; test ini menjaga agar tidak pernah tertinggal lagi.
+    const isi = baca("app/dev/users/users-client.tsx");
+    expect(isi).toContain("UserMenu");
+    expect(isi.includes("initials(userName")).toBe(false);
+    expect(isi.includes("userName?:")).toBe(false);
+  });
+
+  it("navbar area developer kini full-width ala kasir/owner", () => {
+    // dulu /dev, /dev/logs, /dev/outlets/[id] membungkus SELURUH
+    // halaman (termasuk topbar) dalam kolom max-w-6xl di tengah layar;
+    // kini topbar memanjang penuh dan hanya barisnya yang dibatasi
+    // max-w-7xl — pola navbar kasir/owner.
+    const halamanDev = [
+      "app/dev/page.tsx",
+      "app/dev/logs/page.tsx",
+      "app/dev/outlets/[id]/page.tsx",
+    ];
+    for (const rel of halamanDev) {
+      const isi = baca(rel);
+      expect(isi.includes("max-w-6xl")).toBe(false);
+      expect(isi).toContain("max-w-7xl");
+    }
+  });
+
+  it("terminal jejak audit hidup di konsol dev & Log Aktivitas", () => {
+    expect(existsSync(join(ROOT_FRONTEND, "components/audit-terminal.tsx"))).toBe(true);
+    expect(existsSync(join(ROOT_FRONTEND, "lib/audit-terminal.ts"))).toBe(true);
+    // Kartu konsol dev memakai terminal...
+    expect(baca("app/dev/page.tsx")).toContain("AuditTerminal");
+    // ...dan /dev/logs punya dua mode: tabel default + ?view=terminal.
+    const logs = baca("app/dev/logs/page.tsx");
+    expect(logs).toContain("AuditTerminal");
+    expect(logs).toContain("view=terminal");
+    // Mode tersimpan saat filter diterapkan & pagination berpindah halaman.
+    expect(logs).toContain('name="view"');
   });
 });

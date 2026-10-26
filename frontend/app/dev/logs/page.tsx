@@ -9,6 +9,8 @@ import {
   actionLabel,
   actionLevel,
 } from "@/lib/audit-labels";
+import { buildAuditCommand } from "@/lib/audit-terminal";
+import { AuditTerminal } from "@/components/audit-terminal";
 import { AuroraBackground } from "@/components/aurora-background";
 import { SelectInput } from "@/components/select-input";
 import { UserMenu } from "@/components/user-menu";
@@ -22,13 +24,17 @@ export const instant = false;
 // tabel audit tumbuh tanpa batas (setiap transaksi/stok/login menambah
 // baris), jadi tidak seperti halaman produk yang memuat semua baris —
 // di sini setiap halaman hanya membaca 20 baris dari database.
-// Task 35: kolom aksi kini label manusiawi + kode mentah, dengan
-// tingkat SUKSES/PERINGATAN/GAGAL (filter-able), dan unduhan berupa
-// EXCEL ber-grafik (bukan CSV polos).
-// v1.6.0: design aurora + glass sadar tema (terang/gelap/sistem) —
-// logika query & pagination tidak berubah sama sekali.
+// Task 35: kolom aksi label manusiawi + kode mentah, tingkat
+// SUKSES/PERINGATAN/GAGAL (filter-able), unduhan EXCEL ber-grafik.
 // v2.1.0: data dari GET /audit-logs backend-go (ber-outlet sejak
-// backend-go v1.6.0 — kolom Outlet kini hidup, bukan data beku Prisma).
+// backend-go v1.6.0 — kolom Outlet hidup, bukan data beku Prisma).
+// v2.2.1: (1) topbar FULL-WIDTH memanjang kanan-kiri seperti navbar
+// kasir/owner; (2) DUA MODE TAMPILAN — "Tabel" (default, seperti
+// sebelumnya) dan "Terminal" (?view=terminal, hidup di URL sehingga
+// bisa di-bookmark): jendela terminal PowerShell penuh yang baris
+// perintahnya MENCERMINKAN filter aktif (-Level/-Outlet/-Actor/-From/
+// -To); filter, pagination, dan unduh Excel tetap berfungsi di kedua
+// mode — pagination mempertahankan mode lewat query string.
 const PAGE_SIZE = 20;
 
 const ROLE_BADGE: Record<string, string> = {
@@ -94,6 +100,9 @@ export default async function DevLogsPage({
   const to = one("to") ?? "";
   const level = one("level") ?? "";
   const page = Math.max(1, parseInt(one("page") ?? "1", 10) || 1);
+  // v2.2.1: mode tampilan — "table" (default) atau "terminal", hidup
+  // di URL supaya bisa di-bookmark & dibagikan seperti filter lainnya.
+  const view = one("view") === "terminal" ? "terminal" : "table";
 
   const actionTitle = action
     ? `${actionLabel(action)} (${action})`
@@ -136,63 +145,90 @@ export default async function DevLogsPage({
   // dan tombol export (unduh hasil filter INI, bukan semua log).
   const qs = logQueryString(filterInput);
 
+  // v2.2.1: alamat mode (filter dipertahankan) + query string untuk
+  // pagination yang juga MEMPERTAHANKAN mode terminal saat berpindah
+  // halaman — tanpa ini, klik halaman 2 diam-diam melempar balik ke
+  // mode tabel.
+  const tableHref = qs ? `/dev/logs${qs}` : "/dev/logs";
+  const terminalHref = qs
+    ? `/dev/logs${qs}&view=terminal`
+    : "/dev/logs?view=terminal";
+  const qsNav =
+    view === "terminal" ? (qs ? `${qs}&view=terminal` : "?view=terminal") : qs;
+
+  // Nama outlet/aktor untuk baris perintah PowerShell di kepala
+  // terminal — id mentah (#3) dipakai bila namanya tak ketemu.
+  const outletName = outlet
+    ? outlets.find((o) => String(o.id) === outlet)?.name
+    : undefined;
+  const actorName = actor
+    ? actors.find((a) => String(a.id) === actor)?.name
+    : undefined;
+  const command = buildAuditCommand(
+    { q, action, level, outletId: outlet, outletName, actorId: actor, actorName, from, to },
+    PAGE_SIZE,
+  );
+
   return (
     <div className="relative min-h-dvh bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
       <AuroraBackground />
 
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
-        {/* ===== Topbar: brand + breadcrumb + tema ===== */}
-        <header className="sticky top-0 z-40 -mx-4 mb-5 border-b border-slate-200/80 bg-slate-100/70 px-4 backdrop-blur-xl sm:-mx-6 sm:px-6 dark:border-slate-800/80 dark:bg-slate-950/70">
-          <div className="flex h-16 items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-4">
-              <Link href="/dev" className="flex items-center space-x-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 p-[1px] shadow-md shadow-blue-500/20">
-                  <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-white dark:bg-slate-950">
-                    <ScrollText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
+      {/* ===== Topbar FULL-WIDTH (v2.2.1): garis memanjang kanan-kiri
+          penuh; baris isinya dibatasi max-w-7xl — pola navbar kasir &
+          owner. ===== */}
+      <header className="sticky top-0 z-40 shrink-0 border-b border-slate-200/80 bg-slate-100/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-4">
+            <Link href="/dev" className="flex items-center space-x-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 p-[1px] shadow-md shadow-blue-500/20">
+                <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-white dark:bg-slate-950">
+                  <ScrollText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
-                <div>
-                  <span className="block text-base leading-none font-extrabold tracking-tight text-slate-900 dark:text-white">
-                    Log Aktivitas
-                  </span>
-                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                    {total.toLocaleString("id-ID")} baris cocok filter
-                  </span>
-                </div>
-              </Link>
-
-              <div className="hidden items-center space-x-2 border-l border-slate-200 pl-4 text-xs font-medium text-slate-500 md:flex dark:border-slate-800 dark:text-slate-400">
-                <Link
-                  href="/dev"
-                  className="text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-                >
-                  Konsol
-                </Link>
-                <span className="text-slate-400 dark:text-slate-600">/</span>
-                <span className="truncate font-semibold text-slate-700 dark:text-slate-300">
-                  {actionTitle}
+              </div>
+              <div>
+                <span className="block text-base leading-none font-extrabold tracking-tight text-slate-900 dark:text-white">
+                  Log Aktivitas
+                </span>
+                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                  {total.toLocaleString("id-ID")} baris cocok filter
                 </span>
               </div>
-            </div>
+            </Link>
 
-            <div className="flex items-center space-x-3">
-              <UserMenu user={userMenuUser(session)} />
-
-              {/* Tautan <a> biasa ke route export: filter sama persis dengan
-                  layar, jadi file yang terunduh = yang sedang dilihat. Kini
-                  berupa .xlsx: tabel rapi + grafik tren/periodik + pivot. */}
-              <a
-                href={`/api/logs/export${qs}`}
-                className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98]"
+            <div className="hidden items-center space-x-2 border-l border-slate-200 pl-4 text-xs font-medium text-slate-500 md:flex dark:border-slate-800 dark:text-slate-400">
+              <Link
+                href="/dev"
+                className="text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
               >
-                <FileSpreadsheet className="h-4 w-4" />
-                <span className="hidden sm:inline">Unduh Excel (+ Grafik)</span>
-                <span className="sm:hidden">Excel</span>
-              </a>
+                Konsol
+              </Link>
+              <span className="text-slate-400 dark:text-slate-600">/</span>
+              <span className="truncate font-semibold text-slate-700 dark:text-slate-300">
+                {actionTitle}
+              </span>
             </div>
           </div>
-        </header>
 
+          <div className="flex items-center space-x-3">
+            <UserMenu user={userMenuUser(session)} />
+
+            {/* Tautan <a> biasa ke route export: filter sama persis dengan
+                layar, jadi file yang terunduh = yang sedang dilihat. Kini
+                berupa .xlsx: tabel rapi + grafik tren/periodik + pivot. */}
+            <a
+              href={`/api/logs/export${qs}`}
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98]"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              <span className="hidden sm:inline">Unduh Excel (+ Grafik)</span>
+              <span className="sm:hidden">Excel</span>
+            </a>
+          </div>
+        </div>
+      </header>
+
+      {/* Konten dibatasi kolom max-w-7xl — navbar tetap full-width. */}
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
         <Link
           href="/dev"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
@@ -212,12 +248,48 @@ export default async function DevLogsPage({
               di-bookmark dan dibagikan; maksimum 10.000 baris per unduhan.
             </p>
           </div>
+
+          {/* v2.2.1: saklar mode Tabel / Terminal — filter aktif
+              dipertahankan saat berpindah mode. */}
+          <div
+            className="flex rounded-xl border border-slate-300 bg-white p-1 text-xs font-bold dark:border-slate-700 dark:bg-slate-900"
+            role="tablist"
+            aria-label="Mode tampilan log"
+          >
+            <Link
+              href={tableHref}
+              role="tab"
+              aria-selected={view === "table"}
+              className={
+                view === "table"
+                  ? "rounded-lg bg-blue-600 px-3.5 py-1.5 text-white"
+                  : "rounded-lg px-3.5 py-1.5 text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              }
+            >
+              Tabel
+            </Link>
+            <Link
+              href={terminalHref}
+              role="tab"
+              aria-selected={view === "terminal"}
+              className={
+                view === "terminal"
+                  ? "rounded-lg bg-slate-900 px-3.5 py-1.5 text-white dark:bg-slate-100 dark:text-slate-900"
+                  : "rounded-lg px-3.5 py-1.5 text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              }
+            >
+              Terminal
+            </Link>
+          </div>
         </div>
 
         <form
           method="get"
           className="glass-card grid gap-2.5 rounded-2xl p-4 sm:grid-cols-2 lg:grid-cols-4"
         >
+          {/* Mode tampilan ikut terkirim saat filter diterapkan — tanpa
+              ini, menekan "Terapkan Filter" diam-diam kembali ke tabel. */}
+          <input type="hidden" name="view" defaultValue={view} />
           <div className="relative lg:col-span-2">
             <input
               type="text"
@@ -297,97 +369,132 @@ export default async function DevLogsPage({
           </div>
         </form>
 
-        <section className="glass-card mt-3 overflow-hidden rounded-2xl border-slate-200/80 dark:border-slate-800/80">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-100/70 text-left text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-400">
-                  <th className="px-4 py-3 font-semibold">Waktu (WIB)</th>
-                  <th className="px-4 py-3 font-semibold">Aktor</th>
-                  <th className="px-4 py-3 font-semibold">Outlet</th>
-                  <th className="px-4 py-3 font-semibold">Aksi</th>
-                  <th className="px-4 py-3 font-semibold">Entitas</th>
-                  <th className="px-4 py-3 font-semibold">Ringkasan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => {
-                  const lvl = actionLevel(row.action);
-                  const entityLabel = row.entity_id
-                    ? `${row.entity}:${row.entity_id}`
-                    : row.entity;
-                  return (
-                    <tr
-                      key={row.id}
-                      className={`border-b border-slate-200/60 align-top last:border-0 dark:border-slate-800/50 ${
-                        lvl === "GAGAL"
-                          ? "bg-red-50/40 dark:bg-red-950/20"
-                          : ""
-                      }`}
-                    >
-                      <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500 dark:text-slate-400">
-                        {formatWib(new Date(row.created_at))}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {row.user_name || "Sistem"}
-                        </span>
-                        {row.user_role && (
-                          <span
-                            className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${ROLE_BADGE[row.user_role] ?? "bg-slate-400/10 text-slate-600 dark:text-slate-300"}`}
-                          >
-                            {row.user_role}
+        {view === "terminal" ? (
+          /* ===== MODE TERMINAL (v2.2.1): jendela PowerShell penuh —
+              perintah di kepala = filter aktif, baris log padat
+              berwarna, pagination di bawah tetap berbasis URL. ===== */
+          <section className="mt-3">
+            <AuditTerminal
+              title={`umkm-os — jejak audit — ${total.toLocaleString("id-ID")} baris cocok filter`}
+              command={command}
+              note="filter & unduhan Excel tetap berlaku di mode ini"
+              rows={rows}
+              variant="full"
+              footerRight={
+                <Link
+                  href={tableHref}
+                  className="text-[11px] font-semibold text-violet-400 transition hover:text-violet-300 hover:underline"
+                >
+                  mode tabel →
+                </Link>
+              }
+            />
+            <div className="mt-3">
+              <LogsPagination
+                page={safePage}
+                pageCount={pageCount}
+                pageSize={PAGE_SIZE}
+                total={total}
+                basePath="/dev/logs"
+                queryString={qsNav}
+              />
+            </div>
+          </section>
+        ) : (
+          /* ===== MODE TABEL (default): tampilan lama yang sudah
+              dikenal — lebih renggang, cocok dibaca pelan-pelan. ===== */
+          <section className="glass-card mt-3 overflow-hidden rounded-2xl border-slate-200/80 dark:border-slate-800/80">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200/80 bg-slate-100/70 text-left text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-400">
+                    <th className="px-4 py-3 font-semibold">Waktu (WIB)</th>
+                    <th className="px-4 py-3 font-semibold">Aktor</th>
+                    <th className="px-4 py-3 font-semibold">Outlet</th>
+                    <th className="px-4 py-3 font-semibold">Aksi</th>
+                    <th className="px-4 py-3 font-semibold">Entitas</th>
+                    <th className="px-4 py-3 font-semibold">Ringkasan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => {
+                    const lvl = actionLevel(row.action);
+                    const entityLabel = row.entity_id
+                      ? `${row.entity}:${row.entity_id}`
+                      : row.entity;
+                    return (
+                      <tr
+                        key={row.id}
+                        className={`border-b border-slate-200/60 align-top last:border-0 dark:border-slate-800/50 ${
+                          lvl === "GAGAL"
+                            ? "bg-red-50/40 dark:bg-red-950/20"
+                            : ""
+                        }`}
+                      >
+                        <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500 dark:text-slate-400">
+                          {formatWib(new Date(row.created_at))}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">
+                            {row.user_name || "Sistem"}
                           </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                        {row.outlet_name || "—"}
-                      </td>
-                      <td className="px-4 py-3">
-                        {/* Label manusiawi berwarna tingkat + kode mentah:
-                            "Owner menonaktifkan kasir" terbaca sekali
-                            lihat, method aslinya tetap ada untuk pencarian. */}
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${LEVEL_BADGE[lvl]}`}
-                        >
-                          {actionLabel(row.action)}
-                        </span>
-                        <p className="mt-0.5 font-mono text-[10px] text-slate-400 dark:text-slate-500">
-                          {row.action}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3 font-mono text-[11px] text-slate-400 dark:text-slate-500">
-                        {entityLabel || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                        {row.detail}
+                          {row.user_role && (
+                            <span
+                              className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${ROLE_BADGE[row.user_role] ?? "bg-slate-400/10 text-slate-600 dark:text-slate-300"}`}
+                            >
+                              {row.user_role}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
+                          {row.outlet_name || "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          {/* Label manusiawi berwarna tingkat + kode mentah:
+                              "Owner menonaktifkan kasir" terbaca sekali
+                              lihat, method aslinya tetap ada untuk pencarian. */}
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${LEVEL_BADGE[lvl]}`}
+                          >
+                            {actionLabel(row.action)}
+                          </span>
+                          <p className="mt-0.5 font-mono text-[10px] text-slate-400 dark:text-slate-500">
+                            {row.action}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-[11px] text-slate-400 dark:text-slate-500">
+                          {entityLabel || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                          {row.detail}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {rows.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
+                      >
+                        Tidak ada log yang cocok — longgarkan filter atau
+                        perlebar rentang tanggal.
                       </td>
                     </tr>
-                  );
-                })}
-                {rows.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
-                    >
-                      Tidak ada log yang cocok — longgarkan filter atau
-                      perlebar rentang tanggal.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <LogsPagination
-            page={safePage}
-            pageCount={pageCount}
-            pageSize={PAGE_SIZE}
-            total={total}
-            basePath="/dev/logs"
-            queryString={qs}
-          />
-        </section>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <LogsPagination
+              page={safePage}
+              pageCount={pageCount}
+              pageSize={PAGE_SIZE}
+              total={total}
+              basePath="/dev/logs"
+              queryString={qsNav}
+            />
+          </section>
+        )}
       </div>
     </div>
   );

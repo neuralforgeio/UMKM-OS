@@ -54,8 +54,6 @@ export default async function DevUsersPage() {
       users={mapGoUsers(usersRes.data)}
       outlets={mapGoOutlets(outletsRes.data)}
       currentUserId={session.user.id}
-      userName={session.user.name ?? "Developer"}
-      userEmail={session.user.email ?? ""}
       me={userMenuUser(session)}
     />
   );

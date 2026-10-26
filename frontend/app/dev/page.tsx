@@ -1,14 +1,16 @@
 // Konsol Developer (Fase A + B + penyempurnaan Task 35).
 // Super-user lintas outlet: ringkasan sistem, pintasan kelola akun &
 // log aktivitas, daftar outlet (klik = drill-down, tombol + = buat baru),
-// dan 20 jejak audit terbaru yang tampil dengan LABEL MANUSIAWI +
-// tingkat SUKSES/PERINGATAN/GAGAL.
-// v1.6.0: design aurora + glassmorphism ala konsol Kelola Akun, kini
-// SADAR TEMA (terang/gelap/sistem) + toggle tema & pintu /settings di
-// topbar.
+// dan 20 jejak audit terbaru.
+// v1.6.0: design aurora + glassmorphism, sadar tema (terang/gelap/sistem).
 // v2.0.0: seluruh data dari backend-go (GET /reports/by-outlet +
 // GET /audit-logs) — tabel Prisma tidak disentuh lagi; outlet baru
 // langsung tampil di sini.
+// v2.2.1: (1) topbar FULL-WIDTH memanjang kanan-kiri seperti navbar
+// kasir/owner (dulu terkurung kolom 72rem di tengah layar);
+// (2) kartu "Jejak Audit Terbaru" kini jendela TERMINAL PowerShell —
+// ringkas, berbatas (maks 320px, scroll internal), warna per tingkat
+// keseriusan & peran, selalu gelap di kedua tema.
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -25,25 +27,14 @@ import {
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
-import {
-  LEVEL_BADGE,
-  actionLabel,
-  actionLevel,
-} from "@/lib/audit-labels";
+import { AuditTerminal } from "@/components/audit-terminal";
+import { buildAuditCommand } from "@/lib/audit-terminal";
 import { AuroraBackground } from "@/components/aurora-background";
 import { UserMenu } from "@/components/user-menu";
 import { userMenuUser } from "@/lib/session-user";
 import { OutletCreateButton } from "./outlet-create-button";
 
 export const instant = false;
-
-function formatWib(date: Date): string {
-  return new Intl.DateTimeFormat("id-ID", {
-    dateStyle: "short",
-    timeStyle: "medium",
-    timeZone: "Asia/Jakarta",
-  }).format(date);
-}
 
 // Bentuk baris statistik per-outlet (backend-go GET /reports/by-outlet).
 type GoOutletStat = {
@@ -58,11 +49,15 @@ type GoOutletStat = {
   omzet_today: number;
 };
 
-// Bentuk baris audit (backend-go GET /audit-logs).
+// Bentuk baris audit (backend-go GET /audit-logs) — v2.2.1 menambah
+// user_role & outlet_name yang dikirim Go sejak v1.6.0 untuk warna
+// peran & label outlet di terminal.
 type GoAuditRow = {
   id: number;
   user_id: number | null;
   user_name: string;
+  user_role: string;
+  outlet_name: string;
   action: string;
   entity: string;
   entity_id: string;
@@ -125,46 +120,49 @@ export default async function DevConsolePage() {
   ];
 
   return (
-    <div className="relative min-h-dvh bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
+    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
       <AuroraBackground />
 
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
-        {/* ===== Topbar: brand + breadcrumb + tema + keluar ===== */}
-        <header className="sticky top-0 z-40 -mx-4 mb-5 border-b border-slate-200/80 bg-slate-100/70 px-4 backdrop-blur-xl sm:-mx-6 sm:px-6 dark:border-slate-800/80 dark:bg-slate-950/70">
-          <div className="flex h-16 items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-4">
-              <Link href="/dev" className="flex items-center space-x-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 via-purple-600 to-fuchsia-400 p-[1px] shadow-md shadow-violet-500/20">
-                  <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-white dark:bg-slate-950">
-                    <ShieldCheck className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                  </div>
+      {/* ===== Topbar FULL-WIDTH (v2.2.1): garis memanjang kanan-kiri
+          penuh; baris isinya dibatasi max-w-7xl — pola yang sama dengan
+          navbar kasir & owner. ===== */}
+      <header className="sticky top-0 z-40 shrink-0 border-b border-slate-200/80 bg-slate-100/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-4">
+            <Link href="/dev" className="flex items-center space-x-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 via-purple-600 to-fuchsia-400 p-[1px] shadow-md shadow-violet-500/20">
+                <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-white dark:bg-slate-950">
+                  <ShieldCheck className="h-5 w-5 text-violet-600 dark:text-violet-400" />
                 </div>
-                <div>
-                  <span className="block text-base leading-none font-extrabold tracking-tight text-slate-900 dark:text-white">
-                    UMKM OS
-                  </span>
-                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                    Konsol Developer
-                  </span>
-                </div>
-              </Link>
-
-              <div className="hidden items-center space-x-2 border-l border-slate-200 pl-4 text-xs font-medium text-slate-500 md:flex dark:border-slate-800 dark:text-slate-400">
-                <span className="truncate">
-                  {session.user.name ?? "Developer"} · akses lintas outlet
+              </div>
+              <div>
+                <span className="block text-base leading-none font-extrabold tracking-tight text-slate-900 dark:text-white">
+                  UMKM OS
+                </span>
+                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
+                  Konsol Developer
                 </span>
               </div>
-            </div>
+            </Link>
 
-            <div className="flex items-center space-x-3">
-              {/* v2.2.0: chip profil (avatar + nama + email) — menu di
-                  bawahnya: Profil / Pengaturan Tampilan / Keluar. Toggle
-                  tema lama dihapus; tema hanya di /settings. */}
-              <UserMenu user={userMenuUser(session)} />
+            <div className="hidden items-center space-x-2 border-l border-slate-200 pl-4 text-xs font-medium text-slate-500 md:flex dark:border-slate-800 dark:text-slate-400">
+              <span className="truncate">
+                {session.user.name ?? "Developer"} · akses lintas outlet
+              </span>
             </div>
           </div>
-        </header>
 
+          <div className="flex items-center space-x-3">
+            {/* v2.2.0: chip profil (avatar + nama + email) — menu di
+                bawahnya: Profil / Pengaturan Tampilan / Keluar. Tema
+                hanya di /settings. */}
+            <UserMenu user={userMenuUser(session)} />
+          </div>
+        </div>
+      </header>
+
+      {/* Konten dibatasi kolom max-w-7xl — navbar tetap full-width. */}
+      <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
         {/* Pintasan Fase B: dua pintu utama konsol. Kartu besar + panah —
             bukan menu tersembunyi, karena ini alasan konsol ini ada. */}
         <section className="grid gap-3 sm:grid-cols-2">
@@ -307,93 +305,46 @@ export default async function DevConsolePage() {
           </div>
         </section>
 
-        <section className="glass-card mt-4 rounded-2xl border-slate-200/80 p-5 dark:border-slate-800/80">
+        {/* ===== Jejak Audit Terbaru — kini TERMINAL PowerShell (v2.2.1):
+            ringkas satu baris info + satu baris detail, berbatas 320px
+            dengan scroll internal, warna per tingkat & peran, selalu
+            gelap di kedua tema. ===== */}
+        <section className="mt-4">
           <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-white">
             <Activity className="h-5 w-5 text-violet-600 dark:text-violet-400" />
             Jejak Audit Terbaru
           </h2>
           <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Semua aksi tercatat dengan tingkat keseriusan:{" "}
-            <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-500/30">
+            Terminal hidup: 20 aksi terakhir lintas outlet —{" "}
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
               SUKSES
             </span>{" "}
             selesai normal,{" "}
-            <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-500/30">
+            <span className="font-semibold text-amber-600 dark:text-amber-400">
               PERINGATAN
             </span>{" "}
             aksi sensitif,{" "}
-            <span className="rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-500/30">
+            <span className="font-semibold text-rose-600 dark:text-rose-400">
               GAGAL
             </span>{" "}
-            percobaan yang error.{" "}
-            <Link
-              href="/dev/logs"
-              className="font-semibold text-violet-700 hover:underline dark:text-violet-400"
-            >
-              Buka query penuh + unduh Excel →
-            </Link>
+            percobaan yang error. Query penuh + unduh Excel di Log Aktivitas.
           </p>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-100/70 text-left text-[11px] font-bold tracking-wider text-slate-500 uppercase dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-400">
-                  <th className="px-4 py-3 font-semibold">Waktu (WIB)</th>
-                  <th className="px-4 py-3 font-semibold">Aktor</th>
-                  <th className="px-4 py-3 font-semibold">Aksi</th>
-                  <th className="px-4 py-3 font-semibold">Ringkasan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {auditRows.map((e) => {
-                  const level = actionLevel(e.action);
-                  return (
-                    <tr
-                      key={e.id}
-                      className={`border-b border-slate-200/60 align-top last:border-0 dark:border-slate-800/50 ${
-                        level === "GAGAL"
-                          ? "bg-red-50/40 dark:bg-red-950/20"
-                          : ""
-                      }`}
-                    >
-                      <td className="px-4 py-3 text-xs whitespace-nowrap text-slate-500 dark:text-slate-400">
-                        {formatWib(new Date(e.created_at))}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {e.user_name || "Sistem"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {/* Label manusiawi + kode mentah di bawahnya:
-                            terbaca cepat DAN tetap bisa dicari. */}
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${LEVEL_BADGE[level]}`}
-                        >
-                          {actionLabel(e.action)}
-                        </span>
-                        <p className="mt-0.5 font-mono text-[10px] text-slate-400 dark:text-slate-500">
-                          {e.action}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                        {e.detail || "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {auditRows.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
-                    >
-                      Belum ada aksi tercatat — jalankan satu transaksi di
-                      kasir lalu muat ulang halaman ini.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="mt-3">
+            <AuditTerminal
+              title="umkm-os — jejak audit — 20 terbaru"
+              command={buildAuditCommand({}, 20, true)}
+              note="tingkat: SUKSES hijau · PERINGATAN kuning · GAGAL merah"
+              rows={auditRows}
+              variant="compact"
+              footerRight={
+                <Link
+                  href="/dev/logs"
+                  className="text-[11px] font-semibold text-violet-400 transition hover:text-violet-300 hover:underline"
+                >
+                  query penuh → /dev/logs
+                </Link>
+              }
+            />
           </div>
         </section>
 
@@ -401,7 +352,7 @@ export default async function DevConsolePage() {
           Multi-outlet v2.0.0 aktif: produk, transaksi, dan antrean tiap
           outlet terpisah — dashboard &amp; POS mengikuti outlet akun.
         </p>
-      </div>
+      </main>
     </div>
   );
 }

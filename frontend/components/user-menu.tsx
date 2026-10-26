@@ -1,19 +1,30 @@
 "use client";
 
-// Chip profil di kanan navbar SEMUA halaman (v2.2.0).
+// Chip profil di kanan navbar SEMUA halaman (v2.2.0, portal v2.2.1).
 //
 // Permintaan pemilik: navbar tiap halaman memperkenalkan pengguna —
 // avatar, nama lengkap, email — dan sekali klik membuka menu kecil di
-// bawahnya: Profil (halaman /account) atau Keluar. Tombol ganti tema
-// yang dulu menempel di sini DIHAPUS: tema hanya diatur di halaman
-// /settings (link pintasnya ada di menu ini).
+// bawahnya: Profil Saya (/account), Pengaturan Tampilan (/settings),
+// atau Keluar. Tombol ganti tema yang dulu menempel di sini DIHAPUS:
+// tema hanya diatur di halaman /settings (link pintasnya ada di menu).
+//
+// v2.2.1 — MENU MELALUI PORTAL: dropdown kini dirender ke document.body
+// dengan position:fixed + z-[100]. Sebelumnya dropdown hidup di dalam
+// header yang membentuk stacking context sendiri (relative z-10);
+// sementara <main> halaman juga relative z-10 dan datang lebih
+// belakangan di DOM — sehingga kartu dashboard/laporan MELUKIS DI ATAS
+// menu yang sedang terbuka ("tertumpuk"). Lewat portal, urutan stacking
+// halaman tidak lagi relevan: satu perbaikan berlaku untuk semua shell
+// sekaligus. Menu menutup saat scroll (termasuk daftar internal seperti
+// grid produk kasir), resize, Escape, atau klik di luar.
 //
 // Data masuk sebagai prop biasa dari server component pemanggil
 // (lihat lib/session-user.ts) — token sesi tidak pernah melintas ke
 // komponen client ini.
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import {
   ChevronDown,
   LogOut,
@@ -81,27 +92,56 @@ export function UserMenu({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
+  // Posisi menu dihitung dari koordinat tombol saat dibuka — menu
+  // dipasang fixed pada viewport (portal), bukan pada header.
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  // Tutup dropdown saat klik di luar chip/menu (listener passive pada
-  // document — pasangan click-toggle di dalam komponen).
+  const placeMenu = useCallback(() => {
+    const btn = rootRef.current?.querySelector("button");
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    setMenuPos({
+      // Sisi kanan menu sejajar sisi kanan chip; jarak disimpan dari
+      // tepi kanan viewport supaya tidak perlu menghitung lebar menu.
+      top: Math.max(8, Math.min(rect.bottom + 8, window.innerHeight - 340)),
+      right: Math.max(8, window.innerWidth - rect.right),
+    });
+  }, []);
+
   useEffect(() => {
     if (!open) return;
+    placeMenu();
     const onDocClick = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false);
+      const target = e.target as Node;
+      if (
+        rootRef.current?.contains(target) ||
+        menuRef.current?.contains(target)
+      ) {
+        return;
       }
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
+    // Scroll (termasuk daftar internal seperti grid produk kasir —
+    // makanya listener dipasang fase capture) dan resize cukup
+    // MENUTUP menu: memindahkannya mengikuti scroll justru terasa
+    // "melompat" dan bisa menutupi konten yang sedang dibaca.
+    const onViewportChange = () => setOpen(false);
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onViewportChange, true);
+    window.addEventListener("resize", onViewportChange);
     return () => {
       document.removeEventListener("mousedown", onDocClick);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onViewportChange, true);
+      window.removeEventListener("resize", onViewportChange);
     };
-  }, [open]);
+  }, [open, placeMenu]);
 
   const name = user.name?.trim() || "Pengguna";
   const email = user.email ?? "";
@@ -132,65 +172,71 @@ export function UserMenu({
         />
       </button>
 
-      {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 dark:border-slate-800 dark:bg-slate-900"
-        >
-          {/* Kepala menu: identitas + peran — konteks sebelum aksi. */}
-          <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3.5 dark:border-slate-800">
-            <UserAvatar user={user} className="h-10 w-10 text-sm" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
-                {name}
-              </p>
-              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                {email || roleLabelOf(user.role)}
-              </p>
-              <p className="mt-0.5 text-[11px] font-semibold text-blue-600 dark:text-blue-400">
-                {roleLabelOf(user.role)}
-              </p>
+      {/* PORTAL: keluar dari stacking context header halaman — menu
+          selalu tampil paling depan di halaman mana pun. */}
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={{ position: "fixed", top: `${menuPos.top}px`, right: `${menuPos.right}px` }}
+            className="z-[100] w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 dark:border-slate-800 dark:bg-slate-900"
+          >
+            {/* Kepala menu: identitas + peran — konteks sebelum aksi. */}
+            <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3.5 dark:border-slate-800">
+              <UserAvatar user={user} className="h-10 w-10 text-sm" />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-slate-900 dark:text-slate-100">
+                  {name}
+                </p>
+                <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                  {email || roleLabelOf(user.role)}
+                </p>
+                <p className="mt-0.5 text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                  {roleLabelOf(user.role)}
+                </p>
+              </div>
             </div>
-          </div>
 
-          <nav className="p-1.5">
-            <Link
-              href="/account"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-            >
-              <UserRound className="h-4 w-4 text-slate-400" />
-              Profil Saya
-            </Link>
-            <Link
-              href="/settings"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-            >
-              <Palette className="h-4 w-4 text-slate-400" />
-              Pengaturan Tampilan
-            </Link>
-          </nav>
-
-          <div className="border-t border-slate-100 p-1.5 dark:border-slate-800">
-            {/* Server action (lib/logout-action) — cookie sesi dibuang di
-                server lalu dilempar ke /login, sama dengan tombol Keluar
-                lama, kini jadi satu pintu di semua halaman. */}
-            <form action={logoutAction}>
-              <button
-                type="submit"
+            <nav className="p-1.5">
+              <Link
+                href="/account"
                 role="menuitem"
-                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
               >
-                <LogOut className="h-4 w-4" />
-                Keluar
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+                <UserRound className="h-4 w-4 text-slate-400" />
+                Profil Saya
+              </Link>
+              <Link
+                href="/settings"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+              >
+                <Palette className="h-4 w-4 text-slate-400" />
+                Pengaturan Tampilan
+              </Link>
+            </nav>
+
+            <div className="border-t border-slate-100 p-1.5 dark:border-slate-800">
+              {/* Server action (lib/logout-action) — cookie sesi dibuang di
+                  server lalu dilempar ke /login, sama dengan tombol Keluar
+                  lama, kini jadi satu pintu di semua halaman. */}
+              <form action={logoutAction}>
+                <button
+                  type="submit"
+                  role="menuitem"
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Keluar
+                </button>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -353,15 +353,11 @@ export function UsersClient({
   users,
   outlets,
   currentUserId,
-  userName,
-  userEmail,
   me,
 }: {
   users: UserRow[];
   outlets: OutletOption[];
   currentUserId: string;
-  userName?: string;
-  userEmail?: string;
   me: UserMenuUser;
 }) {
   const [query, setQuery] = useState("");
@@ -487,22 +483,6 @@ export function UsersClient({
                 <LuBell className="h-4 w-4" />
                 <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-500" />
               </Link>
-
-              <div className="hidden h-6 w-[1px] bg-slate-200 dark:bg-slate-800 sm:block" />
-
-              <div className="flex items-center space-x-3 pl-1">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-600 text-xs font-bold text-white ring-2 ring-purple-500/30">
-                  {initials(userName || "Developer")}
-                </div>
-                <div className="hidden text-left sm:block">
-                  <div className="text-xs leading-tight font-bold text-slate-900 dark:text-white">
-                    {userName ?? "Developer"}
-                  </div>
-                  <div className="max-w-[200px] truncate text-[10px] text-slate-500 dark:text-slate-400">
-                    {userEmail ?? ""}
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </header>
