@@ -13,6 +13,7 @@ backend/.venv/
 __pycache__/
 *.py[cod]
 *.joblib
+backend/mlmodels/
 .pytest_cache/
 
 # ---------------------------------------------------------------------

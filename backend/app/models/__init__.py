@@ -54,6 +54,9 @@ class Product(Base):
     min_stock = Column(Integer, nullable=False)
     unit = Column(String, nullable=False)
     is_active = Column(Boolean, nullable=False)
+    # Outlet pemilik produk — kolom migrasi Go (backfill dari outlet
+    # kasir pertama); NULL hanya pada baris pra-migrasi.
+    outlet_id = Column(BigInteger, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False)
     updated_at = Column(DateTime(timezone=True), nullable=False)
 
@@ -71,6 +74,10 @@ class Transaction(Base):
     paid_amount = Column(BigInteger, nullable=False)
     change_amount = Column(BigInteger, nullable=False)
     status = Column(String, nullable=False)          # COMPLETED
+    # Outlet tempat transaksi terjadi — Go MENULIS kolom ini saat
+    # INSERT (transaction.go) dan memakainya di seluruh laporan
+    # per-outlet; layanan ML membaca kolom yang sama.
+    outlet_id = Column(BigInteger, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False)
 
 

@@ -19,12 +19,14 @@
 
 import type {
   ForecastPoint,
+  ForecastQuality,
   ProductForecast,
   ProductsForecastResponse,
   RevenueForecastResponse,
 } from "@/lib/forecast";
 import { getProductsForecast, getRevenueForecast } from "@/lib/forecast";
 import { formatRupiah } from "@/lib/format";
+import { getOutletContext } from "@/lib/outlet-context";
 import ForecastChart from "./forecast-chart";
 
 const WEEKDAY_ID: Record<string, string> = {
@@ -159,6 +161,51 @@ function BackendDown() {
   );
 }
 
+// v2.3.0 — badge engine ramalan: bukti visual mesin mana yang sedang
+// menang duel backtest MAPE (Prophet vs statistik) untuk outlet ini.
+function formatMapeId(value: number): string {
+  return `${value.toFixed(1).replace(".", ",")}%`;
+}
+
+function EngineBadge({
+  engine,
+  quality,
+}: {
+  engine?: "prophet" | "statistical";
+  quality?: ForecastQuality | null;
+}) {
+  const isProphet = engine === "prophet";
+  const winnerMape = quality
+    ? isProphet
+      ? quality.mape_prophet
+      : quality.mape_statistical
+    : null;
+  const mapeProphet =
+    quality?.mape_prophet != null ? formatMapeId(quality.mape_prophet) : "n/a";
+  const mapeStatistik =
+    quality?.mape_statistical != null
+      ? formatMapeId(quality.mape_statistical)
+      : "n/a";
+  const title = quality
+    ? `Duel backtest ${quality.backtest_days} hari — Prophet MAPE ${mapeProphet} vs statistik ${mapeStatistik}; pemenang: ${quality.winner}.`
+    : isProphet
+      ? "Ramalan Prophet per-outlet."
+      : "Rata-rata musiman hari-minggu (hingga 4 minggu terakhir).";
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${
+        isProphet
+          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+          : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+      }`}
+    >
+      {isProphet ? "Prophet" : "Statistik"}
+      {winnerMape != null ? ` · MAPE ${formatMapeId(winnerMape)}` : ""}
+    </span>
+  );
+}
+
 function RevenueCard({ data }: { data: RevenueForecastResponse }) {
   // The API history includes today as a LIVE partial row while the
   // forecast also starts today — drop the duplicate from the chart
@@ -204,6 +251,9 @@ function RevenueCard({ data }: { data: RevenueForecastResponse }) {
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
             {data.outlet_name} · {data.horizon_days} hari ke depan
           </p>
+          <div className="mt-1.5">
+            <EngineBadge engine={data.engine} quality={data.quality} />
+          </div>
         </div>
         <SparkIcon className="h-5 w-5 shrink-0 text-slate-300" />
       </div>
@@ -361,9 +411,13 @@ function RestockCard({ data }: { data: ProductsForecastResponse }) {
 }
 
 export default async function ForecastSection() {
+  // v2.3.0 — identitas outlet sesi: model Prophet memang per-outlet.
+  // Tanpa identitas (sesi tanpa token Go / layanan outlet mati),
+  // panggilan tetap jalan sebagai agregat lama di sisi backend.
+  const outlet = await getOutletContext();
   const [revenue, products] = await Promise.all([
-    getRevenueForecast(30, 7),
-    getProductsForecast(5),
+    getRevenueForecast(30, 7, outlet?.id),
+    getProductsForecast(5, outlet?.id),
   ]);
 
   if (!revenue && !products) {

@@ -9,3 +9,4 @@ __pycache__/
 
 # Trained model artifacts (rebuilt by retraining, not baked into images)
 *.joblib
+mlmodels/

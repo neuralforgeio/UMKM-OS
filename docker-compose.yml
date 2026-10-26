@@ -95,8 +95,18 @@ services:
       TZ: Asia/Jakarta
       DEBUG: "false"
       DATABASE_URL: "postgresql+psycopg_async://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-umkmos}"
+      # ML v3.0.0 — saklar jalur Prophet (false = murni statistical),
+      # batas thread BLAS agar mesin 8GB tidak tersedak saat training,
+      # dan direktori artefak model per outlet (volume bernama).
+      PROPHET_ENABLED: ${PROPHET_ENABLED:-true}
+      OMP_NUM_THREADS: "2"
+      ML_MODEL_DIR: /app/mlmodels
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # Artefak joblib model ramalan per outlet — bertahan lintas
+      # rebuild container.
+      - mlmodels:/app/mlmodels
     depends_on:
       db:
         condition: service_healthy
@@ -148,3 +158,4 @@ services:
 volumes:
   pgdata:
   gologs:
+  mlmodels:

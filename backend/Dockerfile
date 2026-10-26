@@ -31,7 +31,7 @@ COPY --from=deps /usr/local/bin /usr/local/bin
 COPY . .
 
 # Run as an unprivileged user — never run containers as root
-RUN useradd --create-home appuser && chown -R appuser /app
+RUN useradd --create-home appuser && mkdir -p /app/mlmodels && chown -R appuser /app
 USER appuser
 
 # Image-level defaults; override per environment (compose / production)

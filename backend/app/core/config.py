@@ -33,10 +33,11 @@ class Settings(BaseSettings):
     # Service identity
     # ------------------------------------------------------------------
     APP_NAME: str = "UMKM OS Backend"
-    # Semantic Versioning — 1.0.0 = rilis integrasi pertama: layanan ML
-    # membaca schema backend-go (transactions/transaction_items/products)
-    # sehingga PostgreSQL menjadi satu sumber data utama seluruh bisnis.
-    VERSION: str = "1.0.0"
+    # Semantic Versioning — 3.0.0 = engine ganda per-outlet: duel
+    # backtest MAPE antara Prophet dan statistical, artefak joblib
+    # per outlet. (2.0.0 sengaja dilewati agar penomoran menepati janji
+    # router v1: "per-outlet forecasting penuh ... fase ML v3.0.0".)
+    VERSION: str = "3.0.0"
 
     # Running mode: development | production | test
     ENVIRONMENT: Literal["development", "production", "test"] = "development"
@@ -80,6 +81,19 @@ class Settings(BaseSettings):
         NoDecode,
         BeforeValidator(parse_cors_origins),
     ] = ["http://localhost:3000"]
+
+    # ------------------------------------------------------------------
+    # ML v3.0.0 — engine Prophet per-outlet
+    # ------------------------------------------------------------------
+    # Saklar total jalur Prophet: false = murni statistical (ramalan
+    # tetap jalan, tanpa training, tanpa joblib). Import prophet yang
+    # gagal pun otomatis mem-fallback ke jalur ini (lihat
+    # app/ml/prophet_engine.py).
+    PROPHET_ENABLED: bool = True
+    # Direktori artefak model (joblib) per outlet. Default relatif ke
+    # direktori kerja: lokal = backend/mlmodels, docker = /app/mlmodels
+    # (volume bernama "mlmodels" di docker-compose.yml).
+    ML_MODEL_DIR: str = "mlmodels"
 
     model_config = SettingsConfigDict(
         env_file=".env",          # resolved relative to the working dir

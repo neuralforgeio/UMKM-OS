@@ -8,6 +8,13 @@
 // Every failure path returns null instead of throwing, so the
 // dashboard keeps rendering when the ML service is down (ForecastSection
 // shows a graceful fallback card in that case).
+//
+// v2.3.0 (ML v3.0.0): getRevenueForecast/getProductsForecast kini
+// mengirim outlet_id sesi pemanggil (identitas outlet dari
+// lib/outlet-context) sehingga backend bisa memakai model Prophet per
+// outlet. Respons revenue membawa `engine` ("prophet" | "statistical")
+// dan `quality` (hasil duel backtest MAPE) — badge di ForecastSection
+// menampilkan keduanya sebagai bukti mesin mana yang sedang menang.
 
 const BASE_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:8000";
 
@@ -29,12 +36,29 @@ export interface ForecastPoint {
   high: number;
 }
 
+// v2.3.0 — hasil duel backtest MAPE antara Prophet dan statistical.
+// Semua nilai dilaporkan apa adanya oleh backend; null = tidak
+// terdefinisi (mis. MAPE Prophet saat prophet gagal di-backtest).
+export interface ForecastQuality {
+  winner: "prophet" | "statistical";
+  mape_prophet: number | null;
+  mape_statistical: number | null;
+  margin_pp: number | null;
+  backtest_days: number;
+  train_days: number;
+  trained_at: string;
+  trained_through: string;
+}
+
 export interface RevenueForecastResponse {
   outlet_id: string;
   outlet_name: string;
   history_days: number;
   horizon_days: number;
   method: string;
+  // v2.3.0 — mesin yang benar-benar menghasilkan deret `forecast`.
+  engine?: "prophet" | "statistical";
+  quality?: ForecastQuality | null;
   history: DailyRevenue[];
   forecast: ForecastPoint[];
 }
@@ -71,14 +95,22 @@ async function getJson<T>(path: string): Promise<T | null> {
   }
 }
 
-export function getRevenueForecast(days = 30, horizon = 7) {
+// outletId opsional: tanpa identitas outlet (sesi tanpa token Go),
+// panggilan tetap jalan sebagai agregat lama di sisi backend.
+function outletParam(outletId?: number): string {
+  return outletId != null && Number.isFinite(outletId)
+    ? `&outlet_id=${encodeURIComponent(String(outletId))}`
+    : "";
+}
+
+export function getRevenueForecast(days = 30, horizon = 7, outletId?: number) {
   return getJson<RevenueForecastResponse>(
-    `/api/v1/forecast/revenue?days=${days}&horizon=${horizon}`,
+    `/api/v1/forecast/revenue?days=${days}&horizon=${horizon}${outletParam(outletId)}`,
   );
 }
 
-export function getProductsForecast(limit = 5) {
+export function getProductsForecast(limit = 5, outletId?: number) {
   return getJson<ProductsForecastResponse>(
-    `/api/v1/forecast/products?limit=${limit}`,
+    `/api/v1/forecast/products?limit=${limit}${outletParam(outletId)}`,
   );
 }
