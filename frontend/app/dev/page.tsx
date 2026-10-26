@@ -15,7 +15,6 @@ import {
   Activity,
   ArrowRight,
   Building2,
-  LogOut,
   ScrollText,
   ShieldCheck,
   Store,
@@ -23,7 +22,7 @@ import {
   UserCog,
   Users,
 } from "lucide-react";
-import { auth, signOut } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import {
@@ -32,7 +31,8 @@ import {
   actionLevel,
 } from "@/lib/audit-labels";
 import { AuroraBackground } from "@/components/aurora-background";
-import { ThemeHeaderActions } from "@/components/theme-header-actions";
+import { UserMenu } from "@/components/user-menu";
+import { userMenuUser } from "@/lib/session-user";
 import { OutletCreateButton } from "./outlet-create-button";
 
 export const instant = false;
@@ -157,24 +157,10 @@ export default async function DevConsolePage() {
             </div>
 
             <div className="flex items-center space-x-3">
-              <ThemeHeaderActions />
-
-              <div className="hidden h-6 w-[1px] bg-slate-200 sm:block dark:bg-slate-800" />
-
-              <form
-                action={async () => {
-                  "use server";
-                  await signOut({ redirectTo: "/login" });
-                }}
-              >
-                <button
-                  type="submit"
-                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white/80 px-3.5 py-2 text-sm font-semibold text-slate-600 backdrop-blur transition hover:bg-slate-50 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span className="hidden sm:inline">Keluar</span>
-                </button>
-              </form>
+              {/* v2.2.0: chip profil (avatar + nama + email) — menu di
+                  bawahnya: Profil / Pengaturan Tampilan / Keluar. Toggle
+                  tema lama dihapus; tema hanya di /settings. */}
+              <UserMenu user={userMenuUser(session)} />
             </div>
           </div>
         </header>

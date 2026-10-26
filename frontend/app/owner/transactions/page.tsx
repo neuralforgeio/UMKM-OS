@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { getOutletContext } from "@/lib/outlet-context";
+import { userMenuUser } from "@/lib/session-user";
 import { TransactionsClient } from "./transactions-client";
 import type { ProfitSummary, TransactionRow } from "./types";
 
@@ -128,6 +129,7 @@ export default async function OwnerTransactionsPage() {
       rows={listRows}
       weekSummary={mapProfit(profitRes.data.week)}
       monthSummary={mapProfit(profitRes.data.month)}
+      me={userMenuUser(session)}
     />
   );
 }

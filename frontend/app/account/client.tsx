@@ -1,15 +1,318 @@
 "use client";
 
-// Formulir ganti password Akun Saya. Satu komponen dipakai semua peran —
-// perbedaan peran hanya soal dari halaman mana pintasannya ditempel
-// (header kasir, pengaturan owner, konsol developer).
-import { useActionState, useState } from "react";
-import { Check, KeyRound, Loader2, TriangleAlert } from "lucide-react";
+// Formulir-formulir Profil Saya (v2.2.0). Satu berkas tiga komponen:
+//   1. ProfilePhotoCard — avatar besar, unggah/hapus foto (wajah);
+//   2. IdentityForm    — nama lengkap & email;
+//   3. AccountForm     — ganti password (tidak berubah sejak v1.0.3).
+// Semuanya server action ke backend-go (lihat ./actions.ts) — komponen
+// ini tidak pernah memegang token sesi di browser.
+
+import { useActionState, useRef, useState } from "react";
+import {
+  Camera,
+  Check,
+  KeyRound,
+  Loader2,
+  Trash2,
+  TriangleAlert,
+  UserRound,
+} from "lucide-react";
 import { PasswordInput } from "@/components/password-input";
-import { changePasswordAction, type AccountActionState } from "./actions";
+import { UserAvatar } from "@/components/user-menu";
+import type { UserMenuUser } from "@/components/user-menu";
+import {
+  changePasswordAction,
+  deleteProfilePhotoAction,
+  updateProfileAction,
+  uploadProfilePhotoAction,
+  type AccountActionState,
+} from "./actions";
 
 const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300";
 
+function StatusMessage({ state }: { state: AccountActionState }) {
+  if (!state.message) return null;
+  return (
+    <p
+      className={`flex items-start gap-1.5 text-sm font-medium ${
+        state.ok ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600"
+      }`}
+    >
+      {state.ok ? (
+        <Check className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2.5} />
+      ) : (
+        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+      )}
+      {state.message}
+    </p>
+  );
+}
+
+// =====================================================================
+// 1) Foto profil — avatar besar + unggah + hapus
+// =====================================================================
+const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
+const ALLOWED_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+export function ProfilePhotoCard({ user }: { user: UserMenuUser }) {
+  const [uploadState, uploadFormAction, uploading] = useActionState(
+    uploadProfilePhotoAction,
+    { ok: false, message: "" } satisfies AccountActionState,
+  );
+  const [deleteState, deleteFormAction, deleting] = useActionState(
+    deleteProfilePhotoAction,
+    { ok: false, message: "" } satisfies AccountActionState,
+  );
+
+  // Pratinjau lokal SEBELUM unggah: URL objek dari berkas yang baru
+  // dipilih — pengguna melihat dulu potongannya, tombol Simpan yang
+  // mengirim byte ke Go. Dibebaskan saat ganti pilihan/batal.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const onPickFile = (file: File | undefined) => {
+    setFileError(null);
+    if (!file || file.size === 0) {
+      setPreviewUrl(null);
+      setFileName(null);
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      setPreviewUrl(null);
+      setFileName(null);
+      setFileError("Foto terlalu besar (maks. 3 MB).");
+      return;
+    }
+    if (!ALLOWED_PHOTO_TYPES.has(file.type)) {
+      setPreviewUrl(null);
+      setFileName(null);
+      setFileError("Tipe berkas harus JPEG, PNG, atau WebP.");
+      return;
+    }
+    setPreviewUrl(URL.createObjectURL(file));
+    setFileName(file.name);
+  };
+
+  const cancelPick = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setFileName(null);
+    setFileError(null);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  return (
+    <div className="rounded-2xl glass-card p-5 sm:p-6">
+      <div className="mb-5 space-y-1">
+        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+          Foto Profil
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Foto wajah Anda tampil sebagai avatar di navbar semua halaman —
+          hanya Anda yang bisa melihat & menggantinya. JPEG/PNG/WebP, maks.
+          3 MB.
+        </p>
+      </div>
+
+      <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
+        {/* Avatar saat ini atau pratinjau berkas baru */}
+        <div className="relative">
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl}
+              alt="Pratinjau foto baru"
+              className="h-24 w-24 rounded-full object-cover ring-4 ring-blue-500/30"
+            />
+          ) : (
+            <UserAvatar
+              user={user}
+              className="h-24 w-24 text-2xl ring-4 ring-slate-200/60 dark:ring-slate-700/60"
+            />
+          )}
+          <span className="pointer-events-none absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white shadow-md">
+            <Camera className="h-4 w-4" />
+          </span>
+        </div>
+
+        <div className="flex-1 space-y-3">
+          {/* Unggah: input file disembunyikan, label jadi tombol.
+              Form terkirim saat "Simpan Foto" (atau batal membatalkan). */}
+          <form
+            action={uploadFormAction}
+            className="space-y-3"
+            onSubmit={(e) => {
+              // Tanpa berkas terpilih tidak ada yang bisa disimpan.
+              if (!fileName) e.preventDefault();
+            }}
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              name="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => onPickFile(e.target.files?.[0])}
+            />
+
+            <div className="flex flex-wrap items-center gap-2">
+              {previewUrl ? (
+                <>
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
+                  >
+                    {uploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                    Simpan Foto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelPick}
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                  >
+                    Batal
+                  </button>
+                  <span className="w-full truncate text-xs text-slate-400 sm:w-auto">
+                    {fileName}
+                  </span>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                >
+                  <Camera className="h-4 w-4" />
+                  {user.photoVersion > 0
+                    ? "Ganti Foto"
+                    : "Unggah Foto"}
+                </button>
+              )}
+            </div>
+
+            {fileError && (
+              <p className="flex items-center gap-1.5 text-sm font-medium text-rose-600">
+                <TriangleAlert className="h-4 w-4 shrink-0" />
+                {fileError}
+              </p>
+            )}
+            <StatusMessage state={uploadState} />
+          </form>
+
+          {/* Hapus: hanya masuk akal bila foto sudah ada. */}
+          {user.photoVersion > 0 && !previewUrl && (
+            <form action={deleteFormAction}>
+              <button
+                type="submit"
+                disabled={deleting}
+                className="flex items-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-900/50 px-4 py-2 text-sm font-semibold text-rose-600 dark:text-rose-400 transition hover:bg-rose-50 dark:hover:bg-rose-950/30 disabled:opacity-60"
+              >
+                {deleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                Hapus Foto
+              </button>
+              <StatusMessage state={deleteState} />
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =====================================================================
+// 2) Identitas — nama lengkap & email
+// =====================================================================
+export function IdentityForm({
+  initialName,
+  initialEmail,
+}: {
+  initialName: string;
+  initialEmail: string;
+}) {
+  const [state, formAction, pending] = useActionState(updateProfileAction, {
+    ok: false,
+    message: "",
+  } satisfies AccountActionState);
+
+  const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail);
+  const dirty = name !== initialName || email !== initialEmail;
+
+  return (
+    <form action={formAction} className="space-y-4">
+      <div>
+        <label htmlFor="name" className={labelClass}>
+          Nama lengkap
+        </label>
+        <div className="mt-1.5">
+          <input
+            id="name"
+            name="name"
+            type="text"
+            required
+            maxLength={100}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nama yang tampil di navbar & struk"
+            className="w-full rounded-xl glass-input px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="email" className={labelClass}>
+          Email
+        </label>
+        <div className="mt-1.5">
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            maxLength={200}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="email@contoh.id"
+            className="w-full rounded-xl glass-input px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100"
+          />
+        </div>
+        <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
+          Email dipakai untuk login — pastikan Anda mengingatnya.
+        </p>
+      </div>
+
+      <StatusMessage state={state} />
+
+      <button
+        type="submit"
+        disabled={pending || !dirty || name.trim().length === 0}
+        className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
+      >
+        {pending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <UserRound className="h-4 w-4" />
+        )}
+        Simpan Profil
+      </button>
+    </form>
+  );
+}
+
+// =====================================================================
+// 3) Ganti password (v1.0.3 — dipertahankan apa adanya)
+// =====================================================================
 export function AccountForm() {
   const [state, formAction, pending] = useActionState(changePasswordAction, {
     ok: false,
@@ -81,20 +384,7 @@ export function AccountForm() {
         )}
       </div>
 
-      {state.message && (
-        <p
-          className={`flex items-center gap-1.5 text-sm font-medium ${
-            state.ok ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600"
-          }`}
-        >
-          {state.ok ? (
-            <Check className="h-4 w-4 shrink-0" strokeWidth={2.5} />
-          ) : (
-            <TriangleAlert className="h-4 w-4 shrink-0" />
-          )}
-          {state.message}
-        </p>
-      )}
+      <StatusMessage state={state} />
 
       <button
         type="submit"

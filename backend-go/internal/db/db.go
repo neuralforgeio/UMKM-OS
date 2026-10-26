@@ -432,4 +432,15 @@ var migrations = []string{
         `DROP TABLE IF EXISTS "HandoverEvent", "TransactionItem", "Transaction",
         "StockMovement", "ProductImage", "Product", "Unit", "Category",
         "AuditEvent", "Outlet", "User" CASCADE`,
+
+        // ===== 11) Foto profil mandiri (v1.7.0) =====
+        // Avatar pengguna (foto wajah) disimpan sebagai bytea di tabel
+        // users — pola yang sama dengan logo outlet: satu kolom mime +
+        // satu kolom bytea + photo_version yang naik tiap unggahan
+        // supaya semua <img ?v=N> konsumen (navbar, halaman profil)
+        // langsung cache-bust tanpa menunggu TTL. NULL = belum ada foto;
+        // tampilan jatuh ke inisial nama.
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_mime_type TEXT`,
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_data BYTEA`,
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_version INT NOT NULL DEFAULT 0`,
 }

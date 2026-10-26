@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { getOutletContext, outletLogoUrl } from "@/lib/outlet-context";
+import { userMenuUser } from "@/lib/session-user";
 import { PosClient } from "./pos-client";
 import type { PosProduct } from "./types";
 import { getServeQueue } from "@/app/owner/verify/actions";
@@ -110,6 +111,7 @@ export default async function CashierPage() {
         cashierName={session.user.name ?? "Kasir"}
         outlet={outletInfo}
         products={products}
+        me={userMenuUser(session)}
       />
       <ServeQueueBar rows={serveRows} />
     </>

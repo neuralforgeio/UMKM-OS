@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { AuroraBackground } from "@/components/aurora-background";
+import { userMenuUser } from "@/lib/session-user";
 import { UsersClient } from "./users-client";
 import {
   mapGoOutlets,
@@ -55,6 +56,7 @@ export default async function DevUsersPage() {
       currentUserId={session.user.id}
       userName={session.user.name ?? "Developer"}
       userEmail={session.user.email ?? ""}
+      me={userMenuUser(session)}
     />
   );
 }

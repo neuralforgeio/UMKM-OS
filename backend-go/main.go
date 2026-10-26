@@ -68,6 +68,20 @@ func main() {
                         priv.Get("/auth/me", handler.Me)
                         priv.Post("/auth/change-password", handler.ChangePassword)
 
+                        // Profil mandiri (v1.7.0): semua peran mengelola
+                        // nama/email/foto akunnya SENDIRI. Terpisah dari
+                        // PUT /users/{id} konsol — pintu ini hanya bisa
+                        // menyentuh baris pemanggil, jadi developer pun
+                        // aman mengubah profilnya tanpa pintu eskalasi.
+                        priv.Put("/me", handler.UpdateMe)
+                        priv.Post("/me/photo", handler.UploadMyPhoto)
+                        priv.Delete("/me/photo", handler.DeleteMyPhoto)
+
+                        // Foto profil PEMANGGIL (v1.7.0): butuh Bearer token
+                        // karena foto wajah staf bersifat pribadi — frontend
+                        // mem-proxynya lewat route /api/user/photo.
+                        priv.Get("/me/photo", handler.ServeMyPhoto)
+
                         // Outlet konteks pemanggil (v1.5.0): satu pintu identitas
                         // outlet untuk semua peran — frontend berhenti memakai fallback
                         // prisma.findFirst era single-outlet.

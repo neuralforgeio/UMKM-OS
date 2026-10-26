@@ -17,7 +17,8 @@ import { formatRupiah } from "@/lib/format";
 import { getTransactionDetail, refundTransaction } from "./actions";
 import type { ProfitSummary, TransactionDetail, TransactionRow } from "./types";
 import { AuroraBackground } from "@/components/aurora-background";
-import { ThemeHeaderActions } from "@/components/theme-header-actions";
+import { UserMenu } from "@/components/user-menu";
+import type { UserMenuUser } from "@/components/user-menu";
 import { TablePagination } from "@/components/table-pagination";
 
 type Tab = "riwayat" | "laba";
@@ -374,12 +375,14 @@ export function TransactionsClient({
   rows,
   weekSummary,
   monthSummary,
+  me,
 }: {
   outletName: string;
   userName: string;
   rows: TransactionRow[];
   weekSummary: ProfitSummary;
   monthSummary: ProfitSummary;
+  me: UserMenuUser;
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("riwayat");
@@ -519,7 +522,7 @@ export function TransactionsClient({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <ThemeHeaderActions />
+            <UserMenu user={me} />
             <Link
               href="/owner"
               className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"

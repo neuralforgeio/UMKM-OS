@@ -24,7 +24,8 @@ import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import { AuroraBackground } from "@/components/aurora-background";
-import { ThemeHeaderActions } from "@/components/theme-header-actions";
+import { UserMenu } from "@/components/user-menu";
+import { userMenuUser } from "@/lib/session-user";
 import { ServeButton, ServeQueuePanel } from "@/components/serve-queue";
 import type { ServeQueueRow } from "./actions";
 
@@ -202,7 +203,7 @@ export default async function VerifyConsolePage({
           ← Kembali
         </Link>
         <div className="flex min-w-0 items-center gap-2">
-          <ThemeHeaderActions />
+          <UserMenu user={userMenuUser(session)} />
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">
             <ScanSearch className="h-4 w-4" />
           </div>

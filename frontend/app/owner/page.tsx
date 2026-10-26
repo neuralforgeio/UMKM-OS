@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { PackagePlus, Settings, ShieldCheck, ReceiptText } from "lucide-react";
 import ForecastSection from "@/components/forecast/forecast-section";
 import { AuroraBackground } from "@/components/aurora-background";
-import { ThemeHeaderActions } from "@/components/theme-header-actions";
+import { UserMenu } from "@/components/user-menu";
+import { userMenuUser } from "@/lib/session-user";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { getOutletContext, outletLogoUrl } from "@/lib/outlet-context";
@@ -479,7 +480,7 @@ export default async function OwnerPage() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <ThemeHeaderActions />
+            <UserMenu user={userMenuUser(session)} />
             <Link
               href="/owner/verify"
               className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"

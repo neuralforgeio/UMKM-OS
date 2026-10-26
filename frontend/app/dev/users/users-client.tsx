@@ -40,7 +40,8 @@ import {
 import { AuroraBackground } from "@/components/aurora-background";
 import { SelectInput } from "@/components/select-input";
 import { TablePagination } from "@/components/table-pagination";
-import { ThemeHeaderActions } from "@/components/theme-header-actions";
+import { UserMenu } from "@/components/user-menu";
+import type { UserMenuUser } from "@/components/user-menu";
 import { PasswordInput } from "@/components/password-input";
 import { isPasswordValid } from "@/lib/password-policy";
 import {
@@ -354,12 +355,14 @@ export function UsersClient({
   currentUserId,
   userName,
   userEmail,
+  me,
 }: {
   users: UserRow[];
   outlets: OutletOption[];
   currentUserId: string;
   userName?: string;
   userEmail?: string;
+  me: UserMenuUser;
 }) {
   const [query, setQuery] = useState("");
   const [role, setRole] = useState("ALL");
@@ -469,9 +472,10 @@ export function UsersClient({
             </div>
 
             <div className="flex items-center space-x-3">
-              {/* Toggle tema + pintu /settings — tema tiap orang tersimpan
-                  per pengguna (kunci localStorage "theme-<idUser>"). */}
-              <ThemeHeaderActions />
+              {/* v2.2.0: chip profil (avatar + nama + email) — menu di
+                  bawahnya: Profil / Pengaturan Tampilan / Keluar. Tema
+                  hanya diatur di /settings. */}
+              <UserMenu user={me} />
 
               {/* Lonceng = pintu ke log aktivitas (notifikasi sistem). */}
               <Link

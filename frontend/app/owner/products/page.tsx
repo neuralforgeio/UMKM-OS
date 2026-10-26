@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { getOutletContext } from "@/lib/outlet-context";
+import { userMenuUser } from "@/lib/session-user";
 import { ProductsClient } from "./products-client";
 import type { CategoryOption, ProductRow, UnitOption } from "./types";
 
@@ -148,6 +149,7 @@ export default async function OwnerProductsPage() {
       categories={categoryOptions}
       units={unitOptions}
       skuCounts={skuCounts}
+      me={userMenuUser(session)}
     />
   );
 }

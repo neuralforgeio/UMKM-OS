@@ -7,10 +7,10 @@ membuat/mengubah tabel apa pun; paket ini hanya memetakan kolom untuk
 query analitik. Uang disimpan Go sebagai BIGINT Rupiah utuh (bukan
 Numeric desimal era Prisma).
 
-Satu pengecualian transisi: tabel "Outlet" era Prisma masih dipakai
-frontend sebagai identitas warung (nama/logo) sampai fase multi-outlet
-memindahkannya ke Go — nama outlet ikut terbaca di sini supaya respons
-tetap punya konteks "milik warung siapa".
+v2.1.0 menutup era Prisma: tabel PascalCase ("Outlet", "User", dst)
+sudah di-DROP backend-go. Identitas outlet kini dibaca dari tabel
+"outlets" milik Go (id BIGINT) — satu-satunya sisa transisi pun hilang;
+layanan ini murni membaca dunia Go.
 """
 
 from sqlalchemy import (
@@ -29,16 +29,16 @@ class Base(DeclarativeBase):
 
 
 class Outlet(Base):
-    """Identitas warung era Prisma — hanya nama yang dipakai (transisi)."""
+    """Identitas warung milik backend-go (tabel outlets, id BIGINT)."""
 
-    __tablename__ = "Outlet"
+    __tablename__ = "outlets"
 
-    id = Column(String, primary_key=True)
+    id = Column(BigInteger, primary_key=True)
     name = Column(String, nullable=False)
     address = Column(String, nullable=True)
     phone = Column(String, nullable=True)
-    isActive = Column("isActive", Boolean, nullable=False)
-    createdAt = Column("createdAt", DateTime, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), nullable=False)
 
 
 class Product(Base):

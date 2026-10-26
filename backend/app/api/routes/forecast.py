@@ -5,10 +5,11 @@ GET /api/v1/forecast/products  - per-product 7-day demand forecast + restock adv
 
 Sejak integrasi Tahap 4a (ml-service 1.0.0), kedua endpoint membaca tabel
 milik backend-go: transactions, transaction_items, products (snake_case,
-Rupiah BIGINT utuh). Era single-outlet Go belum punya kolom outlet di
-tabel transaksi — seluruh data dianggap milik satu warung; nama warung
-diambil dari tabel "Outlet" era Prisma (masih dipakai frontend sebagai
-identitas) dengan fallback "Warung".
+Rupiah BIGINT utuh). Pasca-v2.1.0 (era Go murni), identitas outlet juga
+beralih ke tabel outlets milik Go — tabel PascalCase era Prisma sudah
+tidak ada (lihat resolve_outlet). Per-outlet forecasting penuh (filter
+outlet_id dari sesi pemanggil) menyusul di fase ML v3.0.0 bersama
+training Prophet; saat ini seluruh data diasumsikan milik warung utama.
 
 The forecast window starts TODAY: the owner asks in the morning and
 gets today's expected full-day total plus the days after. To keep
@@ -46,19 +47,23 @@ METHOD = "weekday-seasonal weighted average (up to 4 recent weeks)"
 
 
 async def resolve_outlet(session: AsyncSession) -> tuple[str, str]:
-    """Era single-outlet Go: nama warung dari tabel Outlet era Prisma.
+    """Identitas warung dari tabel outlets milik backend-go.
 
+    v2.1.0 menutup era Prisma: tabel PascalCase "Outlet" sudah di-DROP,
+    jadi sumber satu-satunya adalah outlets milik Go (id BIGINT).
     Mengembalikan (outlet_id, outlet_name); ("", "Warung") bila tabel
     kosong — peramalan tetap jalan tanpa identitas outlet.
     """
     outlet = (
         await session.execute(
-            select(Outlet).where(Outlet.isActive.is_(True)).order_by(Outlet.createdAt)
+            select(Outlet)
+            .where(Outlet.is_active.is_(True))
+            .order_by(Outlet.created_at, Outlet.id)
         )
     ).scalars().first()
     if outlet is None:
         return ("", "Warung")
-    return (outlet.id, outlet.name)
+    return (str(outlet.id), outlet.name)
 
 
 @router.get("/revenue", response_model=RevenueForecastResponse)

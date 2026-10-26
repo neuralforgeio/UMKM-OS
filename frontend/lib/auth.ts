@@ -84,6 +84,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email?: string;
             role?: string;
             outlet_id?: number | null;
+            photo_version?: number;
           };
         }>;
         const goToken = json.data?.token;
@@ -111,6 +112,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             typeof user.outlet_id === "number" && user.outlet_id > 0
               ? String(user.outlet_id)
               : null,
+          // v2.2.0: versi foto profil — navbar tahu sejak login pertama
+          // apakah avatar memakai foto atau inisial.
+          photoVersion:
+            typeof user.photo_version === "number" && user.photo_version > 0
+              ? user.photo_version
+              : 0,
           goToken,
         };
       },
@@ -124,6 +131,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role;
         token.outletId = user.outletId ?? null;
         token.goToken = user.goToken;
+        token.photoVersion = user.photoVersion ?? 0;
         token.checkedAt = Date.now();
         return token;
       }
@@ -154,6 +162,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               email?: string;
               role?: string;
               outlet_id?: number | null;
+              photo_version?: number;
             }>;
             const freshRole = json.data?.role;
             if (
@@ -168,6 +177,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     ? "DEVELOPER"
                     : "OWNER";
             }
+            // v2.2.0: nama & email ikut disinkronkan — pemilik mengubah
+            // profilnya di halaman Profil Saya, navbar semua halaman
+            // menyusul otomatis (maks 5 menit) tanpa login ulang.
+            if (typeof json.data?.name === "string" && json.data.name.length > 0) {
+              token.name = json.data.name;
+            }
+            if (typeof json.data?.email === "string" && json.data.email.length > 0) {
+              token.email = json.data.email;
+            }
+            token.photoVersion =
+              typeof json.data?.photo_version === "number" &&
+              json.data.photo_version > 0
+                ? json.data.photo_version
+                : 0;
             // v2.0.0: ikatan outlet disinkronkan segar — re-bind akun di
             // konsol dev berlaku maksimal 5 menit tanpa login ulang.
             // (Developer tetap di-suntik ulang lewat cookie dev_outlet
@@ -198,6 +221,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Token backend-go untuk server action / server component yang
         // memanggil API Go (produk POS, checkout, dll).
         session.user.goToken = token.goToken;
+        // Versi foto profil (v2.2.0) untuk avatar navbar.
+        session.user.photoVersion =
+          typeof token.photoVersion === "number" ? token.photoVersion : 0;
       }
       return session;
     },

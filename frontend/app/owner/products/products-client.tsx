@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import { formatRupiah } from "@/lib/format";
 import { AuroraBackground } from "@/components/aurora-background";
-import { ThemeHeaderActions } from "@/components/theme-header-actions";
+import { UserMenu } from "@/components/user-menu";
+import type { UserMenuUser } from "@/components/user-menu";
 import { TablePagination } from "@/components/table-pagination";
 import {
   categoryAvatarClass,
@@ -209,12 +210,14 @@ export function ProductsClient({
   categories,
   units,
   skuCounts,
+  me,
 }: {
   outletName: string;
   products: ProductRow[];
   categories: CategoryOption[];
   units: UnitOption[];
   skuCounts: Record<string, number>;
+  me: UserMenuUser;
 }) {
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -324,7 +327,7 @@ export function ProductsClient({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <ThemeHeaderActions />
+            <UserMenu user={me} />
             <button
               type="button"
               onClick={() => setEditingId(null)}

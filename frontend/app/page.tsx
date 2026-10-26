@@ -5,17 +5,17 @@ import {
   BarChart3,
   Boxes,
   Calculator,
-  LogOut,
   Store,
   TriangleAlert,
 } from "lucide-react";
-import { auth, signOut } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { getOutletContext } from "@/lib/outlet-context";
 import { formatRupiah } from "@/lib/format";
 import { LiveClock } from "@/components/live-clock";
 import { AuroraBackground } from "@/components/aurora-background";
-import { ThemeHeaderActions } from "@/components/theme-header-actions";
+import { UserMenu } from "@/components/user-menu";
+import { userMenuUser } from "@/lib/session-user";
 
 export const instant = false;
 
@@ -127,30 +127,11 @@ export default async function HomePage() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <ThemeHeaderActions />
-            <span
-              className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                isOwner
-                  ? "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
-                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
-              }`}
-            >
-              {isOwner ? "PEMILIK" : "KASIR"}
-            </span>
-            <form
-              action={async () => {
-                "use server";
-                await signOut({ redirectTo: "/login" });
-              }}
-            >
-              <button
-                type="submit"
-                className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Keluar</span>
-              </button>
-            </form>
+            {/* v2.2.0: chip profil pengganti toggle tema + lencana peran +
+                tombol Keluar lama — nama, email, avatar, dan menu
+                Profil / Pengaturan Tampilan / Keluar dalam satu pintu.
+                Tema hanya diatur di /settings. */}
+            <UserMenu user={userMenuUser(session)} />
           </div>
         </header>
 

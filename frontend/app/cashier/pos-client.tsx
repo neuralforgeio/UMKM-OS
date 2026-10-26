@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronUp, ShoppingCart, Store, User } from "lucide-react";
 import { AuroraBackground } from "@/components/aurora-background";
-import { ThemeHeaderActions } from "@/components/theme-header-actions";
+import { UserMenu } from "@/components/user-menu";
+import type { UserMenuUser } from "@/components/user-menu";
 import { createTransaction } from "./actions";
 import type {
   CartLineView,
@@ -30,10 +31,12 @@ export function PosClient({
   cashierName,
   outlet,
   products,
+  me,
 }: {
   cashierName: string;
   outlet: OutletInfo;
   products: PosProduct[];
+  me: UserMenuUser;
 }) {
   const router = useRouter();
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -180,7 +183,7 @@ export function PosClient({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <ThemeHeaderActions />
+            <UserMenu user={me} />
             <Link
               href="/"
               className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"

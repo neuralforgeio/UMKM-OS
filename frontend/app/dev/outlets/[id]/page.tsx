@@ -16,7 +16,8 @@ import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import { enterMaintenance } from "@/app/dev/maintenance-actions";
 import { AuroraBackground } from "@/components/aurora-background";
-import { ThemeHeaderActions } from "@/components/theme-header-actions";
+import { UserMenu } from "@/components/user-menu";
+import { userMenuUser } from "@/lib/session-user";
 
 export const instant = false;
 
@@ -191,7 +192,7 @@ export default async function DevOutletDetailPage({
               </div>
             </div>
 
-            <ThemeHeaderActions />
+            <UserMenu user={userMenuUser(session)} />
           </div>
         </header>
 

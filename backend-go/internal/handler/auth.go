@@ -70,6 +70,12 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
         logger.Success("Login berhasil: %s (user #%d, role=%s) ip=%s", email, id, role, ip)
 
+        // v1.7.0: versi foto ikut terkirim supaya sesi frontend tahu
+        // apakah avatar pengguna perlu dimuat sejak detik pertama login.
+        var photoVersion int
+        _ = db.Pool.QueryRow(r.Context(),
+                `SELECT COALESCE(photo_version, 0) FROM users WHERE id = $1`, id).Scan(&photoVersion)
+
         OK(w, map[string]interface{}{
                 "token": token,
                 "user": map[string]interface{}{
@@ -77,32 +83,30 @@ func Login(w http.ResponseWriter, r *http.Request) {
                         // v1.5.0: ikatan outlet ikut terkirim supaya sesi frontend
                         // tahu konteks outlet sejak detik pertama login.
                         "outlet_id": outletID,
+                        "photo_version": photoVersion,
                 },
         })
 }
 
 // GET /api/v1/auth/me
+//
+// v1.7.0: respons diperkaya jadi MeResponse penuh (loadMe) — nama,
+// email, role, ikatan outlet + namanya, versi foto profil, status aktif,
+// dan terdaftar-sejak. Satu panggilan = seluruh identitas yang dibutuhkan
+// halaman Profil Saya dan navbar; recheck sesi frontend (tiap 5 menit)
+// ikut menyinkronkan nama/email/versi foto tanpa login ulang.
 func Me(w http.ResponseWriter, r *http.Request) {
         c := middleware.User(r)
-        var name, email, role string
-        var isActive bool
-        var outletID *int64
-        if err := db.Pool.QueryRow(r.Context(),
-                `SELECT name, email, role, is_active, outlet_id FROM users WHERE id = $1`, c.UserID,
-        ).Scan(&name, &email, &role, &isActive, &outletID); err != nil {
+        m, err := loadMe(r.Context(), c.UserID)
+        if err != nil {
                 Err(w, http.StatusUnauthorized, "User tidak ditemukan")
                 return
         }
-        if !isActive {
+        if !m.IsActive {
                 Err(w, http.StatusForbidden, "Akun dinonaktifkan")
                 return
         }
-        OK(w, map[string]interface{}{
-                "id": c.UserID, "name": name, "email": email, "role": role,
-                // v1.5.0: re-check sesi frontend menyinkronkan re-bind outlet
-                // tanpa menunggu login ulang.
-                "outlet_id": outletID,
-        })
+        OK(w, m)
 }
 
 type ChangePasswordRequest struct {

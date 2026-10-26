@@ -11,7 +11,8 @@ import {
 } from "@/lib/audit-labels";
 import { AuroraBackground } from "@/components/aurora-background";
 import { SelectInput } from "@/components/select-input";
-import { ThemeHeaderActions } from "@/components/theme-header-actions";
+import { UserMenu } from "@/components/user-menu";
+import { userMenuUser } from "@/lib/session-user";
 import { LogsPagination } from "./logs-pagination";
 
 export const instant = false;
@@ -175,7 +176,7 @@ export default async function DevLogsPage({
             </div>
 
             <div className="flex items-center space-x-3">
-              <ThemeHeaderActions />
+              <UserMenu user={userMenuUser(session)} />
 
               {/* Tautan <a> biasa ke route export: filter sama persis dengan
                   layar, jadi file yang terunduh = yang sedang dilihat. Kini

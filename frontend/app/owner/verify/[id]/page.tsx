@@ -13,7 +13,8 @@ import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import { buildVerifyUrl } from "@/lib/handover";
 import { AuroraBackground } from "@/components/aurora-background";
-import { ThemeHeaderActions } from "@/components/theme-header-actions";
+import { UserMenu } from "@/components/user-menu";
+import { userMenuUser } from "@/lib/session-user";
 import { ServeButton } from "@/components/serve-queue";
 import { ClaimDeliveredButton, ConfirmInAppForm, CopyButton } from "./client";
 
@@ -129,7 +130,7 @@ export default async function VerifyDetailPage({
         <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
           Bukti Serah Terima
         </p>
-        <ThemeHeaderActions className="scale-90" />
+        <UserMenu user={userMenuUser(session)} className="scale-90 origin-top-right" />
       </div>
 
       {/* Ringkasan transaksi */}
