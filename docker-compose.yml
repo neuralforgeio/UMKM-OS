@@ -101,6 +101,17 @@ services:
       PROPHET_ENABLED: ${PROPHET_ENABLED:-true}
       OMP_NUM_THREADS: "2"
       ML_MODEL_DIR: /app/mlmodels
+      # Asisten AI v3.1.0 — LLM OPSIONAL (kosong = Mode Data template).
+      # Endpoint standar OpenAI-compatible => agnostik penyedia.
+      LLM_ENABLED: ${LLM_ENABLED:-true}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      ASSISTANT_RATE_LIMIT_PER_HOUR: ${ASSISTANT_RATE_LIMIT_PER_HOUR:-12}
+      ASSISTANT_CACHE_SECONDS: ${ASSISTANT_CACHE_SECONDS:-600}
+      # Gerbang antar-layanan BAB 5.4: default = AUTH_SECRET root
+      # (satu tempat rotasi); frontend memakai nilai yang sama.
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-${AUTH_SECRET}}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -137,6 +148,9 @@ services:
       BACKEND_URL: http://backend:8000
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       AUTH_TRUST_HOST: "true"
+      # Gerbang antar-layanan Asisten AI (harus SAMA dengan service
+      # backend di atas — default mewarisi AUTH_SECRET root).
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-${AUTH_SECRET}}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:

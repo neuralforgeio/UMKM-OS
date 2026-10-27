@@ -11,8 +11,12 @@ keep calling /api/v1/* untouched.
 
 from fastapi import APIRouter
 
-from app.api.routes import forecast, health
+from app.api.routes import assistant, forecast, health
 
 router = APIRouter()
 router.include_router(health.router)
 router.include_router(forecast.router)
+# v3.1.0 — Asisten AI (POST /assistant/chat, GET /assistant/history,
+# GET /assistant/status publik). Tetap di bawah /api/v1/*; klien lama
+# tidak terpengaruh (router baru murni aditif).
+router.include_router(assistant.router)

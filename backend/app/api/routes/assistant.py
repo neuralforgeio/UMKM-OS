@@ -1,0 +1,408 @@
+"""Endpoint Asisten AI RAG (ml-service v3.1.0) — blueprint BAB 6.5.
+
+POST /api/v1/assistant/chat     — jawab pertanyaan pemilik dari DATA
+GET  /api/v1/assistant/history  — riwayat percakapan (panel frontend)
+GET  /api/v1/assistant/status   — status mode/model (PUBLIK, konsol dev)
+
+Alur chat (semua langkah ada alasan biaya/kejujuran di blueprint):
+  1. Gerbang X-Internal-Key (INTERNAL_API_KEY; kosong = terbuka dev
+     lokal). Identitas user_id DIPERCAYAI gateway frontend yang sudah
+     memeriksa sesi NextAuth — pola sama seperti seluruh layanan ini
+     yang berada di jaringan internal docker.
+  2. Batas laju sliding-window per user (default 12/jam, BAB 9.3).
+  3. Cache jawaban per user+outlet+pertanyaan ternormalisasi (TTL 600s)
+     — pertanyaan pagian yang sama tidak membakar token dua kali.
+  4. Retrieval SQL BACA-SAJA: ringkasan penjualan (hari/kemarin/7d/30d),
+     tren mingguan, produk terlaris 7 hari, stok kritis + saran restok,
+     status model ramalan outlet (tanpa memicu training).
+  5. Generasi: LLM bila terkonfigurasi (temperatur 0,2, 400 token,
+     validasi angka + 1 retry koreksi), atau Mode Data template.
+     Kegagalan LLM (jaringan/penyedia) JATUH ke Mode Data — asisten
+     tidak pernah tumbang.
+  6. Persist chat_history (USER lalu ASSISTANT) — tabel ini satu-
+     satunya pengecualian tulis layanan ML; DDL tetap milik migrasi
+     backend-go #12.
+
+Data tetap MILIK Go (transactions.outlet_id dsb.) — pembacaan di sini
+memakai kolom yang sama dengan laporan Go: satu sumber kebenaran.
+"""
+
+from datetime import date, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+from app.core.database import get_session
+from app.models import ChatHistory, Outlet, Product, Transaction, TransactionItem
+from app.api.routes.forecast import resolve_outlet
+from app.schemas.assistant import (
+    AssistantStatus,
+    ChatHistoryMessage,
+    ChatRequest,
+    ChatResponse,
+    HistoryResponse,
+)
+from app.services import assistant as otak
+from app.services.answer_cache import AnswerCache
+from app.services.llm import get_llm_client, llm_configured
+from app.services.rate_limit import SlidingWindowLimiter
+
+router = APIRouter(prefix="/assistant", tags=["Asisten AI"])
+
+# Singletons proses (settings tidak berubah saat runtime).
+_limiter = SlidingWindowLimiter(settings.ASSISTANT_RATE_LIMIT_PER_HOUR)
+_cache = AnswerCache(settings.ASSISTANT_CACHE_SECONDS)
+
+
+# ----------------------------------------------------------------------
+# Gerbang antar-layanan (blueprint BAB 5.4)
+# ----------------------------------------------------------------------
+async def require_internal_key(request: Request) -> None:
+    """401 bila INTERNAL_API_KEY diset tapi header tidak cocok.
+
+    Kosong (default dev lokal tanpa docker) = pintu terbuka; di dalam
+    compose nilainya diambil dari AUTH_SECRET root sehingga frontend
+    dan layanan ML berbagi kunci yang sama tanpa env tambahan.
+    """
+    kunci = settings.INTERNAL_API_KEY
+    if not kunci:
+        return
+    if request.headers.get("X-Internal-Key", "") != kunci:
+        raise HTTPException(status_code=401, detail="X-Internal-Key tidak sah")
+
+
+# ----------------------------------------------------------------------
+# Retrieval SQL baca-saja
+# ----------------------------------------------------------------------
+async def _ringkas_penjualan(
+    session: AsyncSession, outlet_id: str | None
+) -> dict:
+    """Omzet + jumlah transaksi untuk 4 jendela waktu (termasuk hari
+    berjalan sebagai potongan hidup — pemilik bertanya sepanjang hari,
+    menunggu tutup buku justru membohongkan 'hari ini')."""
+    hari = date.today()
+    jendela = {
+        "hari_ini": (hari, hari),
+        "kemarin": (hari - timedelta(days=1), hari - timedelta(days=1)),
+        "tujuh_hari": (hari - timedelta(days=6), hari),
+        "tiga_puluh_hari": (hari - timedelta(days=29), hari),
+    }
+    hasil: dict[str, dict[str, int]] = {}
+    for nama, (mulai, akhir) in jendela.items():
+        syarat = [
+            Transaction.status == "COMPLETED",
+            func.date(Transaction.created_at) >= mulai,
+            func.date(Transaction.created_at) <= akhir,
+        ]
+        if outlet_id:
+            syarat.append(Transaction.outlet_id == int(outlet_id))
+        baris = (
+            await session.execute(
+                select(
+                    func.coalesce(func.sum(Transaction.total), 0),
+                    func.count(Transaction.id),
+                ).where(*syarat)
+            )
+        ).one()
+        hasil[nama] = {"omzet": int(baris[0] or 0), "transaksi": int(baris[1] or 0)}
+    return hasil
+
+
+async def _perubahan_mingguan(
+    session: AsyncSession, outlet_id: str | None
+) -> float | None:
+    """WoW: 7 hari terakhir vs 7 hari sebelumnya (None bila minggu lalu 0)."""
+    hari = date.today()
+    minggu_ini = (hari - timedelta(days=6), hari)
+    minggu_lalu = (hari - timedelta(days=13), hari - timedelta(days=7))
+
+    async def _omzet(jangkauan: tuple[date, date]) -> int:
+        mulai, akhir = jangkauan
+        syarat = [
+            Transaction.status == "COMPLETED",
+            func.date(Transaction.created_at) >= mulai,
+            func.date(Transaction.created_at) <= akhir,
+        ]
+        if outlet_id:
+            syarat.append(Transaction.outlet_id == int(outlet_id))
+        baris = (
+            await session.execute(
+                select(func.coalesce(func.sum(Transaction.total), 0)).where(*syarat)
+            )
+        ).one()
+        return int(baris[0] or 0)
+
+    kini = await _omzet(minggu_ini)
+    dulu = await _omzet(minggu_lalu)
+    if dulu == 0:
+        return None
+    return round((kini - dulu) / dulu * 100.0, 1)
+
+
+async def _produk_top(session: AsyncSession, outlet_id: str | None,
+                      limit: int = 5) -> list[dict]:
+    """Produk terlaris 7 hari (qty + omzet) — trenProduk blueprint."""
+    hari = date.today()
+    mulai = hari - timedelta(days=6)
+    syarat = [
+        Transaction.status == "COMPLETED",
+        func.date(Transaction.created_at) >= mulai,
+    ]
+    if outlet_id:
+        syarat.append(Transaction.outlet_id == int(outlet_id))
+    baris = (
+        await session.execute(
+            select(
+                TransactionItem.product_name,
+                func.sum(TransactionItem.qty),
+                func.sum(TransactionItem.subtotal),
+            )
+            .join(Transaction, TransactionItem.transaction_id == Transaction.id)
+            .where(*syarat)
+            .group_by(TransactionItem.product_name)
+            .order_by(func.sum(TransactionItem.qty).desc())
+            .limit(limit)
+        )
+    ).all()
+    return [
+        {"nama": r[0], "qty": int(r[1] or 0), "omzet": int(r[2] or 0)}
+        for r in baris
+    ]
+
+
+async def _stok_kritis(session: AsyncSession, outlet_id: str | None,
+                       limit: int = 6) -> list[dict]:
+    """Produk aktif dengan stok <= min_stok + saran restok ringan.
+
+    Saran restok = cukup ke 2x min_stok (pembelian hati-hati UMKM,
+    bukan EOQ penuh — blueprint menamai ini 'saran restok ringan').
+    """
+    syarat = [
+        Product.is_active.is_(True),
+        Product.stock <= Product.min_stock,
+    ]
+    if outlet_id:
+        syarat.append(Product.outlet_id == int(outlet_id))
+    baris = (
+        await session.execute(
+            select(Product)
+            .where(*syarat)
+            .order_by((Product.stock - Product.min_stock).asc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    return [
+        {
+            "nama": p.name,
+            "stok": int(p.stock),
+            "min_stok": int(p.min_stock),
+            "saran_restok": max(0, int(p.min_stock * 2 - p.stock)),
+        }
+        for p in baris
+    ]
+
+
+async def _status_prediksi(outlet_id: str | None) -> dict:
+    """Status model ramalan outlet TANPA memicu training (baca store).
+
+    Lazy training v3.0.0 sengaja tidak dipanggil dari asisten: chat
+    harus cepat, dan pemilik sudah membuka dashboard yang memicunya.
+    """
+    if not outlet_id:
+        return {"tersedia": False, "engine": None, "mape": None}
+    try:
+        from app.api.routes.forecast import get_store
+
+        artefak = get_store().load(outlet_id)
+    except Exception:  # store/import gagal => status jujur "tidak ada"
+        artefak = None
+    if artefak is None:
+        return {"tersedia": False, "engine": None, "mape": None}
+    return {
+        "tersedia": True,
+        "engine": artefak.get("winner"),
+        "mape": artefak.get("mape_prophet")
+        if artefak.get("winner") == "prophet"
+        else artefak.get("mape_statistical"),
+    }
+
+
+async def build_data_context(
+    session: AsyncSession, outlet_id: str | None, outlet_name: str
+) -> dict:
+    """Konteks DATA lengkap untuk prompt/validasi (BAB 6.5)."""
+    return {
+        "outlet": outlet_name,
+        "penjualan": await _ringkas_penjualan(session, outlet_id),
+        "perubahan_mingguan_pct": await _perubahan_mingguan(session, outlet_id),
+        "produk_top": await _produk_top(session, outlet_id),
+        "stok_kritis": await _stok_kritis(session, outlet_id),
+        "prediksi": await _status_prediksi(outlet_id),
+    }
+
+
+# ----------------------------------------------------------------------
+# Riwayat & persistensi
+# ----------------------------------------------------------------------
+async def _muat_riwayat(
+    session: AsyncSession, user_id: int, limit: int
+) -> list[dict[str, str]]:
+    """Pesan terakhir (kronologis naik) untuk konteks LLM & panel."""
+    baris = (
+        await session.execute(
+            select(ChatHistory)
+            .where(ChatHistory.user_id == user_id)
+            .order_by(ChatHistory.created_at.desc(), ChatHistory.id.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    return [
+        {"role": b.role, "content": b.content} for b in reversed(baris)
+    ]
+
+
+async def _simpan_riwayat(
+    session: AsyncSession, user_id: int, outlet_id: str | None,
+    pertanyaan: str, jawaban: str,
+) -> None:
+    """Dua baris (USER lalu ASSISTAN) — tabel tulis-satu-satunya."""
+    oid = int(outlet_id) if outlet_id else None
+    session.add_all(
+        [
+            ChatHistory(
+                user_id=user_id, outlet_id=oid, role="USER", content=pertanyaan
+            ),
+            ChatHistory(
+                user_id=user_id, outlet_id=oid, role="ASSISTANT",
+                content=jawaban,
+            ),
+        ]
+    )
+    await session.commit()
+
+
+# ----------------------------------------------------------------------
+# Endpoint
+# ----------------------------------------------------------------------
+@router.post("/chat", response_model=ChatResponse)
+async def assistant_chat(
+    payload: ChatRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> ChatResponse:
+    await require_internal_key(request)
+
+    if not _limiter.allow(f"user:{payload.user_id}"):
+        tunggu = int(_limiter.retry_after_seconds(f"user:{payload.user_id}")) + 1
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Batas {settings.ASSISTANT_RATE_LIMIT_PER_HOUR} pertanyaan per jam "
+                f"tercapai. Coba lagi dalam {tunggu} detik."
+            ),
+            headers={"Retry-After": str(tunggu)},
+        )
+
+    outlet_filter_id, outlet_name = await resolve_outlet(
+        session, payload.outlet_id
+    )
+
+    tercache = _cache.get(
+        payload.user_id, outlet_filter_id, payload.question
+    )
+    if tercache is not None:
+        klien = get_llm_client()
+        return ChatResponse(
+            answer=tercache,
+            mode="ai" if klien is not None else "data",
+            intent=otak.classify_intent(payload.question),
+            period=otak.extract_period(payload.question),
+            numbers_validated=True,
+            cached=True,
+            retried=False,
+            engine=klien.model if klien is not None else "offline",
+            outlet_id=outlet_filter_id,
+            outlet_name=outlet_name,
+        )
+
+    riwayat = await _muat_riwayat(session, payload.user_id, otak.HISTORY_TURNS)
+    konteks = await build_data_context(session, outlet_filter_id, outlet_name)
+
+    klien = get_llm_client()
+    try:
+        hasil = await otak.generate_answer(
+            payload.question, konteks, riwayat, klien
+        )
+    except Exception:
+        # LLM tumbang (jaringan/penyedia) => Mode Data, asisten tetap hidup.
+        hasil = {
+            "answer": otak.build_offline_answer(konteks),
+            "mode": "data",
+            "intent": otak.classify_intent(payload.question),
+            "period": otak.extract_period(payload.question),
+            "numbers_validated": True,
+            "retried": False,
+        }
+
+    await _simpan_riwayat(
+        session, payload.user_id, outlet_filter_id,
+        payload.question, hasil["answer"],
+    )
+
+    if hasil["numbers_validated"]:
+        _cache.put(
+            payload.user_id, outlet_filter_id, payload.question, hasil["answer"]
+        )
+
+    return ChatResponse(
+        answer=hasil["answer"],
+        mode=hasil["mode"],
+        intent=hasil["intent"],
+        period=hasil["period"],
+        numbers_validated=hasil["numbers_validated"],
+        cached=False,
+        retried=hasil["retried"],
+        engine=klien.model if klien is not None else "offline",
+        outlet_id=outlet_filter_id,
+        outlet_name=outlet_name,
+    )
+
+
+@router.get("/history", response_model=HistoryResponse)
+async def assistant_history(
+    request: Request,
+    user_id: int = Query(ge=1),
+    limit: int = Query(default=20, ge=1, le=50),
+    session: AsyncSession = Depends(get_session),
+) -> HistoryResponse:
+    await require_internal_key(request)
+    baris = (
+        await session.execute(
+            select(ChatHistory)
+            .where(ChatHistory.user_id == user_id)
+            .order_by(ChatHistory.created_at.desc(), ChatHistory.id.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    pesan = [
+        ChatHistoryMessage(role=b.role, content=b.content, created_at=b.created_at)
+        for b in reversed(baris)
+    ]
+    return HistoryResponse(messages=pesan, total=len(pesan))
+
+
+@router.get("/status", response_model=AssistantStatus)
+async def assistant_status() -> AssistantStatus:
+    """PUBLIK tanpa key: kejujuran status lebih berguna daripada
+    menyembunyikannya (konsol dev memeriksa mode tanpa sesi)."""
+    klien = get_llm_client()
+    return AssistantStatus(
+        version=settings.VERSION,
+        llm_configured=llm_configured(),
+        llm_model=klien.model if klien is not None else None,
+        mode="ai" if llm_configured() else "data",
+        rate_limit_per_hour=settings.ASSISTANT_RATE_LIMIT_PER_HOUR,
+        cache_seconds=settings.ASSISTANT_CACHE_SECONDS,
+    )

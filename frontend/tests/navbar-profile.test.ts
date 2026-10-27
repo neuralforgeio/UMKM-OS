@@ -42,6 +42,7 @@ const SHELL_TERAUTENTIKASI = [
   "app/owner/transactions/transactions-client.tsx",
   "app/owner/settings/page.tsx",
   "app/owner/verify/page.tsx",
+  "app/owner/assistant/page.tsx",
   "app/owner/verify/[id]/page.tsx",
   "app/dev/page.tsx",
   "app/dev/users/users-client.tsx",

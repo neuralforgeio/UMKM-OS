@@ -443,4 +443,21 @@ var migrations = []string{
         `ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_mime_type TEXT`,
         `ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_data BYTEA`,
         `ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_version INT NOT NULL DEFAULT 0`,
+
+        // ===== 12) Riwayat Asisten AI (v1.8.0) =====
+        // Tabel chat_history: percakapan pemilik dengan Asisten AI
+        // (ml-service v3.1.0). DDL tetap otoritas Go; PENULIS baris
+        // adalah layanan ML lewat gerbang X-Internal-Key — satu-
+        // satunya pengecualian tulis di layanan itu (lainnya baca-
+        // saja). ON DELETE CASCADE: riwayat ikut terhapus bersama
+        // akun (privasi); outlet_id nullable untuk konteks kosong.
+        `CREATE TABLE IF NOT EXISTS chat_history (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        outlet_id BIGINT REFERENCES outlets(id),
+        role TEXT NOT NULL CHECK (role IN ('USER','ASSISTANT')),
+        content TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+        `CREATE INDEX IF NOT EXISTS idx_chat_history_user_time ON chat_history(user_id, created_at DESC)`,
 }

@@ -4,11 +4,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ArrowLeft, Check, Loader2, Printer, RotateCcw } from "lucide-react";
+import { ArrowLeft, Check, Loader2, MessageCircle, Printer, RotateCcw } from "lucide-react";
 import { AuroraBackground } from "@/components/aurora-background";
 import type { OutletInfo, Receipt as ReceiptType } from "./types";
 import { formatRupiah } from "@/lib/format";
 import { markServed } from "@/app/owner/verify/actions";
+import { buildReceiptMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
 
 const PAYMENT_LABELS: Record<ReceiptType["paymentMethod"], string> = {
   CASH: "Tunai",
@@ -266,6 +267,27 @@ export function ReceiptView({
               >
                 <Printer className="h-4 w-4" />
                 Cetak Struk
+              </button>
+              {/* v2.4.0 — struk digital via wa.me: pesan terformat penuh
+                  (outlet, item, total, tautan verifikasi) dibangun di sisi
+                  klien TANPA nomor tujuan — pembeli dipilih DI WhatsApp,
+                  aplikasi tidak pernah menyimpan nomor pembeli. */}
+              <button
+                type="button"
+                onClick={() => {
+                  const pesan = buildReceiptMessage(
+                    receipt,
+                    outlet,
+                    receipt.claimCode
+                      ? `${window.location.origin}/verify/${receipt.claimCode}`
+                      : undefined,
+                  );
+                  window.open(buildWhatsAppUrl(pesan), "_blank", "noopener");
+                }}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-500 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 dark:border-emerald-500/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Kirim via WhatsApp
               </button>
               <button
                 type="button"

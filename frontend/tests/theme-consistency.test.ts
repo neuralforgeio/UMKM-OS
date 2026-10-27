@@ -22,6 +22,7 @@ const SHELL_HALAMAN = [
   "app/cashier/pos-client.tsx",
   "app/cashier/receipt-view.tsx",
   "app/owner/page.tsx",
+  "app/owner/assistant/page.tsx",
   "app/owner/products/products-client.tsx",
   "app/owner/stock/page.tsx",
   "app/owner/transactions/transactions-client.tsx",

@@ -11,6 +11,11 @@ v2.1.0 menutup era Prisma: tabel PascalCase ("Outlet", "User", dst)
 sudah di-DROP backend-go. Identitas outlet kini dibaca dari tabel
 "outlets" milik Go (id BIGINT) — satu-satunya sisa transisi pun hilang;
 layanan ini murni membaca dunia Go.
+
+v3.1.0 — SATU pengecualian tulis: chat_history (DDL tetap migrasi #12
+milik backend-go). Layanan ML menyimpan dua baris per percakapan (USER
+lalu ASSISTANT) lewat gerbang X-Internal-Key; seluruh tabel lain tetap
+baca-saja.
 """
 
 from sqlalchemy import (
@@ -91,3 +96,22 @@ class TransactionItem(Base):
     price = Column(BigInteger, nullable=False)
     qty = Column(Integer, nullable=False)
     subtotal = Column(BigInteger, nullable=False)
+
+
+class ChatHistory(Base):
+    """Riwayat percakapan Asisten AI (v3.1.0).
+
+    DDL: migrasi #12 backend-go (v1.8.0). Satu-satunya tabel yang
+    DITULIS layanan ML — lihat docstring modul. Baris ditulis ber-
+    pasangan (USER lalu ASSISTAN) per percakapan; index Go
+    idx_chat_history_user_time melayani panel riwayat.
+    """
+
+    __tablename__ = "chat_history"
+
+    id = Column(BigInteger, primary_key=True)
+    user_id = Column(BigInteger, nullable=False)
+    outlet_id = Column(BigInteger, nullable=True)
+    role = Column(String, nullable=False)           # USER / ASSISTANT
+    content = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)

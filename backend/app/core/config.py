@@ -33,11 +33,12 @@ class Settings(BaseSettings):
     # Service identity
     # ------------------------------------------------------------------
     APP_NAME: str = "UMKM OS Backend"
-    # Semantic Versioning — 3.0.0 = engine ganda per-outlet: duel
-    # backtest MAPE antara Prophet dan statistical, artefak joblib
-    # per outlet. (2.0.0 sengaja dilewati agar penomoran menepati janji
-    # router v1: "per-outlet forecasting penuh ... fase ML v3.0.0".)
-    VERSION: str = "3.0.0"
+    # Semantic Versioning — 3.1.0 = Asisten AI RAG: retrieval SQL
+    # baca-saja + LLM OpenAI-compatible opsional (Mode Data offline bila
+    # kosong), validasi angka + 1x retry koreksi, chat_history, batas
+    # laju per user + cache jawaban. (3.0.0 = engine ganda Prophet;
+    # 2.0.0 sengaja dilewati menepati janji router v1.)
+    VERSION: str = "3.1.0"
 
     # Running mode: development | production | test
     ENVIRONMENT: Literal["development", "production", "test"] = "development"
@@ -94,6 +95,25 @@ class Settings(BaseSettings):
     # direktori kerja: lokal = backend/mlmodels, docker = /app/mlmodels
     # (volume bernama "mlmodels" di docker-compose.yml).
     ML_MODEL_DIR: str = "mlmodels"
+
+    # ------------------------------------------------------------------
+    # Asisten AI v3.1.0 — LLM opsional + gerbang + batas biaya
+    # ------------------------------------------------------------------
+    # Semua kosong = Mode Data (jawaban template tanpa LLM). Endpoint
+    # standar {LLM_BASE_URL}/chat/completions => agnostik penyedia
+    # (OpenAI / Groq / Together / OpenRouter / Ollama lokal).
+    LLM_ENABLED: bool = True
+    LLM_BASE_URL: str = ""
+    LLM_API_KEY: str = ""
+    LLM_MODEL: str = ""
+    # Batas laju per pengguna (sliding window 1 jam) & TTL cache
+    # jawaban — mitigasi biaya blueprint BAB 9.3.
+    ASSISTANT_RATE_LIMIT_PER_HOUR: int = 12
+    ASSISTANT_CACHE_SECONDS: int = 600
+    # Kunci antar-layanan (blueprint BAB 5.4): frontend mengirim
+    # X-Internal-Key ini ke /assistant/chat & /history. Kosong =
+    # terbuka (dev lokal tanpa docker); compose mengisi dari AUTH_SECRET.
+    INTERNAL_API_KEY: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",          # resolved relative to the working dir

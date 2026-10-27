@@ -8,13 +8,13 @@ import (
 )
 
 // AppVersion mengikuti Semantic Versioning: MAJOR.MINOR.PATCH
-// 1.7.0 = fitur: profil mandiri semua peran — PUT /me (ganti nama &
-// email sendiri, email unik dijaga), foto profil (POST/DELETE /me/photo,
-// multipart 3MB, bytea + photo_version cache-bust, GET /me/photo hanya
-// menyajikan foto pemanggil — privat, tidak publik seperti logo outlet),
-// /auth/me diperkaya jadi MeResponse penuh (outlet_name, photo_version,
-// created_at) untuk navbar & halaman Profil Saya.
-const AppVersion = "1.7.0"
+// 1.8.0 = fitur: Asisten AI (pasangan ml-service v3.1.0 + frontend
+// v2.4.0) — migrasi #12 tabel chat_history (riwayat percakapan pemilik
+// dengan asisten; DDL milik Go, penulis baris = layanan ML lewat
+// X-Internal-Key, satu-satunya pengecualian tulis di layanan itu).
+// Tanpa handler Go baru: tabel dipakai lintas layanan, outlet_id
+// nullable, index user_id+created_at DESC untuk panel riwayat.
+const AppVersion = "1.8.0"
 
 func init() {
         _ = godotenv.Load()

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PackagePlus, Settings, ShieldCheck, ReceiptText } from "lucide-react";
+import { PackagePlus, Settings, ShieldCheck, Sparkles, ReceiptText } from "lucide-react";
 import ForecastSection from "@/components/forecast/forecast-section";
 import { AuroraBackground } from "@/components/aurora-background";
 import { UserMenu } from "@/components/user-menu";
@@ -481,6 +481,15 @@ export default async function OwnerPage() {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <UserMenu user={userMenuUser(session)} />
+            {/* v2.4.0 — pintu Asisten AI: jawaban dari DATA outlet,
+                badge Mode AI/Data, peringatan angka tak tervalidasi. */}
+            <Link
+              href="/owner/assistant"
+              className="flex items-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50 px-3.5 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 dark:border-blue-500/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/40"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="hidden sm:inline">Asisten</span>
+            </Link>
             <Link
               href="/owner/verify"
               className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
