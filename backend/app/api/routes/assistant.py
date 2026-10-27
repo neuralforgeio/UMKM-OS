@@ -27,7 +27,7 @@ Data tetap MILIK Go (transactions.outlet_id dsb.) — pembacaan di sini
 memakai kolom yang sama dengan laporan Go: satu sumber kebenaran.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
@@ -267,16 +267,26 @@ async def _simpan_riwayat(
     session: AsyncSession, user_id: int, outlet_id: str | None,
     pertanyaan: str, jawaban: str,
 ) -> None:
-    """Dua baris (USER lalu ASSISTAN) — tabel tulis-satu-satunya."""
+    """Dua baris (USER lalu ASSISTAN) — tabel tulis-satu-satunya.
+
+    v3.1.1: created_at diisi EKSPLISIT. ORM SQLAlchemy 2.1 merender
+    kolom yang tidak diisi sebagai NULL eksplisit di daftar VALUES
+    INSERT, sehingga DEFAULT NOW() milik database (migrasi Go #12)
+    tidak pernah sempat bekerja -> NotNullViolation -> 500 pada
+    /assistant/chat. Satu cap waktu untuk kedua baris: urutan
+    USER/ASSISTAN tidak pernah terbalik karena selisih mikrodetik.
+    """
     oid = int(outlet_id) if outlet_id else None
+    now = datetime.now(timezone.utc)
     session.add_all(
         [
             ChatHistory(
-                user_id=user_id, outlet_id=oid, role="USER", content=pertanyaan
+                user_id=user_id, outlet_id=oid, role="USER",
+                content=pertanyaan, created_at=now,
             ),
             ChatHistory(
                 user_id=user_id, outlet_id=oid, role="ASSISTANT",
-                content=jawaban,
+                content=jawaban, created_at=now,
             ),
         ]
     )

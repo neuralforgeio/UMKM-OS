@@ -33,12 +33,13 @@ class Settings(BaseSettings):
     # Service identity
     # ------------------------------------------------------------------
     APP_NAME: str = "UMKM OS Backend"
-    # Semantic Versioning — 3.1.0 = Asisten AI RAG: retrieval SQL
-    # baca-saja + LLM OpenAI-compatible opsional (Mode Data offline bila
-    # kosong), validasi angka + 1x retry koreksi, chat_history, batas
-    # laju per user + cache jawaban. (3.0.0 = engine ganda Prophet;
-    # 2.0.0 sengaja dilewati menepati janji router v1.)
-    VERSION: str = "3.1.0"
+    # Semantic Versioning — 3.1.1 = hotfix asisten: created_at
+    # chat_history diisi eksplisit (ORM 2.1 merender kolom kosong
+    # sebagai NULL eksplisit sehingga DEFAULT database tidak bekerja —
+    # akar 500 pada /assistant/chat sejak v3.1.0). (3.1.0 = Asisten AI
+    # RAG; 3.0.0 = engine ganda Prophet; 2.0.0 sengaja dilewati
+    # menepati janji router v1.)
+    VERSION: str = "3.1.1"
 
     # Running mode: development | production | test
     ENVIRONMENT: Literal["development", "production", "test"] = "development"

@@ -18,6 +18,8 @@ lalu ASSISTANT) lewat gerbang X-Internal-Key; seluruh tabel lain tetap
 baca-saja.
 """
 
+from datetime import datetime, timezone
+
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -114,4 +116,10 @@ class ChatHistory(Base):
     outlet_id = Column(BigInteger, nullable=True)
     role = Column(String, nullable=False)           # USER / ASSISTANT
     content = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), nullable=False)
+    # v3.1.1: default Python — penulis baru tidak perlu mengingat
+    # mengisi kolom ini: ORM 2.1 merender kolom tanpa nilai sebagai NULL
+    # eksplisit (bukan membiarkan DEFAULT database bekerja).
+    created_at = Column(
+        DateTime(timezone=True), nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )

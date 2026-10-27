@@ -43,7 +43,17 @@ type GoEnvelope<T> = {
   error?: { message: string };
 };
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const {
+  handlers,
+  auth,
+  signIn,
+  signOut,
+  // v2.4.1: suntik data segar ke token sesi DARI server action
+  // (setelah unggah/hapus foto & simpan profil) — dipakai
+  // app/account/actions.ts supaya navbar semua halaman langsung
+  // mengikuti tanpa menunggu jwt-recheck 5 menit.
+  unstable_update,
+} = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [
@@ -124,7 +134,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         // Jalur sign-in: identitas segar dari authorize().
         token.id = user.id;
@@ -133,6 +143,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.goToken = user.goToken;
         token.photoVersion = user.photoVersion ?? 0;
         token.checkedAt = Date.now();
+        return token;
+      }
+      // v2.4.1 — suntikan dari server action (unstable_update): data
+      // segar masuk ke token sesi INI tanpa menunggu recheck 5 menit
+      // atau login ulang. Dipakai setelah unggah/hapus foto profil &
+      // simpan identitas: navbar SEMUA halaman langsung mengikuti.
+      if (trigger === "update" && session) {
+        const perubahan = (
+          session as {
+            user?: { photoVersion?: number; name?: string; email?: string };
+          }
+        ).user;
+        if (perubahan) {
+          if (typeof perubahan.photoVersion === "number") {
+            token.photoVersion = perubahan.photoVersion;
+          }
+          if (typeof perubahan.name === "string" && perubahan.name.length > 0) {
+            token.name = perubahan.name;
+          }
+          if (typeof perubahan.email === "string" && perubahan.email.length > 0) {
+            token.email = perubahan.email;
+          }
+        }
+        await syncDevOutletFromCookie(token);
         return token;
       }
       // Jalur permintaan biasa: cukup satu panggilan /auth/me per 5 menit per sesi.

@@ -57,6 +57,12 @@ export function UserAvatar({
   className?: string;
 }) {
   const [photoBroken, setPhotoBroken] = useState(false);
+  // v2.4.1: versi foto berubah (unggah baru setelah 404/hapus) wajib
+  // mencoba memuat ulang — tanpa reset ini photoBroken lama membuat
+  // avatar terjebak di inisial selamanya walau foto baru sudah ada.
+  useEffect(() => {
+    setPhotoBroken(false);
+  }, [user.photoVersion]);
   const photoUrl = userPhotoUrl(user.photoVersion);
 
   if (photoUrl && !photoBroken) {

@@ -11,7 +11,7 @@
 // outlet, dan akun orang lain tidak tersentuh dari sini.
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { auth, unstable_update } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { failedPasswordRules, isPasswordValid } from "@/lib/password-policy";
 
@@ -131,14 +131,27 @@ export async function updateProfileAction(
     return { ok: false, message: res.message };
   }
 
+  // v2.4.1: nama & email baru langsung disuntik ke token sesi (cookie
+  // JWT ditulis ulang lewat unstable_update) — navbar SEMUA halaman
+  // mengikuti seketika; dulu harus menunggu jwt-recheck 5 menit atau
+  // login ulang (akar bug "profil tidak terdeteksi di halaman lain").
+  try {
+    await unstable_update({
+      user: {
+        name: res.data?.name ?? name,
+        email: res.data?.email ?? email,
+      },
+    });
+  } catch {
+    // Suntikan sesi gagal bukan berarti profil gagal tersimpan —
+    // jwt-recheck 5 menit tetap menyinkronkan belakangan.
+  }
+
   // Halaman profil ini membaca segar dari Go — render ulang sekarang.
-  // Navbar halaman lain membaca sesi (JWT): jwt-recheck lib/auth.ts
-  // menyinkronkan nama/email paling lambat 5 menit tanpa login ulang.
   revalidatePath("/account");
   return {
     ok: true,
-    message:
-      "Profil tersimpan. Nama & email di navbar menyusul otomatis (maks. 5 menit) atau login ulang.",
+    message: "Profil tersimpan — nama & email di navbar langsung mengikuti.",
   };
 }
 
@@ -182,10 +195,28 @@ export async function uploadProfilePhotoAction(
     return { ok: false, message: res.message };
   }
 
+  // v2.4.1: versi foto baru langsung disuntik ke token sesi — avatar
+  // navbar SEMUA halaman memakai foto baru tanpa menunggu recheck
+  // 5 menit / login ulang (akar bug "foto tidak terdeteksi di halaman
+  // lain": photoVersion lama 0 di JWT membuat navbar tetap inisial).
+  try {
+    await unstable_update({
+      user: {
+        photoVersion:
+          typeof res.data?.photo_version === "number"
+            ? res.data.photo_version
+            : 0,
+      },
+    });
+  } catch {
+    // Suntikan sesi gagal bukan kegagalan unggah — recheck 5 menit
+    // tetap menyinkronkan belakangan.
+  }
+
   revalidatePath("/account");
   return {
     ok: true,
-    message: "Foto profil diperbarui — avatar navbar menyusul otomatis.",
+    message: "Foto profil diperbarui — avatar navbar langsung mengikuti.",
   };
 }
 
@@ -198,13 +229,30 @@ export async function deleteProfilePhotoAction(
   if (!session.user.goToken) return NO_TOKEN;
   const token = session.user.goToken;
 
-  const res = await goFetch<{ message: string }>(
+  // v2.4.1: Go tetap menaikkan photo_version saat hapus (cache-bust);
+  // versi itu disuntik ke sesi — UserAvatar melihat 404 lalu jatuh ke
+  // inisial nama (fallback yang sudah ada sejak v2.2.0).
+  const res = await goFetch<{ message: string; photo_version?: number }>(
     token,
     "/me/photo",
     { method: "DELETE" },
   );
   if (!res.ok) {
     return { ok: false, message: res.message };
+  }
+
+  try {
+    await unstable_update({
+      user: {
+        photoVersion:
+          typeof res.data?.photo_version === "number"
+            ? res.data.photo_version
+            : 0,
+      },
+    });
+  } catch {
+    // Suntikan sesi gagal bukan kegagalan hapus — recheck 5 menit
+    // tetap menyinkronkan belakangan.
   }
 
   revalidatePath("/account");
