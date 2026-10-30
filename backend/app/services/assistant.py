@@ -25,7 +25,7 @@ v3.2.0 "Asisten Cerdas" (jawab keluhan "jawabannya itu-itu saja"):
   - build_offline_answer menerima (intent, period) dan membangun jawaban
     yang BERBEDA per maksud + periode — pertanyaan berbeda tidak lagi
     menghasilkan jawaban kembar;
-  - persona "Dea" konsisten di Mode Data maupun system prompt LLM.
+  - persona "OSCAR" konsisten di Mode Data maupun system prompt LLM.
 
 Bentuk `context` (dibangun oleh routes/assistant.py dari SQL baca-saja):
 
@@ -64,8 +64,9 @@ TEMPERATURE = 0.2
 MAX_TOKENS = 400
 
 INTENTS = (
-    "identitas", "kemampuan", "sapaan", "terima_kasih",
-    "penjualan", "stok", "produk", "prediksi", "saran_tindakan",
+    "identitas", "kemampuan", "sapaan", "terima_kasih", "obrolan",
+    "jam_ramai", "penjualan", "stok", "produk", "prediksi",
+    "saran_tindakan",
 )
 PERIODS = ("hari", "minggu", "bulan")
 
@@ -81,7 +82,9 @@ TOLERANCE_REL = 0.02       # 2% — selisih kecil dari redaksi LLM
 ROUNDING_TOLERANCE_REL = 0.025  # 2,5% — selisih akibat pembulatan GRID
 
 # Nama persona asisten — konsisten di Mode Data & system prompt LLM.
-ASSISTANT_NAME = "Dea"
+# v2.6.0 "OSCAR": Online Shop Center for Assistance & Response.
+ASSISTANT_NAME = "OSCAR"
+ASSISTANT_FULL_NAME = "Online Shop Center for Assistance & Response"
 
 
 # ----------------------------------------------------------------------
@@ -185,7 +188,7 @@ _KW_IDENTITAS = (
     "siapa kamu", "kamu siapa", "nama kamu", "siapa nama", "nama asisten",
     "kenalan", "perkenalkan diri", "kamu robot", "kamu manusia", "kamu ai",
     "kamu aplikasi", "kamu ini siapa", "siapa yang menjawab",
-    "dibuat oleh siapa", "nama dea",
+    "dibuat oleh siapa", "nama oscar", "oscar itu siapa",
 )
 _KW_KEMAMPUAN = (
     "bisa apa", "apa yang bisa", "bisa bantu apa", "fitur", "bantuan",
@@ -196,11 +199,28 @@ _KW_KEMAMPUAN = (
 _KW_SAPAAN = (
     "halo", "hallo", "hai", "hei", "hello", "hi", "pagi", "siang",
     "sore", "malam", "assalamualaikum", "salam", "permisi", "oi",
-    "halo dea", "p", "woi",
+    "halo oscar", "p", "woi",
 )
 _KW_TERIMA_KASIH = (
     "terima kasih", "thanks", "thank you", "sip", "siip", "mantap", "top",
     "good job", "bagus deh", "oke deh", "ok deh", "nice", "keren",
+)
+# v2.6.0: obrolan ringan pemilik ("owalah", "gitu ya", "wkwk") — reaksi
+# hidup, bukan template saran. Diperiksa SETELAH terima_kasih supaya
+# "sip"/"oke deh" tetap dihitung ucapan terima kasih, dan SETELAH semua
+# kata kunci data supaya "owalah, omzet berapa?" tetap dijawab data.
+_KW_OBROLAN = (
+    "owalah", "oalah", "walah", "welah", "hadeh", "aduhai", "ya ampun",
+    "gitu ya", "begitu ya", "gitu sih", "yaudah", "ya udah", "ya sudah",
+    "sumpah", "ngakak", "wkwk", "lucu banget", "lucu ya", "bosen",
+    "bosan", "capek deh", "gara gara", "gokil", "anjay", "keren banget",
+    "pintar kamu", "hebat kamu", "kamu keren", "kamu lucu", "suka sama",
+)
+# v2.6.0: pertanyaan pola jam belanja — dijawab data jam_ramai dari SQL.
+_KW_JAM_RAMAI = (
+    "jam ramai", "jam sibuk", "paling ramai", "jam paling", "kapan ramai",
+    "waktu ramai", "jam laku", "jam belanja", "prime time", "paling sibuk",
+    "ramai kapan", "jam sepi", "sepi kapan", "jam orang banyak",
 )
 
 _KW_HARI = (
@@ -278,12 +298,16 @@ def classify_intent(question: str) -> str:
         return "produk"
     if _hit(t, _KW_PENJUALAN):
         return "prediksi" if _hit(t, _KW_MASA_DEPAN) else "penjualan"
+    if _hit(t, _KW_JAM_RAMAI):
+        return "jam_ramai"
     if _hit(t, _KW_PREDIKSI):
         return "prediksi"
     if _hit(t, _KW_IDENTITAS):
         return "identitas"
     if _hit(t, _KW_KEMAMPUAN):
         return "kemampuan"
+    if _hit(t, _KW_OBROLAN):
+        return "obrolan"
     if _hit(t, _KW_SAPAAN):
         return "sapaan"
     if _hit(t, _KW_TERIMA_KASIH):
@@ -478,6 +502,7 @@ def collect_allowed_numbers(context: dict[str, Any]) -> list[float]:
     _susuri(context.get("penjualan", {}))
     _susuri(context.get("produk_top", []))
     _susuri(context.get("stok_kritis", []))
+    _susuri(context.get("jam_ramai", []))
     progres = context.get("ml_progress") or {}
     if isinstance(progres, dict):
         for v in progres.values():
@@ -569,10 +594,35 @@ def build_system_prompt(context: dict[str, Any]) -> str:
             " (model dilatih otomatis begitu terpenuhi)"
         )
 
+    # v2.6.0: jam ramai + estimasi stok habis — konteks makin kaya.
+    jam = context.get("jam_ramai") or []
+    baris_jam = (
+        "; ".join(
+            f"jam {d.get('jam')} ({d.get('transaksi')} transaksi)"
+            for d in jam[:3]
+        )
+        or "belum ada data 7 hari terakhir"
+    )
+    habis = [
+        item
+        for item in (context.get("stok_kritis") or [])
+        if isinstance(item.get("hari_habis"), (int, float))
+        and not isinstance(item.get("hari_habis"), bool)
+    ]
+    baris_habis = (
+        "; ".join(
+            f"{item.get('nama')} habis sekitar {item.get('hari_habis'):.0f} "
+            f"hari lagi (laku {item.get('kecepatan_hari', 0):.0f}/hari)"
+            for item in habis[:4]
+        )
+        or "tidak terhitung — penjualan 7 hari belum stabil"
+    )
+
     return (
-        f"Kamu adalah {ASSISTANT_NAME}, asisten bisnis warung UMKM Indonesia. "
-        f"Jawab pemilik warung {context.get('outlet', '-')} dengan bahasa Indonesia "
-        "sehari-hari yang hangat tapi ringkas.\n"
+        f"Kamu adalah {ASSISTANT_NAME} ({ASSISTANT_FULL_NAME}), asisten "
+        f"bisnis warung UMKM Indonesia. Jawab pemilik warung "
+        f"{context.get('outlet', '-')} dengan bahasa Indonesia sehari-hari "
+        "yang hangat tapi ringkas.\n"
         "ATURAN WAJIB:\n"
         "1. Jawab HANYA dari DATA di bawah — DILARANG mengarang atau "
         "menebak angka.\n"
@@ -581,14 +631,22 @@ def build_system_prompt(context: dict[str, Any]) -> str:
         "4. Bila DATA tidak memuat jawabannya, katakan bagian mana yang "
         "tidak tersedia.\n"
         "5. Bila ditanya siapa kamu / nama mu, perkenalkan diri sebagai "
-        f"{ASSISTANT_NAME} asisten warung, lalu tawarkan bantuan soal data.\n"
+        f"{ASSISTANT_NAME} ({ASSISTANT_FULL_NAME}), lalu tawarkan bantuan "
+        "soal data.\n"
         "6. Format uang gaya Indonesia: Rp 1.250.000 (titik ribuan).\n"
+        "7. Gaya campuran: obrolan ringan boleh santai khas warung, tapi "
+        "setiap angka/stok/saran tetap rapi dan berdata.\n"
+        "8. Pertanyaan lanjutan (\"kalau yang murah aja?\", \"ulangi yang "
+        "tadi\") dijawab memakai RIWAYAT percakapan — jangan minta pemilik "
+        "mengulang pertanyaannya.\n"
         "DATA:\n"
         + "\n".join(_baris_penjualan(context))
         + f"\n- Perubahan omzet minggu ini vs minggu lalu: {tren}"
         + f"\n- Produk terlaris 7 hari: {baris_top}"
         + f"\n- Stok menipis: {baris_stok}"
+        + f"\n- Estimasi stok habis: {baris_habis}"
         + f"\n- Ramalan 7 hari: {baris_prediksi}"
+        + f"\n- Jam paling ramai 7 hari: {baris_jam}"
         + baris_progres
     )
 
@@ -641,7 +699,8 @@ def _trx(context: dict[str, Any], kunci: str) -> int:
 def _jawab_identitas(context: dict[str, Any]) -> str:
     outlet = context.get("outlet", "-")
     return (
-        f"Saya {ASSISTANT_NAME}, asisten bisnis warung {outlet}. Saya membaca "
+        f"Saya {ASSISTANT_NAME} — {ASSISTANT_FULL_NAME}, asisten bisnis "
+        f"warung {outlet}. Saya membaca "
         f"catatan penjualan, stok, dan produk {outlet} langsung dari sistem, "
         "jadi setiap angka yang saya sebut nyata, bukan karangan. Coba tanya "
         "\"berapa omzet hari ini\", \"stok apa yang menipis\", atau "
@@ -686,6 +745,80 @@ def _jawab_terima_kasih(context: dict[str, Any]) -> str:
         "Sama-sama! Kalau butuh angka omzet, kondisi stok, atau saran "
         "untuk warung, panggil saya lagi kapan saja. Saran: sebelum tutup "
         "warung, tanya sekali \"saran untuk besok\" biar besok lebih siap."
+    )
+
+
+def _txt_hari_habis(item: dict[str, Any]) -> str:
+    """Cuplikan estimasi hari habis + kecepatan laku (v2.6.0).
+
+    Angka tampil kecil (hari & kecepatan) sehingga AMAN terhadap
+    validasi angka jawaban — bukan klaim data berisiko.
+    """
+    hh = item.get("hari_habis")
+    if not isinstance(hh, (int, float)) or isinstance(hh, bool):
+        return ""
+    kec = item.get("kecepatan_hari")
+    kec_txt = (
+        f", laku {kec:.1f}/hari".replace(".", ",")
+        if isinstance(kec, (int, float)) and not isinstance(kec, bool)
+        else ""
+    )
+    return f" ~{hh:.0f} hari lagi{kec_txt}"
+
+
+# Reaksi obrolan ringan (v2.6.0) — gaya campuran: santai di sini,
+# rapi & berdata saat angka. Rotasi per tanggal supaya hidup.
+OBROLAN_VARIAN = (
+    "Haha, iya — begitulah hari-hari jualan. Kalau butuh angka yang "
+    "menenangkan (atau membangunkan), tanya saja \"berapa omzet hari ini\". "
+    "Saran: cek dulu stok yang menipis biar tidak kehabisan saat ramai.",
+    "Wkwk, dicatat juga bagian dari cerita warung. Saya siap kalau butuh "
+    "angka: omzet, stok, produk terlaris, sampai jam ramai. Saran: "
+    "tanyakan \"produk paling laku\" biar tahu andalanmu.",
+    "Hehe, oke! Kalau mau yang serius, saya siap: penjualan hari ini, "
+    "sisa stok, sampai saran minggu depan. Saran: mulai dari \"saran "
+    "minggu depan\" biar belanja lebih terarah.",
+    "Iya, kadang gitu rasanya jualan. Saya bantu baca datanya — "
+    "tinggal tanya, tidak perlu basa-basi panjang. Saran: sebelum tutup, "
+    "tanyakan \"saran untuk besok\" biar besok lebih siap.",
+    "Haha, sip! Omong-omong, coba tanya \"jam paling ramai kapan\" — "
+    "datamu sendiri yang menjawab, bukan feeling. Saran: pastikan "
+    "transaksi lewat kasir supaya catatannya makin lengkap.",
+)
+
+
+def _jawab_obrolan(context: dict[str, Any]) -> str:
+    """Reaksi obrolan ringan v2.6.0 — hidup, bervariasi, tetap 1 saran.
+
+    Varian dirotasi per tanggal (stabil sepanjang hari, berganti besok)
+    supaya terasa hidup tanpa membuat pengujian rapuh: pengujian
+    mengunci sifat (tepat satu "Saran:", tanpa angka karangan), bukan
+    varian spesifik.
+    """
+    from datetime import date as _date
+
+    return OBROLAN_VARIAN[_date.today().day % len(OBROLAN_VARIAN)]
+
+
+def _jawab_jam_ramai(context: dict[str, Any]) -> str:
+    """Jawaban Mode Data untuk pola jam belanja (v2.6.0)."""
+    data = context.get("jam_ramai") or []
+    if not data:
+        return (
+            "Belum ada transaksi 7 hari terakhir untuk menghitung pola "
+            "jam. Saran: catat penjualan lewat kasir — jam ramai warungmu "
+            "muncul sendiri setelah beberapa hari data."
+        )
+    jadi = ", ".join(
+        f"jam {d.get('jam')} ({d.get('transaksi')} transaksi)"
+        for d in data[:3]
+    )
+    puncak = data[0]
+    return (
+        f"Jam paling ramai 7 hari terakhir: {jadi} — puncaknya jam "
+        f"{puncak.get('jam')}. Saran: siapkan stok andalan dan bantuan "
+        "petugas di jam-jam itu; jam sepi bisa dipakai merapikan "
+        "administrasi."
     )
 
 
@@ -771,7 +904,8 @@ def _jawab_stok(context: dict[str, Any]) -> str:
             "lambat 30 hari terakhir."
         )
     daftar = ", ".join(
-        f"{item.get('nama')} sisa {item.get('stok')} (minimum {item.get('min_stok')})"
+        f"{item.get('nama')} sisa {item.get('stok')} "
+        f"(minimum {item.get('min_stok')}){_txt_hari_habis(item)}"
         for item in kritis[:3]
     )
     restok = ", ".join(
@@ -837,7 +971,17 @@ def _jawab_saran(context: dict[str, Any], period: str) -> str:
                 "— jangan panik, kita cari polanya."
             )
     else:
-        bagian.append("Minggu lalu belum ada data pembanding, tren belum bisa dihitung.")
+        progres0 = context.get("ml_progress") or {}
+        tambahan = (
+            f" — catatan baru berjalan {progres0.get('hari_data', 0)} hari"
+            if progres0
+            else ""
+        )
+        bagian.append(
+            "Minggu lalu belum ada data pembanding, tren belum bisa dihitung"
+            f"{tambahan}. Sambil menunggu, fokus dulu ke yang sudah bisa "
+            "dihitung: produk andalan dan sisa stok."
+        )
     top = _top_pertama(context)
     if top:
         bagian.append(
@@ -848,7 +992,7 @@ def _jawab_saran(context: dict[str, Any], period: str) -> str:
     if kritis:
         bagian.append(
             f"Prioritas belanja: restok {kritis.get('nama')} "
-            f"+{kritis.get('saran_restok')}."
+            f"+{kritis.get('saran_restok')}{_txt_hari_habis(kritis)}."
         )
     prediksi = context.get("prediksi") or {}
     progres = context.get("ml_progress") or {}
@@ -880,6 +1024,13 @@ def _jawab_saran(context: dict[str, Any], period: str) -> str:
                 "Saran: mulai catat penjualan lewat kasir — data segar membuat "
                 f"asisten {outlet} makin paham warungmu."
             )
+    jam = context.get("jam_ramai") or []
+    if jam:
+        puncak = jam[0]
+        bagian.append(
+            f"Puncak belanja biasanya jam {puncak.get('jam')} — siapkan stok "
+            "dan petugas di jam itu."
+        )
     return " ".join(bagian)
 
 
@@ -944,6 +1095,10 @@ def build_offline_answer(
         return _jawab_sapaan(context)
     if maksud == "terima_kasih":
         return _jawab_terima_kasih(context)
+    if maksud == "obrolan":
+        return _jawab_obrolan(context)
+    if maksud == "jam_ramai":
+        return _jawab_jam_ramai(context)
     if maksud == "penjualan":
         return _jawab_penjualan(context, periode)
     if maksud == "produk":

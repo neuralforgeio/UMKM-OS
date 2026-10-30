@@ -37,6 +37,7 @@ const CONTOH_TANYA = [
   "Kasih saran untuk minggu ini",
   "Siapa kamu?",
   "Saran minggu depan",
+  "Jam paling ramai kapan?",
 ];
 
 export function AssistantPanel({ outletName }: { outletName: string }) {

@@ -33,14 +33,15 @@ class Settings(BaseSettings):
     # Service identity
     # ------------------------------------------------------------------
     APP_NAME: str = "UMKM OS Backend"
-    # Semantic Versioning — 3.2.0 = Asisten Cerdas: NLU per-maksud
-    # (identitas/sapaan/kemampuan/prediksi dijawab spesifik, bukan satu
-    # template), normalisasi bahasa informal + fuzzy, konfigurasi LLM
-    # runtime via UI (llm_config.json menimpa env), gerbang ML progresif
-    # 28/14, auto-train latar belakang. (3.1.1 = hotfix created_at
-    # chat_history; 3.1.0 = Asisten AI RAG; 3.0.0 = engine ganda
-    # Prophet; 2.0.0 sengaja dilewati menepati janji router v1.)
-    VERSION: str = "3.2.0"
+    # Semantic Versioning — 3.3.0 = OSCAR: persona berganti nama (OSCAR
+    # — Online Shop Center for Assistance & Response), obrolan hidup
+    # (owalah/gitu ya dijawab reaksi, bukan template), pola jam ramai,
+    # estimasi hari stok habis + kecepatan laku, prompt gaya campuran
+    # + aturan pertanyaan lanjutan dari riwayat. (3.2.0 = Asisten
+    # Cerdas: NLU per-maksud; 3.1.1 = hotfix created_at chat_history;
+    # 3.1.0 = Asisten AI RAG; 3.0.0 = engine ganda Prophet; 2.0.0
+    # sengaja dilewati menepati janji router v1.)
+    VERSION: str = "3.3.0"
 
     # Running mode: development | production | test
     ENVIRONMENT: Literal["development", "production", "test"] = "development"

@@ -209,15 +209,75 @@ async def _stok_kritis(session: AsyncSession, outlet_id: str | None,
             .limit(limit)
         )
     ).scalars().all()
-    return [
-        {
-            "nama": p.name,
-            "stok": int(p.stock),
-            "min_stok": int(p.min_stock),
-            "saran_restok": max(0, int(p.min_stock * 2 - p.stock)),
-        }
-        for p in baris
+
+    # v2.6.0: kecepatan laku 7 hari per produk -> estimasi hari habis.
+    hari = date.today()
+    mulai7 = hari - timedelta(days=6)
+    syarat7 = [
+        Transaction.status == "COMPLETED",
+        func.date(Transaction.created_at) >= mulai7,
     ]
+    if outlet_id:
+        syarat7.append(Transaction.outlet_id == int(outlet_id))
+    baris7 = (
+        await session.execute(
+            select(
+                TransactionItem.product_name,
+                func.sum(TransactionItem.qty),
+            )
+            .join(Transaction, TransactionItem.transaction_id == Transaction.id)
+            .where(*syarat7)
+            .group_by(TransactionItem.product_name)
+        )
+    ).all()
+    laku7 = {nama: int(qty or 0) for nama, qty in baris7}
+
+    hasil = []
+    for p in baris:
+        kecepatan = round(laku7.get(p.name, 0) / 7.0, 2)
+        hari_habis = None
+        if kecepatan > 0:
+            hari_habis = round(int(p.stock) / kecepatan, 1)
+        elif int(p.stock) <= 0:
+            hari_habis = 0.0
+        hasil.append(
+            {
+                "nama": p.name,
+                "stok": int(p.stock),
+                "min_stok": int(p.min_stock),
+                "saran_restok": max(0, int(p.min_stock * 2 - p.stock)),
+                "kecepatan_hari": kecepatan,
+                "hari_habis": hari_habis,
+            }
+        )
+    return hasil
+
+
+async def _jam_ramai(
+    session: AsyncSession, outlet_id: str | None, limit: int = 3
+) -> list[dict]:
+    """v2.6.0: jam belanja paling ramai 7 hari (jumlah transaksi/jam)."""
+    hari = date.today()
+    mulai = hari - timedelta(days=6)
+    syarat = [
+        Transaction.status == "COMPLETED",
+        func.date(Transaction.created_at) >= mulai,
+    ]
+    if outlet_id:
+        syarat.append(Transaction.outlet_id == int(outlet_id))
+    baris = (
+        await session.execute(
+            select(
+                func.extract("hour", Transaction.created_at),
+                func.count(Transaction.id),
+            )
+            .where(*syarat)
+            .group_by(func.extract("hour", Transaction.created_at))
+            .order_by(func.count(Transaction.id).desc())
+            .limit(limit)
+        )
+    ).all()
+    return [{"jam": int(r[0]), "transaksi": int(r[1])} for r in baris]
 
 
 async def _status_prediksi(outlet_id: str | None) -> dict:
@@ -305,6 +365,7 @@ async def build_data_context(
         "perubahan_mingguan_pct": await _perubahan_mingguan(session, outlet_id),
         "produk_top": await _produk_top(session, outlet_id),
         "stok_kritis": await _stok_kritis(session, outlet_id),
+        "jam_ramai": await _jam_ramai(session, outlet_id),
         "prediksi": await _status_prediksi(outlet_id),
         "ml_progress": await _progress_ml(session, outlet_id),
     }

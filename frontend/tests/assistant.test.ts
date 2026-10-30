@@ -285,10 +285,13 @@ describe("Asisten Cerdas lintas-stack (ml-service v3.2.0)", () => {
     expect(isi).toContain('maksud == "sapaan"');
   });
 
-  it("layanan ML: taksonomi maksud baru + persona Dea", () => {
+  it("layanan ML: taksonomi maksud baru + persona OSCAR (v2.6.0)", () => {
     const isi = bacaRepo("backend/app/services/assistant.py");
-    expect(isi).toContain('ASSISTANT_NAME = "Dea"');
+    expect(isi).toContain('ASSISTANT_NAME = "OSCAR"');
+    expect(isi).toContain("Online Shop Center for Assistance & Response");
     expect(isi).toContain('"identitas", "kemampuan", "sapaan", "terima_kasih"');
+    expect(isi).toContain('"obrolan"');
+    expect(isi).toContain('"jam_ramai"');
   });
 
   it("layanan ML: store konfigurasi runtime + endpoint PUT llm-config", () => {
