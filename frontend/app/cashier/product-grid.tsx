@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Package, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Package, Plus, Search, X } from "lucide-react";
 import type { PosProduct } from "./types";
 import {
   categoryAvatarClass,
@@ -36,24 +36,27 @@ function ProductCard({
     // No fixed height, no overflow-hidden, no min-h-0 here: the card
     // grows with its content and the grid row grows with the card, so
     // a long product name can never be clipped again.
+    // Seluruh kartu adalah tombol (target sentuh besar untuk kasir);
+    // chip "+" di baris harga hanyalah petunjuk visual, bukan tombol
+    // terpisah — pola "quick add" arahan desain POS.
     <button
       type="button"
       disabled={soldOut}
       onClick={() => onAdd(product.id)}
       className={`group relative flex h-full flex-col rounded-xl border p-2.5 text-left transition active:scale-[0.98] lg:p-3 ${
         soldOut
-          ? "cursor-not-allowed border-slate-200/80 dark:border-white/10 opacity-55"
+          ? "cursor-not-allowed border-slate-200 opacity-55 dark:border-slate-800"
           : qty > 0
-            ? "border-blue-500 bg-blue-50/50 ring-2 ring-blue-500/20 dark:bg-blue-500/10"
-            : "border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 hover:border-blue-400 hover:shadow-md"
+            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+            : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900/60 dark:hover:border-slate-700"
       }`}
     >
       {qty > 0 && (
-        <span className="absolute right-1.5 top-1.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[10px] font-bold text-white shadow">
+        <span className="absolute top-1.5 right-1.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
           {qty}
         </span>
       )}
-      <span className="mb-2 block aspect-square w-full overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-900">
+      <span className="mb-2 block aspect-square w-full overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-800">
         {product.thumbImageId ? (
           <img
             src={`/api/images/${product.thumbImageId}`}
@@ -76,13 +79,31 @@ function ProductCard({
       >
         {product.name}
       </span>
-      <span className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
-        {product.sku}
-      </span>
-      <span className="mt-1.5 text-[13px] font-bold text-blue-600 dark:text-blue-400 lg:text-sm">
-        {displayRp(priceSen(product))}
-      </span>
-      <div className="mt-auto flex items-center justify-between gap-1 pt-2">
+      {/* SKU tampil sebagai chip huruf besar ala komponen POS desain
+          (LAT, AME, MAT, ...) — identitas cepat bagi kasir. */}
+      {product.sku ? (
+        <span className="mt-1 inline-block w-fit rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider text-slate-500 uppercase dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+          {product.sku}
+        </span>
+      ) : null}
+      <div className="mt-auto flex items-end justify-between gap-1 pt-2">
+        <span className="text-[13px] font-bold text-slate-900 dark:text-slate-100 lg:text-sm">
+          {displayRp(priceSen(product))}
+        </span>
+        <span
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
+            soldOut
+              ? "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600"
+              : qty > 0
+                ? "bg-primary text-primary-foreground"
+                : "bg-slate-100 text-slate-500 group-hover:bg-primary group-hover:text-primary-foreground dark:bg-slate-800 dark:text-slate-400"
+          }`}
+          aria-hidden
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </span>
+      </div>
+      <div className="mt-1.5 flex items-center justify-between gap-1 border-t border-slate-100 pt-1.5 dark:border-slate-800">
         {product.categoryName ? (
           <span
             className={`truncate rounded-full px-1.5 py-0.5 text-[10px] font-medium ${categoryChipClass(product.categoryName)}`}
@@ -95,7 +116,7 @@ function ProductCard({
         <span
           className={`shrink-0 text-[10px] font-semibold ${
             soldOut
-              ? "text-red-500"
+              ? "text-red-600 dark:text-red-400"
               : lowStock
                 ? "text-amber-600 dark:text-amber-400"
                 : "text-slate-400 dark:text-slate-500"
@@ -150,16 +171,19 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
   };
 
   return (
-    <section className="glass-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl">
-      {/* Toolbar: count + search + pagination, then category chips. */}
-      <div className="shrink-0 border-b border-slate-100 dark:border-slate-800/60 p-3">
+    <section className="glass-card flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl">
+      {/* Toolbar: overline + hitungan, pencarian, paginasi, lalu pil kategori. */}
+      <div className="shrink-0 border-b border-slate-100 p-3 dark:border-slate-800">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="flex shrink-0 items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            <Package className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
-            Produk <span className="text-slate-300">·</span> {filtered.length}
+          <h2 className="flex shrink-0 items-baseline gap-1.5 text-overline text-muted-foreground">
+            <Package className="h-3.5 w-3.5 translate-y-px" />
+            Pilih Produk
+            <span className="font-sans text-xs font-bold tracking-normal normal-case text-slate-500 dark:text-slate-400">
+              · {filtered.length}
+            </span>
           </h2>
           <div className="relative min-w-40 flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="search"
               value={query}
@@ -167,8 +191,8 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
                 setQuery(e.target.value);
                 setPage(1);
               }}
-              placeholder="Cari nama produk atau SKU..."
-              className="glass-input w-full rounded-xl py-2 pl-9 pr-9 text-sm outline-none transition"
+              placeholder="Cari nama, SKU, atau barcode..."
+              className="glass-input w-full rounded-xl py-2 pr-9 pl-9 text-sm outline-none transition"
             />
             {query && (
               <button
@@ -178,7 +202,7 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
                   setQuery("");
                   setPage(1);
                 }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+                className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-full p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -191,7 +215,7 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
                 aria-label="Halaman sebelumnya"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300/80 dark:border-white/15 text-slate-600 dark:text-slate-300 transition hover:bg-slate-100/70 dark:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -203,8 +227,8 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
                     onClick={() => setPage(n)}
                     className={`h-8 w-8 rounded-lg text-xs font-bold tabular-nums transition ${
                       n === currentPage
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "border border-slate-300/80 dark:border-white/15 text-slate-600 dark:text-slate-300 hover:bg-slate-100/70 dark:hover:bg-white/10 "
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
                     }`}
                   >
                     {n}
@@ -220,7 +244,7 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
                 aria-label="Halaman berikutnya"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300/80 dark:border-white/15 text-slate-600 dark:text-slate-300 transition hover:bg-slate-100/70 dark:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
@@ -238,8 +262,8 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
               }}
               className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition ${
                 category === null
-                  ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
-                  : "bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/20 "
+                  ? "bg-slate-900 text-primary-foreground dark:bg-slate-100 dark:text-slate-900"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
               }`}
             >
               Semua
@@ -254,8 +278,8 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
                 }}
                 className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition ${
                   category === name
-                    ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
-                    : "bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/20 "
+                    ? "bg-slate-900 text-primary-foreground dark:bg-slate-100 dark:text-slate-900"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 }`}
               >
                 {name}
@@ -267,8 +291,8 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {filtered.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 dark:border-white/10 p-10 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-900">
+          <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 p-10 text-center dark:border-slate-800">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
               <Package className="h-6 w-6 text-slate-400 dark:text-slate-500" />
             </div>
             <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -281,7 +305,7 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="mt-3 rounded-full border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-white/10 px-3 py-1 text-xs font-semibold text-slate-600 dark:text-slate-300 transition hover:bg-slate-100 dark:hover:bg-white/20"
+                className="mt-3 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
               >
                 Hapus filter
               </button>
@@ -305,7 +329,7 @@ export function ProductGrid({ products, cartQty, onAdd }: ProductGridProps) {
               <div
                 key={`slot-${i}`}
                 aria-hidden="true"
-                className="hidden rounded-xl border border-dashed border-slate-200 dark:border-white/10 lg:block"
+                className="hidden rounded-xl border border-dashed border-slate-200 lg:block dark:border-slate-800"
               />
             ))}
           </div>

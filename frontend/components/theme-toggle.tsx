@@ -1,7 +1,12 @@
 "use client";
 
-// Toggle tema ringan (v1.3.0): tiga pilihan — Sistem / Gelap / Terang.
-// Pil aktif meluncur mulus berkat framer-motion layoutId.
+// Toggle tema ringan (v3.1.0 restyling): tiga pilihan — Sistem / Gelap /
+// Terang. Mekanisme TIDAK berubah: next-themes menulis ke kunci
+// per-pengguna "theme-<idUser>" (lihat lib/theme-storage.ts) dan tema
+// hanya boleh hidup di halaman login (pra-autentikasi) + /settings —
+// dijaga tests/navbar-profile.test.ts.
+// Tampilan mengikuti design system baru: pil putih datar bergaris tepi
+// (tanpa blur), pilihan aktif memakai tint indigo + ring tipis.
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
@@ -25,7 +30,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     return (
       <div
         aria-hidden
-        className={`h-9 w-[104px] animate-pulse rounded-full border border-slate-200 bg-white/70 dark:border-slate-800 dark:bg-slate-900/70 ${className}`}
+        className={`h-9 w-[104px] animate-pulse rounded-full border border-border bg-surface ${className}`}
       />
     );
   }
@@ -34,7 +39,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     <div
       role="radiogroup"
       aria-label="Pilih tema tampilan"
-      className={`flex items-center gap-0.5 rounded-full border border-slate-200 bg-white/80 p-1 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 ${className}`}
+      className={`flex items-center gap-0.5 rounded-full border border-border bg-surface p-1 ${className}`}
     >
       {OPTIONS.map((opt) => {
         const active = theme === opt.value;
@@ -46,16 +51,18 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
             aria-checked={active}
             title={opt.label}
             onClick={() => setTheme(opt.value)}
-            className="relative flex h-7 w-8 items-center justify-center rounded-full text-slate-500 transition-colors hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
+            className="relative flex h-7 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground"
           >
             {active && (
               <motion.span
                 layoutId="theme-pill"
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                className="absolute inset-0 rounded-full bg-blue-600/10 ring-1 ring-blue-500/40 dark:bg-blue-500/20"
+                className="absolute inset-0 rounded-full bg-primary/10 ring-1 ring-primary/35"
               />
             )}
-            <opt.icon className="relative h-3.5 w-3.5" />
+            <opt.icon
+              className={`relative h-3.5 w-3.5 ${active ? "text-primary" : ""}`}
+            />
           </button>
         );
       })}

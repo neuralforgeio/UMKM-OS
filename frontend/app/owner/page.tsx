@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PackagePlus, Settings, ShieldCheck, Sparkles, ReceiptText } from "lucide-react";
+import {
+  Home,
+  PackagePlus,
+  ReceiptText,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import ForecastSection from "@/components/forecast/forecast-section";
 import { AuroraBackground } from "@/components/aurora-background";
 import { UserMenu } from "@/components/user-menu";
@@ -13,17 +20,17 @@ import { formatRupiah } from "@/lib/format";
 export const instant = false;
 
 // =====================================================================
-// Dashboard owner — Tahap 4a (frontend v1.0.0, file dilengkapi di v1.0.1).
+// Dashboard owner — v3.1.0 restyling "Business overview" (arahan desain
+// atasan: indigo, permukaan netral, hierarki tenang).
 //
-// SELURUH angka statistik kini datang dari backend-go lewat satu
-// panggilan GET /api/v1/reports/dashboard: ringkasan hari ini & kemarin,
-// grafik 7 hari (gap-free), porsi metode pembayaran, 5 produk terlaris,
-// stok menipis + saran restok, dan 6 transaksi terbaru. Frontend tidak
-// lagi menghitung agregat sendiri — PostgreSQL tetap satu-satunya sumber
-// data lewat tangan Go, dan kasir/owner/peluncur melihat angka yang sama.
-//
-// Satu-satunya yang masih Prisma: identitas outlet (nama & logo) untuk
-// header — pindah ke backend-go menyusul pada fase multi-outlet.
+// LOGIKA DATA TIDAK BERUBAH SAMA SEKALI: seluruh angka statistik tetap
+// datang dari backend-go lewat satu panggilan GET /api/v1/reports/
+// dashboard (ringkasan hari ini & kemarin, grafik 7 hari gap-free,
+// porsi metode pembayaran, 5 produk terlaris, stok menipis + saran
+// restok, dan 6 transaksi terbaru). Yang berubah hanya penyajiannya:
+// kartu KPI tanpa ornamen (label overline 9px → nilai besar → delta),
+// judul seksi dengan deskripsi satu baris, satu aksi utama per area,
+// grafik satu rona indigo, dan header solid tanpa kaca/blur.
 // =====================================================================
 
 // Compact chart labels: 1250000 -> "1,3 jt", 45000 -> "45 rb".
@@ -39,8 +46,8 @@ const METHOD_META = [
   {
     key: "CASH",
     label: "Tunai",
-    dot: "bg-blue-500",
-    bar: "bg-blue-500",
+    dot: "bg-primary",
+    bar: "bg-primary",
     badge: "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300",
   },
   {
@@ -112,201 +119,53 @@ function TrendDownIcon({ className }: { className?: string }) {
   );
 }
 
-function WalletIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
-      <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
-      <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
-    </svg>
-  );
-}
-
-function ReceiptIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
-      <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
-      <path d="M12 17.5v-11" />
-    </svg>
-  );
-}
-
-function PackageIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m7.5 4.27 9 5.15" />
-      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-      <path d="m3.3 7 8.7 5 8.7-5" />
-      <path d="M12 22V12" />
-    </svg>
-  );
-}
-
-function BasketIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m15 11-1 9" />
-      <path d="m19 11-4-7" />
-      <path d="M2 11h20" />
-      <path d="m3.5 11 1.6 7.4a2 2 0 0 0 2 1.6h9.8a2 2 0 0 0 2-1.6l1.7-7.4" />
-      <path d="m4.5 15.15 2.75-2.22 3 2.5 3.5-3 3.25 2.5" />
-    </svg>
-  );
-}
-
-function ChartIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 3v16a2 2 0 0 0 2 2h16" />
-      <path d="M18 17V9" />
-      <path d="M13 17V5" />
-      <path d="M8 17v-3" />
-    </svg>
-  );
-}
-
-function TrophyIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-      <path d="M4 22h16" />
-      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-    </svg>
-  );
-}
-
-function AlertIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
-      <path d="M12 9v4" />
-      <path d="M12 17h.01" />
-    </svg>
-  );
-}
-
-function ClockIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 12a9 9 0 1 1-9-9" />
-      <path d="M21 3v9h-9" />
-    </svg>
-  );
-}
-
-function CheckIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M20 6 9 17l-5-5" />
-    </svg>
-  );
-}
-
+// Kartu KPI pola PDF: label overline kecil, nilai besar tabular, lalu
+// baris delta/konteks — tanpa ubin ikon dekoratif.
 function StatCard({
-  icon,
   label,
   value,
   sub,
-  iconBg,
 }: {
-  icon: React.ReactNode;
   label: string;
   value: string;
   sub: React.ReactNode;
-  iconBg: string;
 }) {
   return (
-    <div className="rounded-2xl glass-card p-5">
-      <div className="flex items-center gap-3">
-        <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg}`}
-        >
-          {icon}
-        </div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          {label}
-        </p>
-      </div>
-      <p className="mt-3 text-2xl font-bold tabular-nums text-slate-900 dark:text-slate-100">
+    <div className="glass-card p-4">
+      <p className="text-overline text-muted-foreground">{label}</p>
+      <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
         {value}
       </p>
-      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{sub}</div>
+      <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+        {sub}
+      </div>
+    </div>
+  );
+}
+
+// Kepala seksi pola PDF: judul + deskripsi satu baris + meta kanan.
+function SectionHead({
+  title,
+  desc,
+  meta,
+}: {
+  title: string;
+  desc?: string;
+  meta?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+          {title}
+        </h2>
+        {desc ? (
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            {desc}
+          </p>
+        ) : null}
+      </div>
+      {meta ? <div className="shrink-0">{meta}</div> : null}
     </div>
   );
 }
@@ -445,17 +304,19 @@ export default async function OwnerPage() {
         minute: "2-digit",
       }),
       methodLabel: meta?.label ?? r.payment_method,
-      methodBadge: meta?.badge ?? "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400",
+      methodBadge:
+        meta?.badge ??
+        "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400",
       total: r.total,
     };
   });
 
   return (
-    // Shell aurora (v1.8.0): latar ambient + kartu kaca — ikut tema
-    // terang/gelap milik pengguna yang sedang membuka dashboard ini.
-    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
+    // Shell v3.1.0: latar Cloud/Midnight datar + kartu putih solid,
+    // header solid bergaris tepi (tanpa kaca/blur), satu aksi utama.
+    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-primary/20 dark:bg-slate-950 dark:text-slate-100">
       <AuroraBackground />
-      <header className="relative z-10 shrink-0 border-b border-slate-200/80 bg-white/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
+      <header className="relative z-10 shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             {logoUrl ? (
@@ -463,85 +324,101 @@ export default async function OwnerPage() {
               <img
                 src={logoUrl}
                 alt={`Logo ${outlet.name}`}
-                className="h-10 w-10 shrink-0 rounded-xl object-contain"
+                className="h-10 w-10 shrink-0 rounded-lg object-contain"
               />
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
                 <StorefrontIcon className="h-5 w-5" />
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
-                Laporan - {outlet.name}
+              <p className="text-overline text-muted-foreground">Konsol Owner</p>
+              <h1 className="truncate text-base leading-tight font-bold text-slate-900 dark:text-slate-100">
+                Laporan · {outlet.name}
               </h1>
-              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                {session.user.name ?? "Pemilik"} · Pemilik
-              </p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
             <UserMenu user={userMenuUser(session)} />
-            {/* v2.4.0 — pintu Asisten AI: jawaban dari DATA outlet,
-                badge Mode AI/Data, peringatan angka tak tervalidasi. */}
+            {/* Navigasi sekunder: tombol ikon senyap (semua tujuan tetap
+                terjangkau — tidak ada fungsi yang hilang), lalu SATU aksi
+                utama sesuai prinsip "one primary action" arahan desain. */}
             <Link
-              href="/owner/assistant"
-              className="flex items-center gap-1.5 rounded-xl border border-blue-300 bg-blue-50 px-3.5 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 dark:border-blue-500/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/40"
+              href="/"
+              title="Beranda"
+              aria-label="Beranda"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              <Sparkles className="h-4 w-4" />
-              <span className="hidden sm:inline">Asisten</span>
+              <Home className="h-4 w-4" />
             </Link>
             <Link
               href="/owner/verify"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+              title="Verifikasi Struk"
+              aria-label="Verifikasi Struk"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               <ShieldCheck className="h-4 w-4" />
-              <span className="hidden sm:inline">Verifikasi Struk</span>
-            </Link>
-            <Link
-              href="/owner/settings"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
-            >
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Pengaturan</span>
             </Link>
             <Link
               href="/owner/transactions"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+              title="Riwayat Transaksi"
+              aria-label="Riwayat Transaksi"
+              className="hidden h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 sm:flex dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               <ReceiptText className="h-4 w-4" />
-              <span className="hidden sm:inline">Riwayat Transaksi</span>
-              <span className="sm:hidden">Riwayat</span>
+            </Link>
+            <Link
+              href="/owner/settings"
+              title="Pengaturan"
+              aria-label="Pengaturan"
+              className="hidden h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 sm:flex dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <Settings className="h-4 w-4" />
+            </Link>
+            <Link
+              href="/owner/assistant"
+              className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/15"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="hidden md:inline">Asisten</span>
             </Link>
             <Link
               href="/owner/products"
-              className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary-hover"
             >
               <PackagePlus className="h-4 w-4" />
               <span className="hidden sm:inline">Kelola Produk</span>
-              <span className="sm:hidden">Produk</span>
-            </Link>
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
-            >
-              Beranda
             </Link>
           </div>
         </div>
       </header>
 
       <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6">
+        {/* Kepala halaman pola PDF: satu judul utama + deskripsi. */}
+        <div>
+          <p className="text-overline text-muted-foreground">
+            Ringkasan Bisnis
+          </p>
+          <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100">
+            Gambaran jelas penjualan, stok, dan performa hari ini.
+          </h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Seluruh angka di bawah ini langsung dari data transaksi outlet
+            Anda — tanpa perkiraan buatan.
+          </p>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
-            icon={<WalletIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
-            iconBg="bg-blue-50 dark:bg-blue-950/40"
             label="Omzet Hari Ini"
             value={formatRupiah(omzetToday)}
             sub={
               deltaPct !== null ? (
                 <span
                   className={`inline-flex items-center gap-1 font-semibold ${
-                    deltaPct >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                    deltaPct >= 0
+                      ? "text-success-strong dark:text-success-strong"
+                      : "text-red-600 dark:text-red-400"
                   }`}
                 >
                   {deltaPct >= 0 ? (
@@ -558,22 +435,16 @@ export default async function OwnerPage() {
             }
           />
           <StatCard
-            icon={<ReceiptIcon className="h-5 w-5 text-violet-600 dark:text-violet-400" />}
-            iconBg="bg-violet-50"
             label="Transaksi Hari Ini"
             value={String(trxToday)}
             sub={<span>{yesterday.transactions} struk kemarin</span>}
           />
           <StatCard
-            icon={<PackageIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
-            iconBg="bg-emerald-50 dark:bg-emerald-950/40"
             label="Item Terjual Hari Ini"
             value={String(itemsToday)}
             sub={<span>unit terjual</span>}
           />
           <StatCard
-            icon={<BasketIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
-            iconBg="bg-amber-50 dark:bg-amber-950/40"
             label="Rata-rata per Struk"
             value={formatRupiah(avgToday)}
             sub={<span>dari {trxToday} struk</span>}
@@ -581,20 +452,13 @@ export default async function OwnerPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          <section className="rounded-2xl glass-card p-5 lg:col-span-2">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Penjualan 7 Hari Terakhir
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  Total {formatRupiah(weekTotal)} · {weekCount} transaksi
-                </p>
-              </div>
-              <ChartIcon className="h-5 w-5 shrink-0 text-slate-300" />
-            </div>
+          <section className="glass-card p-4 lg:col-span-2 lg:p-5">
+            <SectionHead
+              title="Penjualan 7 Hari Terakhir"
+              desc={`Total ${formatRupiah(weekTotal)} · ${weekCount} transaksi`}
+            />
             {weekCount === 0 ? (
-              <div className="mt-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 px-4 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
+              <div className="mt-8 rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
                 Belum ada penjualan dalam 7 hari terakhir.
               </div>
             ) : (
@@ -604,8 +468,8 @@ export default async function OwnerPage() {
                     d.total === 0
                       ? "bg-slate-200 dark:bg-slate-800"
                       : i === days.length - 1
-                        ? "bg-blue-600"
-                        : "bg-blue-400";
+                        ? "bg-primary"
+                        : "bg-primary/45";
                   return (
                     <div
                       key={d.key}
@@ -623,13 +487,13 @@ export default async function OwnerPage() {
                                 ? `${Math.max((d.total / maxDay) * 100, 6)}%`
                                 : "3px",
                           }}
-                          className={`w-full rounded-t-lg transition-colors ${barColor}`}
+                          className={`w-full rounded-t-md transition-colors ${barColor}`}
                         />
                       </div>
                       <span
                         className={`text-[11px] font-semibold ${
                           i === days.length - 1
-                            ? "text-blue-600 dark:text-blue-400"
+                            ? "text-primary"
                             : "text-slate-500 dark:text-slate-400"
                         }`}
                       >
@@ -642,16 +506,8 @@ export default async function OwnerPage() {
             )}
           </section>
 
-          <section className="rounded-2xl glass-card p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Metode Pembayaran
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">7 hari terakhir</p>
-              </div>
-              <WalletIcon className="h-5 w-5 shrink-0 text-slate-300" />
-            </div>
+          <section className="glass-card p-4 lg:p-5">
+            <SectionHead title="Metode Pembayaran" desc="7 hari terakhir" />
             <div className="mt-5 space-y-5">
               {METHOD_META.map((m) => {
                 const revenue = methodRevenue[m.key] ?? 0;
@@ -687,18 +543,10 @@ export default async function OwnerPage() {
         <ForecastSection />
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <section className="rounded-2xl glass-card p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Produk Terlaris
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">7 hari terakhir</p>
-              </div>
-              <TrophyIcon className="h-5 w-5 shrink-0 text-slate-300" />
-            </div>
+          <section className="glass-card p-4 lg:p-5">
+            <SectionHead title="Produk Terlaris" desc="7 hari terakhir" />
             {topList.length === 0 ? (
-              <div className="mt-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 px-4 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
+              <div className="mt-8 rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
                 Belum ada penjualan minggu ini.
               </div>
             ) : (
@@ -709,10 +557,10 @@ export default async function OwnerPage() {
                     className="flex items-center gap-3"
                   >
                     <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
                         i === 0
-                          ? "bg-amber-100 text-amber-700 dark:text-amber-300 "
-                          : "bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 "
+                          ? "bg-amber-100 text-amber-700 dark:text-amber-300"
+                          : "bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400"
                       }`}
                     >
                       {i + 1}
@@ -734,27 +582,32 @@ export default async function OwnerPage() {
             )}
           </section>
 
-          <section className="rounded-2xl glass-card p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Stok Perlu Restok
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  stok di bawah atau sama dengan batas minimum
-                </p>
-              </div>
-              {lowStock.length > 0 ? (
-                <span className="shrink-0 rounded-full bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">
-                  {lowStock.length} produk
-                </span>
-              ) : (
-                <AlertIcon className="h-5 w-5 shrink-0 text-slate-300" />
-              )}
-            </div>
+          <section className="glass-card p-4 lg:p-5">
+            <SectionHead
+              title="Stok Perlu Restok"
+              desc="stok di bawah atau sama dengan batas minimum"
+              meta={
+                lowStock.length > 0 ? (
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                    {lowStock.length} produk
+                  </span>
+                ) : null
+              }
+            />
             {lowStock.length === 0 ? (
-              <div className="mt-4 flex items-center gap-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3.5">
-                <CheckIcon className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <div className="mt-4 flex items-center gap-3 rounded-lg bg-emerald-50 px-4 py-3.5 dark:bg-emerald-950/40">
+                <svg
+                  className="h-4 w-4 shrink-0 text-success-strong"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
                 <p className="text-sm text-emerald-700 dark:text-emerald-300">
                   Semua stok aman di atas batas minimum.
                 </p>
@@ -774,12 +627,14 @@ export default async function OwnerPage() {
                     <div className="shrink-0 text-right">
                       <p
                         className={`text-xs font-bold ${
-                          p.stock === 0 ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"
+                          p.stock === 0
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-amber-600 dark:text-amber-400"
                         }`}
                       >
                         {p.stock === 0 ? "Habis" : `sisa ${p.stock}`}
                       </p>
-                      <p className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                      <p className="text-[11px] font-medium text-primary">
                         restok +{p.restock}
                       </p>
                     </div>
@@ -790,24 +645,14 @@ export default async function OwnerPage() {
           </section>
         </div>
 
-        <section className="rounded-2xl glass-card p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Transaksi Terakhir
-              </h2>
-              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                6 transaksi terbaru
-              </p>
-            </div>
-            <ClockIcon className="h-5 w-5 shrink-0 text-slate-300" />
-          </div>
+        <section className="glass-card p-4 lg:p-5">
+          <SectionHead title="Transaksi Terakhir" desc="6 transaksi terbaru" />
           {recent.length === 0 ? (
-            <div className="mt-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 px-4 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
+            <div className="mt-8 rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
               Belum ada transaksi tercatat.
             </div>
           ) : (
-            <ul className="mt-2 divide-y divide-slate-100">
+            <ul className="mt-2 divide-y divide-slate-100 dark:divide-slate-800">
               {recent.map((r) => (
                 <li key={r.code} className="flex items-center gap-3 py-3">
                   <div className="min-w-0 flex-1">

@@ -1,26 +1,238 @@
 @import "tailwindcss";
 
-/* Dark mode berbasis CLASS (dikendalikan next-themes di <html>) —
+/* =====================================================================
+   UMKM OS — Design System v3.1.0 "Indigo & Quiet Surfaces"
+   ---------------------------------------------------------------------
+   Sumber kebenaran visual: arahan desain atasan (Figma → PDF,
+   "Visual direction 02 · Indigo, neutral surfaces, calm hierarchy").
+
+   Aturan pokok yang dijalankan berkas ini:
+   01 / WARNA   — Identitas utama INDIGO #6658E8. Hijau (#258C68) hanya
+                  untuk status sukses, BUKAN navigasi merek. Amber
+                  #D9932E untuk perhatian. Teks Midnight #171925, latar
+                  aplikasi Cloud #F5F6FA, permukaan White #FFFFFF.
+   02 / TIPO    — Plus Jakarta Sans (dimuat di app/layout.tsx sebagai
+                  --font-jakarta). Teks isi nyaman di 12–14 px; label
+                  overline 9 px huruf besar.
+   03 / KOMPONEN— Radius 12 px untuk kartu, padding kartu 16 px,
+                  jarak antarseksi 24 px, basis spasi 8 px.
+   04 / TATA    — Permukaan tenang: panel netral + garis tepi; warna
+                  aksen hanya untuk aksi dan status. TANPA glassmorphism,
+                  TANPA gradien dekoratif, TANPA animasi ambient.
+
+   Skala warna Tailwind (slate/blue/dst.) DIPETAKAN ULANG ke ramp PDF
+   supaya seluruh halaman lama ikut bahasa desain baru tanpa ditulis
+   ulang satu per satu: slate → netral Midnight/Cloud, blue → keluarga
+   indigo, emerald → sukses, amber → perhatian. Mode gelap bukan sekadar
+   kebalikan terang: kedalaman Midnight (#10121C latar, #1A1D2C
+   permukaan) dengan kontras teks yang tetap layak WCAG AA.
+   ===================================================================== */
+
+/* Mode gelap berbasis CLASS (dikendalikan next-themes di <html>) —
    pilihan pengguna dari halaman /settings menimpa preferensi OS. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  /* --- token semantik (mode terang) --- */
+  --background: #f5f6fa; /* Cloud — latar aplikasi */
+  --foreground: #171925; /* Midnight — teks utama */
+  --surface: #ffffff; /* White — kartu & panel */
+  --surface-foreground: #171925;
+  --muted: #eef0f6; /* bidang isi senyap (tabel zebra, slot data) */
+  --muted-foreground: #6e7388; /* teks sekunder — AA di atas putih */
+  --border: #e2e4ee; /* garis tepi netral dingin */
+  --input: #ffffff;
+  --primary: #6658e8; /* Indigo — satu-satunya warna merek */
+  --primary-hover: #5548d6;
+  --primary-foreground: #ffffff;
+  --ring: rgba(102, 88, 232, 0.4);
+  --success: #258c68; /* hijau semantik: status sukses saja */
+  --success-strong: #1f7a58; /* varian AA untuk teks di latar terang */
+  --success-foreground: #ffffff;
+  --warning: #d9932e; /* amber — perhatian */
+  --warning-strong: #9c6212;
+  --warning-foreground: #231603;
+  --destructive: #b3261e;
+  --destructive-strong: #b3261e;
+  --destructive-foreground: #ffffff;
 }
 
 .dark {
-  --background: #020617;
-  --foreground: #e2e8f0;
+  color-scheme: dark;
+
+  /* --- token semantik (mode gelap) — dirancang, bukan dibalik --- */
+  --background: #10121c; /* Midnight paling dalam */
+  --foreground: #f0f1f7;
+  --surface: #1a1d2c; /* permukaan di atas latar */
+  --surface-foreground: #f0f1f7;
+  --muted: #16192a;
+  --muted-foreground: #a8adbf;
+  --border: #262a3b;
+  --input: #141728;
+  --primary: #6658e8; /* indigo sama — teks putih tetap AA */
+  --primary-hover: #7b72ee; /* arah hover lebih terang di gelap */
+  --primary-foreground: #ffffff;
+  --ring: rgba(139, 132, 240, 0.5);
+  --success: #1f7a58;
+  --success-strong: #58c79b; /* teks sukses AA di latar gelap */
+  --success-foreground: #ffffff;
+  --warning: #9c6212;
+  --warning-strong: #e0b45f;
+  --warning-foreground: #ffffff;
+  --destructive: #c63a32;
+  --destructive-strong: #f0a5a0;
+  --destructive-foreground: #ffffff;
 }
 
+/* Token semantik → kelas Tailwind (bg-primary, text-muted-foreground,
+   border-border, …) mengikuti tema aktif lewat var() — pola @theme
+   inline, sama seperti versi sebelumnya. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-success-strong: var(--success-strong);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-strong: var(--warning-strong);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-strong: var(--destructive-strong);
+  --color-destructive-foreground: var(--destructive-foreground);
   --font-sans:
     var(--font-jakarta), var(--font-geist-sans), ui-sans-serif, system-ui,
     sans-serif;
   --font-mono: var(--font-geist-mono);
+}
+
+/* ---------------------------------------------------------------------
+   REMAP PALET — nilai statis yang MENIMPA default Tailwind v4.
+   Semua kelas lama (bg-slate-100, text-blue-600, dst.) otomatis
+   mengikuti ramp PDF tanpa satu pun halaman diubah.
+   --------------------------------------------------------------------- */
+@theme {
+  /* Netral "slate" → ramp Midnight/Cloud (latar, teks, garis tepi) */
+  --color-slate-50: #f8f9fc;
+  --color-slate-100: #f5f6fa; /* Cloud */
+  --color-slate-200: #e2e4ee;
+  --color-slate-300: #c9cddb;
+  --color-slate-400: #9ba0b5;
+  --color-slate-500: #6e7388;
+  --color-slate-600: #565b71;
+  --color-slate-700: #414659;
+  --color-slate-800: #2a2e40;
+  --color-slate-900: #1a1d2c;
+  --color-slate-950: #10121c;
+
+  /* "blue" & "indigo" → keluarga Indigo #6658E8 (aksi utama) */
+  --color-blue-50: #eeedfb;
+  --color-blue-100: #dfddf7;
+  --color-blue-200: #c5c0f1;
+  --color-blue-300: #a79ff0;
+  --color-blue-400: #8d84f0;
+  --color-blue-500: #7b72ee;
+  --color-blue-600: #6658e8; /* Indigo PDF */
+  --color-blue-700: #5548d6;
+  --color-blue-800: #4539ae;
+  --color-blue-900: #382f87;
+  --color-blue-950: #241f5e;
+  --color-indigo-50: #eeedfb;
+  --color-indigo-100: #dfddf7;
+  --color-indigo-200: #c5c0f1;
+  --color-indigo-300: #a79ff0;
+  --color-indigo-400: #8d84f0;
+  --color-indigo-500: #7b72ee;
+  --color-indigo-600: #6658e8;
+  --color-indigo-700: #5548d6;
+  --color-indigo-800: #4539ae;
+  --color-indigo-900: #382f87;
+  --color-indigo-950: #241f5e;
+
+  /* "sky"/"violet"/"purple"/"cyan" → ditarik ke keluarga indigo
+     (satu rona merek; sisa pemakaian lama tidak lagi menonjol) */
+  --color-sky-100: #e4e2f8;
+  --color-sky-300: #a9a2f2;
+  --color-sky-500: #7b72ee;
+  --color-sky-600: #5548d6;
+  --color-sky-700: #4a3fa8;
+  --color-violet-100: #e4e1f9;
+  --color-violet-300: #a9a2f2;
+  --color-violet-500: #7b72ee;
+  --color-violet-600: #5548d6;
+  --color-violet-700: #4a3fa8;
+  --color-purple-500: #6658e8;
+  --color-purple-600: #5548d6;
+  --color-purple-700: #4539ae;
+  --color-cyan-400: #8d84f0;
+  --color-cyan-500: #7b72ee;
+  --color-cyan-600: #5548d6;
+
+  /* "emerald"/"teal"/"lime" → sukses #258C68 (semantik saja) */
+  --color-emerald-50: #e7f4ee;
+  --color-emerald-100: #d0e9df;
+  --color-emerald-200: #a6d6c2;
+  --color-emerald-300: #6fbf9e;
+  --color-emerald-400: #4caf88;
+  --color-emerald-500: #2e9a74;
+  --color-emerald-600: #1f7a58; /* teks sukses AA di latar terang */
+  --color-emerald-700: #1b6a4c;
+  --color-emerald-800: #17573f;
+  --color-emerald-900: #134533;
+  --color-emerald-950: #0a2b20;
+  --color-teal-500: #2e9a74;
+  --color-teal-600: #1f7a58;
+  --color-lime-100: #d9ebdd;
+  --color-lime-600: #1f7a58;
+  --color-lime-700: #17573f;
+
+  /* "amber" → perhatian #D9932E */
+  --color-amber-50: #faf2e2;
+  --color-amber-100: #f4e3c4;
+  --color-amber-200: #e9cb92;
+  --color-amber-300: #e0b45f;
+  --color-amber-400: #dda23c;
+  --color-amber-500: #d9932e; /* Amber PDF */
+  --color-amber-600: #9c6212; /* teks perhatian AA di latar terang */
+  --color-amber-700: #7e4f0c;
+  --color-amber-800: #653f09;
+  --color-amber-900: #513207;
+  --color-amber-950: #2c1d04;
+
+  /* "rose" → terracotta hangat yang senyap */
+  --color-rose-100: #f3dcd6;
+  --color-rose-300: #d99a89;
+  --color-rose-500: #c2594a;
+  --color-rose-600: #a64833;
+  --color-rose-700: #8a3b28;
+
+  /* Radius — kartu 12 px (aturan PDF); tombol/input 10–12 px */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 12px;
+  --radius-3xl: 16px;
+
+  /* Bayangan tenang — struktur dari garis tepi, bukan cahaya */
+  --shadow-2xs: 0 1px 2px rgb(23 25 37 / 0.05);
+  --shadow-xs: 0 1px 2px rgb(23 25 37 / 0.05);
+  --shadow-sm: 0 1px 3px rgb(23 25 37 / 0.06), 0 1px 2px rgb(23 25 37 / 0.04);
+  --shadow-md: 0 2px 6px -2px rgb(23 25 37 / 0.08);
+  --shadow-lg: 0 4px 12px -4px rgb(23 25 37 / 0.1);
+  --shadow-xl: 0 8px 20px -8px rgb(23 25 37 / 0.14);
+  --shadow-2xl: 0 12px 28px -12px rgb(23 25 37 / 0.16);
 }
 
 body {
@@ -35,156 +247,164 @@ body {
 }
 
 /* =====================================================================
-   Design language UMKM OS v1.3.0 — glassmorphism + ambient aurora.
-   Dipakai halaman login, pengaturan tampilan, dan konsol kelola akun;
-   dua tema (terang/gelap) dalam satu definisi.
+   KOMPONEN DASAR v3.1.0 — kartu & input DATAR (bukan kaca).
+   Nama kelas lama (glass-card / glass-input) DIPERTAHANKAN agar tidak
+   ada satu pun halaman yang patah impornya; definisinya kini permukaan
+   putih/midnight solid + garis tepi 1 px + radius 12 px — persis
+   karakter "quiet surfaces" arahan desain.
    ===================================================================== */
-
-/* ---- Animasi ambient (GPU-accelerated, ringan) ---- */
-@keyframes auroraGlow1 {
-  0%,
-  100% {
-    transform: translate(0%, 0%) scale(1);
-    opacity: 0.5;
-  }
-  50% {
-    transform: translate(12%, -8%) scale(1.12);
-    opacity: 0.75;
-  }
-}
-@keyframes auroraGlow2 {
-  0%,
-  100% {
-    transform: translate(0%, 0%) scale(1);
-    opacity: 0.4;
-  }
-  50% {
-    transform: translate(-12%, 10%) scale(1.15);
-    opacity: 0.65;
-  }
-}
-.aurora-1 {
-  animation: auroraGlow1 16s ease-in-out infinite alternate;
-  will-change: transform, opacity;
-}
-.aurora-2 {
-  animation: auroraGlow2 20s ease-in-out infinite alternate;
-  will-change: transform, opacity;
-}
-
-/* Gelombang SVG yang mengalir dari panel kiri ke kanan (halaman login). */
-@keyframes waveFlow {
-  0% {
-    transform: translateX(0) scaleY(1);
-  }
-  50% {
-    transform: translateX(-40px) scaleY(1.08);
-  }
-  100% {
-    transform: translateX(0) scaleY(1);
-  }
-}
-.animate-wave-flow {
-  animation: waveFlow 10s ease-in-out infinite;
-  will-change: transform;
-}
-
-/* Kartu mengambang lembut (login). */
-@keyframes floatSlow {
-  0%,
-  100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-10px) rotate(0.5deg);
-  }
-}
-.animate-float {
-  animation: floatSlow 7s ease-in-out infinite;
-  will-change: transform;
-}
-.animate-float-delayed {
-  animation: floatSlow 8s ease-in-out 2s infinite;
-  will-change: transform;
-}
-
-/* ---- Glassmorphism ---- */
 .glass-card {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 4px 24px -8px rgba(15, 23, 42, 0.1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 3px rgb(23 25 37 / 0.06),
+    0 1px 2px rgb(23 25 37 / 0.04);
 }
 .dark .glass-card {
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface);
+  border: 1px solid var(--border);
   box-shadow: none;
 }
 
 .glass-input {
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  color: #0f172a;
-}
-.dark .glass-input {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #f1f5f9;
+  background: var(--input);
+  border: 1px solid var(--border);
+  color: var(--foreground);
 }
 .glass-input::placeholder {
-  color: #94a3b8;
+  color: #9ba0b5;
 }
 .dark .glass-input::placeholder {
-  color: #64748b;
+  color: #767b92;
 }
 .glass-input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 20px -3px rgba(59, 130, 246, 0.35);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
   outline: none;
 }
 .glass-input option {
-  color: #0f172a;
+  color: #171925;
   background: #ffffff;
 }
-/* Popup daftar opsi di tema gelap: tanpa ini Chrome Windows menggambar
-   daftar putih menyala di atas halaman gelap. color-scheme: dark juga
-   membuat kontrol native (popup select) ikut gelap. */
 .dark .glass-input {
   color-scheme: dark;
 }
 .dark .glass-input option {
-  color: #f1f5f9;
-  background: #0f172a;
+  color: #f0f1f7;
+  background: #1a1d2c;
 }
 
-/* ---- Pola titik grid latar ---- */
+/* Label overline ala PDF — 9 px, huruf besar, jarak huruf renggang.
+   Dipakai untuk label KPI, judul seksi kecil, dan konteks halaman. */
+.text-overline {
+  font-size: 9px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+@media (min-width: 640px) {
+  .text-overline {
+    font-size: 10px;
+  }
+}
+
+/* Pola titik grid latar — kini NYARIS TAK TERLIHAT (tenang); dipertahankan
+   sebagai kelas supaya komponen lama yang memakainya tetap sah. */
 .bg-grid-pattern {
   background-image: radial-gradient(
-    rgba(15, 23, 42, 0.07) 1.5px,
-    transparent 1.5px
+    rgb(23 25 37 / 0.025) 1px,
+    transparent 1px
   );
-  background-size: 28px 28px;
+  background-size: 24px 24px;
 }
 .dark .bg-grid-pattern {
   background-image: radial-gradient(
-    rgba(255, 255, 255, 0.08) 1.5px,
-    transparent 1.5px
+    rgb(240 241 247 / 0.03) 1px,
+    transparent 1px
   );
 }
 
-/* ---- Scrollbar ramping (tema gelap) ---- */
+/* --- Fokus keyboard terlihat (WCAG 2.4.7) --- */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[role="radio"]:focus-visible,
+[role="tab"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* --- Scrollbar ramping netral, dua tema --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c9cddb;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ba0b5;
+}
 .dark ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-.dark ::-webkit-scrollbar-track {
-  background: #0f172a;
-}
 .dark ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 9999px;
+  background: #2a2e40;
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #414659;
+}
+
+/* --- Seleksi teks mengikuti indigo --- */
+::selection {
+  background: rgb(102 88 232 / 0.22);
+}
+
+/* --- Hormati preferensi pengguna: kurangi gerak --- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =====================================================================
+   PENUTUP SISA "AI SLOP" v1.3.0 — glassmorphism dimatikan GLOBAL.
+   CSS tanpa @layer menang atas utility Tailwind, jadi sisa kelas
+   backdrop-blur di halaman-halaman lama kini tidak berefek apa pun;
+   latar halaman memang datar, sehingga transparansi tanpa blur tetap
+   tampak solid dan tenang.
+   ===================================================================== */
+.backdrop-blur-sm,
+.backdrop-blur,
+.backdrop-blur-md,
+.backdrop-blur-lg,
+.backdrop-blur-xl,
+.backdrop-blur-2xl,
+.backdrop-blur-3xl {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Animasi dekoratif era aurora dipensiunkan — kelas lama tetap sah
+   sebagai no-op agar tidak ada halaman yang error. */
+.aurora-1,
+.aurora-2,
+.animate-wave-flow,
+.animate-float,
+.animate-float-delayed {
+  animation: none;
 }

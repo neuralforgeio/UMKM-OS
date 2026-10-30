@@ -8,7 +8,6 @@ import {
   Plus,
   QrCode,
   ShoppingBasket,
-  ShoppingCart,
   Tag,
   Trash2,
   Wallet,
@@ -90,18 +89,23 @@ export function CartPanel({
     // Everything below the list is deliberately compact (tight paddings,
     // 13px rows, inline "uang pas") so the item list keeps as much of
     // the panel height as possible and several rows show without scroll.
+    // v3.1.0: pola "Current order" arahan desain POS — overline + item,
+    // ringkasan Subtotal/Diskon/Total, metode pembayaran tersegmen,
+    // tombol bayar indigo penuh lebar.
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/60 px-4 py-2.5">
-        <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          <ShoppingCart className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
-          Keranjang <span className="text-slate-300">·</span> {itemCount} item
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 dark:border-slate-800">
+        <h2 className="flex items-baseline gap-1.5 text-overline text-muted-foreground">
+          Pesanan Berjalan
+          <span className="font-sans text-xs font-bold tracking-normal normal-case text-slate-500 dark:text-slate-400">
+            · {itemCount} item
+          </span>
         </h2>
         <div className="flex items-center gap-1">
           {itemCount > 0 && (
             <button
               type="button"
               onClick={onClear}
-              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-500 transition hover:bg-red-50 dark:hover:bg-red-950/40"
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Kosongkan
@@ -112,7 +116,7 @@ export function CartPanel({
               type="button"
               onClick={onClose}
               aria-label="Tutup keranjang"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
             >
               <X className="h-4 w-4" />
             </button>
@@ -122,7 +126,7 @@ export function CartPanel({
 
       {lines.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-900">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
             <ShoppingBasket className="h-7 w-7 text-slate-400 dark:text-slate-500" />
           </div>
           <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -155,7 +159,7 @@ export function CartPanel({
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 text-[13px] font-medium leading-tight text-slate-900 dark:text-slate-100">
+                  <p className="line-clamp-2 text-[13px] leading-tight font-medium text-slate-900 dark:text-slate-100">
                     {product.name}
                   </p>
                   <p className="mt-0.5 text-[11px] leading-tight text-slate-400 dark:text-slate-500">
@@ -167,7 +171,7 @@ export function CartPanel({
                     type="button"
                     aria-label="Kurangi jumlah"
                     onClick={() => onSetQty(product.id, qty - 1)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300/80 dark:border-white/15 text-slate-700 dark:text-slate-200 transition hover:bg-slate-100/80 dark:hover:bg-white/10 lg:h-7 lg:w-7"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 lg:h-7 lg:w-7 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </button>
@@ -179,7 +183,7 @@ export function CartPanel({
                     aria-label="Tambah jumlah"
                     onClick={() => onSetQty(product.id, qty + 1)}
                     disabled={qty >= product.stock}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300/80 dark:border-white/15 text-slate-700 dark:text-slate-200 transition hover:bg-slate-100/80 dark:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 lg:h-7 lg:w-7"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 lg:h-7 lg:w-7 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -192,9 +196,11 @@ export function CartPanel({
           </ul>
 
           {/* Everything from here down is pinned - never scrolls. */}
-          <div className="shrink-0 space-y-2 border-t border-slate-100 dark:border-slate-800/60 px-4 py-2.5">
+          <div className="shrink-0 space-y-2 border-t border-slate-100 px-4 py-2.5 dark:border-slate-800">
             <div className="flex items-center justify-between text-[13px]">
-              <span className="text-slate-500 dark:text-slate-400">Subtotal</span>
+              <span className="text-slate-500 dark:text-slate-400">
+                Subtotal
+              </span>
               <span className="font-medium tabular-nums text-slate-900 dark:text-slate-100">
                 {displayRp(subtotalSen)}
               </span>
@@ -209,14 +215,14 @@ export function CartPanel({
                 Diskon
               </span>
               <div className="flex items-center gap-2">
-                <div className="flex rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-0.5">
+                <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-950">
                   <button
                     type="button"
                     onClick={() => switchDiscountMode("RP")}
                     className={`rounded-md px-2 py-0.5 text-xs font-bold transition ${
                       discountState.mode === "RP"
-                        ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 "
+                        ? "bg-slate-900 text-primary-foreground dark:bg-slate-100 dark:text-slate-900"
+                        : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                     }`}
                   >
                     Rp
@@ -226,8 +232,8 @@ export function CartPanel({
                     onClick={() => switchDiscountMode("PERCENT")}
                     className={`rounded-md px-2 py-0.5 text-xs font-bold transition ${
                       discountState.mode === "PERCENT"
-                        ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 "
+                        ? "bg-slate-900 text-primary-foreground dark:bg-slate-100 dark:text-slate-900"
+                        : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
                     }`}
                   >
                     %
@@ -255,7 +261,7 @@ export function CartPanel({
               </div>
             </div>
             {discountSen > 0 && !discountInvalid && (
-              <p className="text-right text-xs font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+              <p className="text-right text-xs font-medium tabular-nums text-success-strong">
                 Potongan -{displayRp(discountSen)}
               </p>
             )}
@@ -264,7 +270,7 @@ export function CartPanel({
                 Diskon melebihi subtotal.
               </p>
             )}
-            <div className="flex items-center justify-between border-t border-dashed border-slate-200 dark:border-slate-800 pt-2">
+            <div className="flex items-center justify-between border-t border-dashed border-slate-200 pt-2 dark:border-slate-800">
               <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-300">
                 Total
               </span>
@@ -274,8 +280,8 @@ export function CartPanel({
             </div>
           </div>
 
-          <div className="shrink-0 border-t border-slate-100 dark:border-slate-800/60 px-4 py-2.5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          <div className="shrink-0 border-t border-slate-100 px-4 py-2.5 dark:border-slate-800">
+            <p className="text-overline text-muted-foreground">
               Metode Pembayaran
             </p>
             <div className="mt-1.5 grid grid-cols-3 gap-1.5">
@@ -284,10 +290,11 @@ export function CartPanel({
                   key={method}
                   type="button"
                   onClick={() => onPaymentMethodChange(method)}
+                  aria-pressed={method === paymentMethod}
                   className={`flex items-center justify-center gap-1 rounded-lg border py-2 text-[13px] font-semibold transition ${
                     method === paymentMethod
-                      ? "border-blue-600 bg-blue-600 text-white shadow-sm"
-                      : "border-slate-200/80 dark:border-white/10 bg-white/80 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 hover:border-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 "
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:bg-slate-800"
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
@@ -298,8 +305,8 @@ export function CartPanel({
           </div>
 
           {paymentMethod === "CASH" && (
-            <div className="shrink-0 space-y-1.5 border-t border-slate-100 dark:border-slate-800/60 px-4 py-2.5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+            <div className="shrink-0 space-y-1.5 border-t border-slate-100 px-4 py-2.5 dark:border-slate-800">
+              <p className="text-overline text-muted-foreground">
                 Uang Dibayar
               </p>
               <div className="flex items-center gap-2">
@@ -313,14 +320,16 @@ export function CartPanel({
                 <button
                   type="button"
                   onClick={() => onPaidSenChange(totalSen)}
-                  className="shrink-0 whitespace-nowrap rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/40 px-3 py-2.5 text-xs font-semibold text-blue-700 dark:text-blue-300 transition hover:bg-blue-100"
+                  className="shrink-0 whitespace-nowrap rounded-lg border border-primary/30 bg-primary/10 px-3 py-2.5 text-xs font-semibold text-primary transition hover:bg-primary/15"
                 >
                   Uang pas
                 </button>
               </div>
               <p
                 className={`text-right text-[13px] font-semibold tabular-nums ${
-                  changeSen < 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
+                  changeSen < 0
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-success-strong"
                 }`}
               >
                 {changeSen < 0
@@ -332,18 +341,21 @@ export function CartPanel({
 
           {error && (
             <div className="shrink-0 px-4 pb-2">
-              <div className="rounded-xl bg-red-50 dark:bg-red-950/40 px-3 py-2 text-[13px] text-red-700 dark:text-red-300">
+              <div
+                role="alert"
+                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+              >
                 {error}
               </div>
             </div>
           )}
 
-          <div className="shrink-0 border-t border-slate-100 dark:border-slate-800/60 px-4 py-3">
+          <div className="shrink-0 border-t border-slate-100 px-4 py-3 dark:border-slate-800">
             <button
               type="button"
               onClick={onPay}
               disabled={!canPay}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Wallet className="h-4 w-4" />
               {pending

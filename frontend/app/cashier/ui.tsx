@@ -10,12 +10,15 @@ export const displayRp = (sen: number) => formatRupiah(sen / 100);
 
 // Stable hue per category: product chips and cart avatars share the same
 // color language so the eye can group items at a glance.
+// v3.1.0: avatar memakai jenjang -600 (bukan -500) supaya inisial putih
+// di atasnya tetap lolos kontras WCAG AA — ramp warna kini mengikuti
+// design system PDF (lihat app/globals.css).
 const CATEGORY_STYLES: Record<string, { chip: string; avatar: string }> = {
-  Minuman: { chip: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300", avatar: "bg-sky-500" },
-  Makanan: { chip: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300", avatar: "bg-amber-500" },
+  Minuman: { chip: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300", avatar: "bg-sky-600" },
+  Makanan: { chip: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300", avatar: "bg-amber-600" },
   Sembako: { chip: "bg-lime-100 text-lime-700 dark:bg-lime-500/15 dark:text-lime-300", avatar: "bg-lime-600" },
-  Snack: { chip: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300", avatar: "bg-rose-500" },
-  Perawatan: { chip: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300", avatar: "bg-violet-500" },
+  Snack: { chip: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300", avatar: "bg-rose-600" },
+  Perawatan: { chip: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300", avatar: "bg-violet-600" },
 };
 const FALLBACK = {
   chip: "bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400",

@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronUp, ShoppingCart, Store, User } from "lucide-react";
+import { ChevronUp, Home, ShoppingCart, User } from "lucide-react";
 import { AuroraBackground } from "@/components/aurora-background";
 import { UserMenu } from "@/components/user-menu";
 import type { UserMenuUser } from "@/components/user-menu";
@@ -154,10 +154,11 @@ export function PosClient({
   return (
     // Application shell: the viewport is locked (h-dvh + overflow-hidden),
     // so panels never push the page into scrolling. Only inner lists scroll.
-    // Aurora ambient (v1.8.0) + tema per kasir: terang & gelap sama rata.
-    <div className="relative flex h-dvh flex-col overflow-hidden bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
+    // v3.1.0: latar Cloud/Midnight datar, header solid dua garis identitas
+    // (overline + nama outlet), tanpa kaca/blur — kasir fokus ke produk.
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-slate-100 font-sans text-slate-900 antialiased selection:bg-primary/20 dark:bg-slate-950 dark:text-slate-100">
       <AuroraBackground />
-      <header className="relative z-10 shrink-0 border-b border-slate-200/80 bg-white/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
+      <header className="relative z-10 shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             {outlet.logoUrl ? (
@@ -165,15 +166,18 @@ export function PosClient({
               <img
                 src={outlet.logoUrl}
                 alt={`Logo ${outlet.name}`}
-                className="h-10 w-10 shrink-0 rounded-xl object-contain"
+                className="h-10 w-10 shrink-0 rounded-lg object-contain"
               />
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
-                <Store className="h-5 w-5" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
+                <ShoppingCart className="h-5 w-5" />
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
+              <p className="text-overline text-muted-foreground">
+                Point of Sale
+              </p>
+              <h1 className="truncate text-base leading-tight font-bold text-slate-900 dark:text-slate-100">
                 {outlet.name}
               </h1>
               <p className="flex items-center gap-1 truncate text-xs text-slate-500 dark:text-slate-400">
@@ -182,14 +186,15 @@ export function PosClient({
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
             <UserMenu user={me} />
             <Link
               href="/"
-              className="flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+              title="Beranda"
+              aria-label="Beranda"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Beranda
+              <Home className="h-4 w-4" />
             </Link>
           </div>
         </div>
@@ -202,27 +207,27 @@ export function PosClient({
           onAdd={(id) => setQty(id, (cart[id] ?? 0) + 1)}
         />
         <aside className="hidden min-h-0 lg:block">
-          <div className="glass-card flex h-full min-h-0 flex-col overflow-hidden rounded-2xl">
+          <div className="glass-card flex h-full min-h-0 flex-col overflow-hidden rounded-xl">
             <CartPanel {...panelProps} />
           </div>
         </aside>
       </div>
 
       {itemCount === 0 ? (
-        <div className="relative z-10 shrink-0 border-t border-slate-200/80 bg-white/70 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-center backdrop-blur-xl lg:hidden dark:border-slate-800/80 dark:bg-slate-950/70">
+        <div className="relative z-10 shrink-0 border-t border-slate-200 bg-white px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-center lg:hidden dark:border-slate-800 dark:bg-slate-900">
           <p className="text-sm text-slate-400 dark:text-slate-500">
             Pilih produk untuk mulai transaksi
           </p>
         </div>
       ) : (
-        <div className="relative z-10 shrink-0 border-t border-slate-200/80 bg-white/70 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur-xl lg:hidden dark:border-slate-800/80 dark:bg-slate-950/70">
+        <div className="relative z-10 shrink-0 border-t border-slate-200 bg-white px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden dark:border-slate-800 dark:bg-slate-900">
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
             className="flex w-full items-center justify-between gap-3"
           >
             <span className="flex items-center gap-2 text-sm">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 text-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white">
                 <ShoppingCart className="h-4 w-4" />
               </span>
               <span>
@@ -235,7 +240,7 @@ export function PosClient({
                 </span>
               </span>
             </span>
-            <span className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white">
+            <span className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground">
               Bayar
               <ChevronUp className="h-4 w-4" />
             </span>
@@ -250,7 +255,7 @@ export function PosClient({
             onClick={() => setSheetOpen(false)}
             aria-hidden="true"
           />
-          <div className="absolute inset-x-0 bottom-0 flex h-[88dvh] flex-col rounded-t-3xl bg-white dark:bg-slate-900 shadow-2xl">
+          <div className="absolute inset-x-0 bottom-0 flex h-[88dvh] flex-col rounded-t-2xl bg-white shadow-2xl dark:bg-slate-900">
             <div className="flex shrink-0 justify-center pb-1 pt-2.5">
               <div className="h-1.5 w-10 rounded-full bg-slate-300 dark:bg-slate-700" />
             </div>
