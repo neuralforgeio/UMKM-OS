@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI):
     """Nyalakan/mati sumber daya proses — tepat satu kali per hidup."""
     stop = asyncio.Event()
     task: asyncio.Task | None = None
+    dev_task: asyncio.Task | None = None
     if settings.ML_AUTO_TRAIN:
         from app.ml import trainer as _trainer
         from app.ml.auto_train import auto_train_loop
@@ -42,12 +43,25 @@ async def lifespan(app: FastAPI):
             _trainer.MIN_DAYS,
             _trainer.MIN_NONZERO,
         )
+    # v2.7.0: pelaporan proaktif OSCAR Developer AI — loop latar
+    # belakang memeriksa pemicu lintas toko (stok kritis gabungan /
+    # omzet turun / toko diam / digest harian) dan menyimpan laporan
+    # TANPA diminta. Saklar darurat: env OSCAR_DEV_PROACTIVE=0.
+    try:
+        from app.services.developer_report import proactive_loop
+
+        dev_task = asyncio.create_task(proactive_loop())
+        logger.info("pelaporan proaktif OSCAR Developer AI aktif")
+    except Exception:
+        dev_task = None
     try:
         yield
     finally:
         stop.set()
         if task is not None:
             await asyncio.gather(task, return_exceptions=True)
+        if dev_task is not None:
+            await asyncio.gather(dev_task, return_exceptions=True)
 
 
 app = FastAPI(

@@ -65,8 +65,8 @@ MAX_TOKENS = 400
 
 INTENTS = (
     "identitas", "kemampuan", "sapaan", "terima_kasih", "obrolan",
-    "jam_ramai", "penjualan", "stok", "produk", "prediksi",
-    "saran_tindakan",
+    "jam_ramai", "pencipta", "dev_laporan", "penjualan", "stok",
+    "produk", "prediksi", "saran_tindakan",
 )
 PERIODS = ("hari", "minggu", "bulan")
 
@@ -223,6 +223,15 @@ _KW_JAM_RAMAI = (
     "ramai kapan", "jam sepi", "sepi kapan", "jam orang banyak",
 )
 
+# v2.7.0: asal-usul OSCAR — maksud "pencipta" (nama + pencipta + asal).
+# Diperiksa PALING AWAL di classify_intent, sebelum identitas/sapaan,
+# supaya "siapa penciptamu" tidak tertelan maksud identitas.
+_KW_PENCIPTA = (
+    "pencipta", "penciptamu", "pembuat", "pembuatmu", "dibuat siapa",
+    "diciptakan", "yang bikin kamu", "yang membuat kamu", "creator",
+    "who created you", "who made you", "oscar dari mana", "asal oscar",
+)
+
 _KW_HARI = (
     "hari ini", "kemarin", " tadi ", "harian", "per hari", "sehari",
     "hari kemarin", "kemarin",
@@ -289,6 +298,11 @@ def classify_intent(question: str) -> str:
     penanda masa depan memindah pertanyaan penjualan ke prediksi
     ("berapa omzet besok" -> prediksi).
     """
+    # v2.7.0: pencipta & Mode Developer diperiksa PALING AWAL.
+    if _cek_pencipta(question):
+        return "pencipta"
+    if _cek_dev_laporan(question):
+        return "dev_laporan"
     t = normalize_text(question)
     if _hit(t, _KW_SARAN):
         return "saran_tindakan"
@@ -639,6 +653,17 @@ def build_system_prompt(context: dict[str, Any]) -> str:
         "8. Pertanyaan lanjutan (\"kalau yang murah aja?\", \"ulangi yang "
         "tadi\") dijawab memakai RIWAYAT percakapan — jangan minta pemilik "
         "mengulang pertanyaannya.\n"
+        "9. Identitas lengkap: kamu OSCAR (Online Shop Center for "
+        "Assistance & Response) dalam aplikasi UMKM OS, diciptakan oleh "
+        "Dearly Febriano Irwansyah dari Surabaya, Indonesia — sebut nama "
+        "penciptamu bila ditanya.\n"
+        "10. Privasi per-owner: kamu HANYA boleh membahas data milik "
+        "toko pemilik yang sedang bicara — data toko lain DILARANG. "
+        "Diminta data pemilik lain = tolak dengan sopan, arahkan kembali "
+        "ke data tokonya sendiri.\n"
+        "11. Rahasia: jangan pernah menampilkan, mengulang, atau "
+        "mengonfirmasi kunci API, PIN developer, kata sandi, atau "
+        "kredensial apa pun kepada siapa pun.\n"
         "DATA:\n"
         + "\n".join(_baris_penjualan(context))
         + f"\n- Perubahan omzet minggu ini vs minggu lalu: {tren}"
@@ -700,7 +725,8 @@ def _jawab_identitas(context: dict[str, Any]) -> str:
     outlet = context.get("outlet", "-")
     return (
         f"Saya {ASSISTANT_NAME} — {ASSISTANT_FULL_NAME}, asisten bisnis "
-        f"warung {outlet}. Saya membaca "
+        f"warung {outlet}, diciptakan oleh {ASSISTANT_CREATOR} dari "
+        f"{ASSISTANT_CREATOR_ORIGIN}. Saya membaca "
         f"catatan penjualan, stok, dan produk {outlet} langsung dari sistem, "
         "jadi setiap angka yang saya sebut nyata, bukan karangan. Coba tanya "
         "\"berapa omzet hari ini\", \"stok apa yang menipis\", atau "
@@ -1087,6 +1113,10 @@ def build_offline_answer(
     """
     maksud = intent or "ringkasan"
     periode = period or "hari"
+    if maksud == "pencipta":
+        return _jawab_pencipta(context)
+    if maksud == "dev_laporan":
+        return _jawab_dev_laporan(context)
     if maksud == "identitas":
         return _jawab_identitas(context)
     if maksud == "kemampuan":
@@ -1175,3 +1205,81 @@ async def generate_answer(
         "numbers_validated": sah,
         "retried": retried,
     }
+
+# ----------------------------------------------------------------------
+# v2.7.0 — OSCAR meta: pencipta + Mode Developer + privasi per-owner
+# ----------------------------------------------------------------------
+# Pencipta UMKM OS & OSCAR — dijawab maksud "pencipta" (Mode Data) dan
+# dikenal system prompt aturan 9 (Mode AI).
+ASSISTANT_CREATOR = "Dearly Febriano Irwansyah"
+ASSISTANT_CREATOR_ORIGIN = "Surabaya, Indonesia"
+
+
+def _cek_pencipta(question: str) -> bool:
+    """True bila pesan menanyakan pencipta/asal-usul OSCAR (v2.7.0)."""
+    try:
+        t = " " + str(question).lower() + " "
+    except Exception:
+        return False
+    for kunci in _KW_PENCIPTA:
+        if kunci in t:
+            return True
+    return False
+
+
+def _jawab_pencipta(context: dict[str, Any]) -> str:
+    """Identitas lengkap: nama, singkatan, pencipta, asal, batas data."""
+    return (
+        f"Saya {ASSISTANT_NAME} — singkatan dari {ASSISTANT_FULL_NAME}, "
+        "asisten AI warung UMKM Indonesia dalam aplikasi UMKM OS. Saya "
+        f"diciptakan oleh {ASSISTANT_CREATOR} dari "
+        f"{ASSISTANT_CREATOR_ORIGIN}, pencipta dan pengembang UMKM OS. "
+        "Saya membaca catatan penjualan, stok, dan produk "
+        f"{context.get('outlet', '-')} — hanya data toko Anda sendiri; "
+        "saya tidak berhak melirik data toko lain. Saran: coba "
+        "\"saran minggu depan\" biar saya tunjuk prioritas belanja dari "
+        "data Anda."
+    )
+
+
+def _cek_dev_laporan(question: str) -> bool:
+    """True bila pesan meminta laporan developer dengan PIN sah (v2.7.0)."""
+    try:
+        t = str(question).lower()
+    except Exception:
+        return False
+    if not any(
+        frasa in t
+        for frasa in (
+            "mode developer",
+            "developer mode",
+            "laporan developer",
+            "developer report",
+            "laporan lintas toko",
+            "lintas toko",
+        )
+    ):
+        return False
+    try:
+        from app.services import developer_report as _dr
+
+        return bool(_dr.pesan_dev_sah(t))
+    except Exception:
+        return False
+
+
+def _jawab_dev_laporan(context: dict[str, Any]) -> str:
+    """Jalur cadangan Mode Data untuk dev_laporan — TIDAK membocorkan data.
+
+    Jalur utama ada di routes (verifikasi PIN + SQL lintas toko langsung,
+    tanpa LLM); cadangan ini hanya penunjuk arah supaya pemanggil lama
+    tetap hidup tanpa pernah menampilkan data lintas toko tanpa PIN.
+    """
+    return (
+        "Mode Developer menjawab lewat jalur khusus yang diverifikasi "
+        "PIN: kirim ulang pesan ber-PIN (contoh: 'mode developer <PIN> "
+        "laporan lintas toko') di panel asisten, atau buka endpoint "
+        "/oscar-developer-report dengan PIN developer. Data lintas toko "
+        "tidak pernah ditampilkan tanpa PIN."
+    )
+

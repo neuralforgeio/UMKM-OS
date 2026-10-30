@@ -61,6 +61,13 @@ class HttpLlmClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
+        # v2.7.0: model reasoning (gpt-oss di Groq) menghabiskan token
+        # berpikir SEBELUM jawaban — anggaran kecil membuat jawaban
+        # kosong. Usaha rendah + anggaran lebih longgar menjaga asisten
+        # tetap ringkas namun tidak pernah kosong.
+        if "gpt-oss" in self._model.lower():
+            payload["max_tokens"] = max(1500, int(max_tokens))
+            payload["reasoning_effort"] = "low"
         headers = {"Authorization": f"Bearer {self._api_key}"}
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as klien:

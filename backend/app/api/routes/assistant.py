@@ -473,21 +473,28 @@ async def assistant_chat(
     maksud = otak.classify_intent(payload.question)
     periode = otak.extract_period(payload.question)
 
-    klien = get_llm_client()
-    try:
-        hasil = await otak.generate_answer(
-            payload.question, konteks, riwayat, klien
-        )
-    except Exception:
-        # LLM tumbang (jaringan/penyedia) => Mode Data, asisten tetap hidup.
-        hasil = {
-            "answer": otak.build_offline_answer(konteks, maksud, periode),
-            "mode": "data",
-            "intent": maksud,
-            "period": periode,
-            "numbers_validated": True,
-            "retried": False,
-        }
+    # v2.7.0: Mode Developer — laporan lintas toko (ber-PIN) dijawab
+    # LANGSUNG dari mesin, TIDAK lewat LLM: data toko lain tidak pernah
+    # mengalir ke prompt penyedia eksternal (privasi per-owner).
+    if maksud == "dev_laporan":
+        klien = get_llm_client()
+        hasil = await _oscar_dev_jawab(payload.question)
+    else:
+        klien = get_llm_client()
+        try:
+            hasil = await otak.generate_answer(
+                payload.question, konteks, riwayat, klien
+            )
+        except Exception:
+            # LLM tumbang (jaringan/penyedia) => Mode Data, asisten tetap hidup.
+            hasil = {
+                "answer": otak.build_offline_answer(konteks, maksud, periode),
+                "mode": "data",
+                "intent": maksud,
+                "period": periode,
+                "numbers_validated": True,
+                "retried": False,
+            }
 
     await _simpan_riwayat(
         session, payload.user_id, outlet_filter_id,
@@ -613,3 +620,60 @@ async def put_llm_config(
     save_file_config(base_url=base, api_key=kunci, model=model,
                      enabled=payload.enabled)
     return _llm_config_out()
+
+# ----------------------------------------------------------------------
+# v2.7.0 — OSCAR Developer AI: laporan lintas toko ber-PIN (tanpa LLM)
+# ----------------------------------------------------------------------
+async def _oscar_dev_jawab(pertanyaan: str) -> dict:
+    """Jawaban Mode Developer — LANGSUNG dari mesin, TIDAK lewat LLM.
+
+    Data lintas toko tidak pernah mengalir ke prompt penyedia eksternal;
+    hanya pemegang PIN developer (dev_config.json, volume mlmodels)
+    yang bisa membukanya.
+    """
+    from app.services import developer_report as _dr
+
+    try:
+        teks = await _dr.jawab_chat(pertanyaan)
+    except Exception as ex:  # DB/proses apa pun — asisten tetap hidup.
+        teks = (
+            "Mode Developer belum bisa menyusun laporan sekarang ("
+            f"{type(ex).__name__}). Coba lagi beberapa saat lagi."
+        )
+    return {
+        "answer": teks,
+        "mode": "data",
+        "intent": "dev_laporan",
+        "period": "hari",
+        "numbers_validated": True,
+        "retried": False,
+    }
+
+
+@router.get("/oscar-developer-report")
+async def oscar_developer_report(pin: str = Query(default="")) -> dict:
+    """Laporan lintas toko khusus AI Developer — butuh PIN sah.
+
+    PIN tersimpan di dev_config.json (volume mlmodels), dibuat oleh
+    skrip delivery; tidak pernah masuk git dan tidak pernah ditampilkan
+    OSCAR (aturan 11). Endpoint sengaja TIDAK memakai X-Internal-Key
+    supaya bisa dibuka langsung dari browser developer dengan PIN.
+    """
+    from app.services import developer_report as _dr
+
+    sah, muatan = await _dr.api_report(pin)
+    if not sah:
+        return {"ok": False, "error": str(muatan.get("error", "akses ditolak"))}
+    return muatan
+
+
+@router.get("/oscar-developer-report/run")
+async def oscar_developer_report_run(pin: str = Query(default="")) -> dict:
+    """Paksa satu laporan proaktif dibuat SEKARANG (butuh PIN sah)."""
+    from app.services import developer_report as _dr
+
+    if not _dr.pin_sah(pin):
+        return {"ok": False, "error": "PIN developer salah."}
+    entri = await _dr.laporan_proaktif(paksa=True)
+    return {"ok": True, "laporan": entri}
+

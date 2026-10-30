@@ -190,7 +190,7 @@ def test_saran_konteks_miskin_tetap_berguna() -> None:
     [
         "identitas", "kemampuan", "sapaan", "terima_kasih",
         "penjualan", "produk", "stok", "prediksi", "saran_tindakan",
-        "obrolan", "jam_ramai",
+        "obrolan", "jam_ramai", "pencipta",
         "ringkasan",
     ],
 )
@@ -206,7 +206,7 @@ def test_semua_jawaban_lolos_validasi_angka(maksud: str, periode: str) -> None:
 @pytest.mark.parametrize(
     "maksud",
     ["identitas", "kemampuan", "sapaan", "penjualan", "produk", "stok",
-     "prediksi", "saran_tindakan", "obrolan", "jam_ramai"],
+     "prediksi", "saran_tindakan", "obrolan", "jam_ramai", "pencipta"],
 )
 def test_jawaban_within_batas_kata(maksud: str) -> None:
     from app.services.assistant import MAX_ANSWER_WORDS
