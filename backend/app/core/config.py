@@ -33,13 +33,14 @@ class Settings(BaseSettings):
     # Service identity
     # ------------------------------------------------------------------
     APP_NAME: str = "UMKM OS Backend"
-    # Semantic Versioning — 3.1.1 = hotfix asisten: created_at
-    # chat_history diisi eksplisit (ORM 2.1 merender kolom kosong
-    # sebagai NULL eksplisit sehingga DEFAULT database tidak bekerja —
-    # akar 500 pada /assistant/chat sejak v3.1.0). (3.1.0 = Asisten AI
-    # RAG; 3.0.0 = engine ganda Prophet; 2.0.0 sengaja dilewati
-    # menepati janji router v1.)
-    VERSION: str = "3.1.1"
+    # Semantic Versioning — 3.2.0 = Asisten Cerdas: NLU per-maksud
+    # (identitas/sapaan/kemampuan/prediksi dijawab spesifik, bukan satu
+    # template), normalisasi bahasa informal + fuzzy, konfigurasi LLM
+    # runtime via UI (llm_config.json menimpa env), gerbang ML progresif
+    # 28/14, auto-train latar belakang. (3.1.1 = hotfix created_at
+    # chat_history; 3.1.0 = Asisten AI RAG; 3.0.0 = engine ganda
+    # Prophet; 2.0.0 sengaja dilewati menepati janji router v1.)
+    VERSION: str = "3.2.0"
 
     # Running mode: development | production | test
     ENVIRONMENT: Literal["development", "production", "test"] = "development"
@@ -96,6 +97,15 @@ class Settings(BaseSettings):
     # direktori kerja: lokal = backend/mlmodels, docker = /app/mlmodels
     # (volume bernama "mlmodels" di docker-compose.yml).
     ML_MODEL_DIR: str = "mlmodels"
+
+    # v3.2.0 — AUTO-TRAIN latar belakang: model ramalan tiap outlet
+    # dilatih ulang MENYELURUH berkala (default tiap 6 jam; TTL artefak
+    # 12 jam) supaya selalu menyerap penambahan data tanpa perintah.
+    # ML_AUTO_TRAIN=false mematikan loop (mis. mesin sangat terbatas);
+    # delay boot memberi waktu backend-go menyelesaikan migrasi schema.
+    ML_AUTO_TRAIN: bool = True
+    ML_AUTO_TRAIN_INTERVAL_HOURS: int = 6
+    ML_AUTO_TRAIN_START_DELAY_S: int = 90
 
     # ------------------------------------------------------------------
     # Asisten AI v3.1.0 — LLM opsional + gerbang + batas biaya

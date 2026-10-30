@@ -128,15 +128,18 @@ describe("kontrak lintas-stack ML v3.0.0 tetap utuh", () => {
     expect(isi).toMatch(/^  mlmodels:\r?$/m);
   });
 
-  it("trainer: gerbang data, split dijepit, margin 2pp, antrean serial", () => {
+  it("trainer: gerbang progresif 28/14, split dijepit, margin 2pp, antrean serial", () => {
     const isi = bacaRepo("backend/app/ml/trainer.py");
-    expect(isi).toContain("MIN_DAYS = 56");
-    expect(isi).toContain("MIN_NONZERO = 28");
-    expect(isi).toContain("TEST_MIN = 14");
+    // v3.2.0: gerbang diturunkan 56/28 -> 28/14 (model terlatih lebih
+    // awal, auto-train latar belakang menyegarkannya tiap ada data baru).
+    expect(isi).toContain("MIN_DAYS = 28");
+    expect(isi).toContain("MIN_NONZERO = 14");
+    expect(isi).toContain("TEST_MIN = 7");
     expect(isi).toContain("TEST_MAX = 45");
     expect(isi).toContain("WIN_MARGIN_PP = 2.0");
     expect(isi).toContain("asyncio.Semaphore(1)");
     expect(isi).toContain("asyncio.to_thread");
+    expect(isi).toContain("def gate_status(");
   });
 
   it("MAPE hanya menilai hari non-zero (hari sepi bukan dosa ramalan)", () => {

@@ -83,25 +83,32 @@ def _pasangkat_stub(mode: str, fail_on_call: int = 0, oracle=None):
 
 
 def test_gerbang_gagal_deret_terlalu_pendek():
-    assert run_backtest(_konstan_per_hari_minggu(30)) is None
+    assert run_backtest(_konstan_per_hari_minggu(20)) is None
 
 
 def test_gerbang_gagal_hari_berpendapatan_terlalu_jarang():
-    deret = _series(70, lambda i: 100.0 if i % 3 == 0 else 0.0)  # 24 nonzero
+    deret = _series(70, lambda i: 100.0 if i % 6 == 0 else 0.0)  # 12 nonzero
     assert run_backtest(deret) is None
 
 
+def test_gerbang_progresif_deret_satu_bulan_lolos():
+    """v3.2.0: 30 hari penuh ber-pendapatan kini LULUS gerbang (28/14)."""
+    assert run_backtest(_konstan_per_hari_minggu(30)) is not None
+
+
 def test_konstanta_aturan_disetujui():
-    assert MIN_DAYS == 56
-    assert MIN_NONZERO == 28
-    assert TEST_MIN == 14
+    assert MIN_DAYS == 28
+    assert MIN_NONZERO == 14
+    assert TEST_MIN == 7
     assert TEST_MAX == 45
     assert WIN_MARGIN_PP == 2.0
 
 
 def test_split_ukuran():
-    assert split_sizes(56) == (42, 14)     # minimum test
-    assert split_sizes(60) == (45, 15)     # 25% bulat
+    assert split_sizes(28) == (21, 7)    # deret pendek: lantai 7 hari uji
+    assert split_sizes(30) == (22, 8)
+    assert split_sizes(56) == (42, 14)   # minimum test era 56-hari
+    assert split_sizes(60) == (45, 15)   # 25% bulat
     assert split_sizes(100) == (75, 25)
     assert split_sizes(200) == (155, 45)   # jepit maksimum
     assert split_sizes(1000) == (955, 45)  # tetap dijepit
@@ -209,7 +216,7 @@ def test_refit_gagal_menurunkan_pemenang_ke_statistical():
 
 
 def test_gerbang_gagal_tidak_menghasilkan_artefak():
-    assert train_from_series(_konstan_per_hari_minggu(30)) is None
+    assert train_from_series(_konstan_per_hari_minggu(20)) is None
 
 
 def test_artefak_trained_at_terurai_sebagai_iso_utc():

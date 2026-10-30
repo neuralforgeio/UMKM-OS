@@ -1,7 +1,8 @@
-"""Unit test otak asisten + batas laju + cache (ml-service v3.1.0).
+"""Unit test otak asisten + batas laju + cache (ml-service v3.2.0).
 
 Semua murni: tanpa DB, tanpa jaringan, tanpa LLM asli. Angka format
 Indonesia dipatok eksplisit supaya parser tidak diam-diam berubah.
+Jawaban Mode Data per-maksud diuji lebih lanjut di test_assistant_nlu.py.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from app.services.assistant import (
     extract_numbers,
     extract_period,
     format_rupiah_id,
+    normalize_text,
     parse_number_id,
     validate_numbers,
 )
@@ -63,7 +65,17 @@ def _konteks() -> dict:
         ("terlaris minggu ini apa", "produk"),
         ("Kasih saran dong", "saran_tindakan"),
         ("Apa yang harus saya lakukan?", "saran_tindakan"),
-        ("halo", "saran_tindakan"),
+        # v3.2.0: basa-basi & identitas kini maksud tersendiri.
+        ("halo", "sapaan"),
+        ("Nama mu siapa?", "identitas"),
+        ("siapa kamu?", "identitas"),
+        ("kamu bisa apa?", "kemampuan"),
+        ("makasih ya", "terima_kasih"),
+        ("berapa omzet besok", "prediksi"),
+        ("ramalan minggu depan gimana?", "prediksi"),
+        # saran tetap menang atas penanda masa depan.
+        ("saran minggu depan", "saran_tindakan"),
+        ("gimana ya?", "saran_tindakan"),
     ],
 )
 def test_classify_intent(tanya: str, maksud: str) -> None:
@@ -80,6 +92,9 @@ def test_classify_intent(tanya: str, maksud: str) -> None:
         ("penjualan bulan ini", "bulan"),
         ("sebulan terakhir", "bulan"),
         ("omzet", "hari"),
+        # v3.2.0: singkatan ikut ternormalisasi sebelum ekstraksi.
+        ("saran minggu dpn", "minggu"),
+        ("omzet bln lalu", "bulan"),
     ],
 )
 def test_extract_period(tanya: str, periode: str) -> None:
@@ -89,6 +104,41 @@ def test_extract_period(tanya: str, periode: str) -> None:
 def test_intent_stok_menang_atas_penjualan() -> None:
     # "stok" lebih spesifik daripada "penjualan" dalam satu kalimat.
     assert classify_intent("stok menipis, penjualan gimana?") == "stok"
+
+
+def test_intent_data_menang_atas_basa_basi() -> None:
+    # "halo, omzet berapa?" tetap dijawab DATA, bukan sekadar balas sapaan.
+    assert classify_intent("halo, omzet berapa?") == "penjualan"
+
+
+def test_intent_identitas_tidak_jatuh_ke_default() -> None:
+    # regresi keluhan pemilik: "nama mu siapa" dulu dibalas ringkasan
+    # penjualan template; kini maksud identitas yang dijawab.
+    assert classify_intent("nama mu siapa") == "identitas"
+    assert classify_intent("siapa nama kamu?") == "identitas"
+
+
+def test_intent_masa_depan_memindah_ke_prediksi() -> None:
+    assert classify_intent("berapa omzet besok?") == "prediksi"
+    assert classify_intent("omzet minggu depan berapa") == "prediksi"
+
+
+# ----------------------------------------------------------------------
+# normalize_text (v3.2.0)
+# ----------------------------------------------------------------------
+@pytest.mark.parametrize(
+    ("mentah", "bersih"),
+    [
+        ("Nama mu siapa??", "nama kamu siapa"),
+        ("omzet gmn?", "omzet gimana"),
+        ("saran minggu dpn dong", "saran minggu depan dong"),
+        ("brp omzet skrg", "berapa omzet sekarang"),
+        ("namamu siapa", "nama kamu siapa"),
+        ("  Omzet   HARI ini?!  ", "omzet hari ini"),
+    ],
+)
+def test_normalize_text(mentah: str, bersih: str) -> None:
+    assert normalize_text(mentah) == bersih
 
 
 # ----------------------------------------------------------------------

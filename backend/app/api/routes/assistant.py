@@ -1,8 +1,11 @@
-"""Endpoint Asisten AI RAG (ml-service v3.1.0) — blueprint BAB 6.5.
+"""Endpoint Asisten AI RAG (ml-service v3.2.0) — blueprint BAB 6.5.
 
 POST /api/v1/assistant/chat     — jawab pertanyaan pemilik dari DATA
 GET  /api/v1/assistant/history  — riwayat percakapan (panel frontend)
 GET  /api/v1/assistant/status   — status mode/model (PUBLIK, konsol dev)
+GET  /api/v1/assistant/llm-config — pengaturan LLM efektif (kunci masker)
+PUT  /api/v1/assistant/llm-config — simpan pengaturan LLM dari UI
+                                     Pengaturan (tanpa restart container)
 
 Alur chat (semua langkah ada alasan biaya/kejujuran di blueprint):
   1. Gerbang X-Internal-Key (INTERNAL_API_KEY; kosong = terbuka dev
@@ -14,9 +17,14 @@ Alur chat (semua langkah ada alasan biaya/kejujuran di blueprint):
      — pertanyaan pagian yang sama tidak membakar token dua kali.
   4. Retrieval SQL BACA-SAJA: ringkasan penjualan (hari/kemarin/7d/30d),
      tren mingguan, produk terlaris 7 hari, stok kritis + saran restok,
-     status model ramalan outlet (tanpa memicu training).
+     status model ramalan outlet (tanpa memicu training), plus
+     KEMAJUAN GERBANG ML (hari ber-pendapatan terkumpul vs syarat) —
+     supaya jawaban prediksi/saran bisa menjelaskan "kapan model mulai
+     terlatih otomatis" secara jujur (v3.2.0).
   5. Generasi: LLM bila terkonfigurasi (temperatur 0,2, 400 token,
-     validasi angka + 1 retry koreksi), atau Mode Data template.
+     validasi angka + 1 retry koreksi), atau Mode Data per-maksud
+     v3.2.0 (identitas/sapaan/penjualan/stok/produk/prediksi/saran
+     masing-masing dijawab spesifik — bukan satu template kembar).
      Kegagalan LLM (jaringan/penyedia) JATUH ke Mode Data — asisten
      tidak pernah tumbang.
   6. Persist chat_history (USER lalu ASSISTANT) — tabel ini satu-
@@ -30,23 +38,31 @@ memakai kolom yang sama dengan laporan Go: satu sumber kebenaran.
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_session
 from app.models import ChatHistory, Outlet, Product, Transaction, TransactionItem
 from app.api.routes.forecast import resolve_outlet
+from app.ml import trainer as ml_trainer
 from app.schemas.assistant import (
     AssistantStatus,
     ChatHistoryMessage,
     ChatRequest,
     ChatResponse,
     HistoryResponse,
+    LlmConfigIn,
+    LlmConfigOut,
 )
 from app.services import assistant as otak
 from app.services.answer_cache import AnswerCache
 from app.services.llm import get_llm_client, llm_configured
+from app.services.llm_config_store import (
+    effective_llm_config,
+    mask_key,
+    save_file_config,
+)
 from app.services.rate_limit import SlidingWindowLimiter
 
 router = APIRouter(prefix="/assistant", tags=["Asisten AI"])
@@ -229,6 +245,56 @@ async def _status_prediksi(outlet_id: str | None) -> dict:
     }
 
 
+async def _progress_ml(
+    session: AsyncSession, outlet_id: str | None
+) -> dict:
+    """Kemajuan gerbang data model ramalan outlet (v3.2.0).
+
+    Hari ber-pendapatan terkumpul vs syarat gerbang — dipakai jawaban
+    prediksi/saran Mode Data supaya pemilik tahu model dilatih OTOMATIS
+    begitu angka ini terpenuhi (auto-train latar belakang), bukan
+    menunggu siapa pun menjalankan perintah.
+    """
+    mulai = date.today() - timedelta(days=ml_trainer.MODEL_WINDOW_DAYS - 1)
+    syarat = [
+        Transaction.status == "COMPLETED",
+        func.date(Transaction.created_at) >= mulai,
+    ]
+    if outlet_id:
+        syarat.append(Transaction.outlet_id == int(outlet_id))
+    harian = (
+        select(
+            func.date(Transaction.created_at).label("d"),
+            func.sum(Transaction.total).label("omzet"),
+        )
+        .where(*syarat)
+        .group_by(func.date(Transaction.created_at))
+        .subquery()
+    )
+    baris = (
+        await session.execute(
+            select(
+                func.count(),
+                func.coalesce(
+                    func.sum(case((harian.c.omzet > 0, 1), else_=0)), 0
+                ),
+            )
+        )
+    ).one()
+    hari_data = int(baris[0] or 0)
+    hari_pendapatan = int(baris[1] or 0)
+    return {
+        "hari_data": hari_data,
+        "hari_pendapatan": hari_pendapatan,
+        "gerbang_hari": ml_trainer.MIN_DAYS,
+        "gerbang_pendapatan": ml_trainer.MIN_NONZERO,
+        "gerbang_terpenuhi": (
+            hari_data >= ml_trainer.MIN_DAYS
+            and hari_pendapatan >= ml_trainer.MIN_NONZERO
+        ),
+    }
+
+
 async def build_data_context(
     session: AsyncSession, outlet_id: str | None, outlet_name: str
 ) -> dict:
@@ -240,6 +306,7 @@ async def build_data_context(
         "produk_top": await _produk_top(session, outlet_id),
         "stok_kritis": await _stok_kritis(session, outlet_id),
         "prediksi": await _status_prediksi(outlet_id),
+        "ml_progress": await _progress_ml(session, outlet_id),
     }
 
 
@@ -340,6 +407,11 @@ async def assistant_chat(
     riwayat = await _muat_riwayat(session, payload.user_id, otak.HISTORY_TURNS)
     konteks = await build_data_context(session, outlet_filter_id, outlet_name)
 
+    # Maksud + periode dihitung SEKALI — dipakai jalur Mode Data maupun
+    # jatuh-darurat bila LLM tumbang di tengah jalan.
+    maksud = otak.classify_intent(payload.question)
+    periode = otak.extract_period(payload.question)
+
     klien = get_llm_client()
     try:
         hasil = await otak.generate_answer(
@@ -348,10 +420,10 @@ async def assistant_chat(
     except Exception:
         # LLM tumbang (jaringan/penyedia) => Mode Data, asisten tetap hidup.
         hasil = {
-            "answer": otak.build_offline_answer(konteks),
+            "answer": otak.build_offline_answer(konteks, maksud, periode),
             "mode": "data",
-            "intent": otak.classify_intent(payload.question),
-            "period": otak.extract_period(payload.question),
+            "intent": maksud,
+            "period": periode,
             "numbers_validated": True,
             "retried": False,
         }
@@ -415,4 +487,68 @@ async def assistant_status() -> AssistantStatus:
         mode="ai" if llm_configured() else "data",
         rate_limit_per_hour=settings.ASSISTANT_RATE_LIMIT_PER_HOUR,
         cache_seconds=settings.ASSISTANT_CACHE_SECONDS,
+        ml_auto_train=settings.ML_AUTO_TRAIN,
+        ml_auto_train_interval_hours=settings.ML_AUTO_TRAIN_INTERVAL_HOURS,
+        ml_gate_min_days=ml_trainer.MIN_DAYS,
+        ml_gate_min_nonzero=ml_trainer.MIN_NONZERO,
     )
+
+
+# ----------------------------------------------------------------------
+# Pengaturan LLM runtime (v3.2.0) — UI Pengaturan frontend
+# ----------------------------------------------------------------------
+def _llm_config_out() -> LlmConfigOut:
+    """Bentuk respons pengaturan efektif (kunci selalu dimasker)."""
+    cfg = effective_llm_config()
+    klien = get_llm_client()
+    aktif = klien is not None
+    return LlmConfigOut(
+        enabled=bool(cfg["enabled"]),
+        base_url=cfg["base_url"],
+        model=cfg["model"],
+        api_key_masked=mask_key(cfg["api_key"]),
+        source=cfg["source"],
+        llm_configured=aktif,
+        llm_model=klien.model if klien is not None else None,
+        mode="ai" if aktif else "data",
+    )
+
+
+@router.get("/llm-config", response_model=LlmConfigOut)
+async def get_llm_config(request: Request) -> LlmConfigOut:
+    await require_internal_key(request)
+    return _llm_config_out()
+
+
+@router.put("/llm-config", response_model=LlmConfigOut)
+async def put_llm_config(
+    payload: LlmConfigIn, request: Request
+) -> LlmConfigOut:
+    """Simpan pengaturan LLM ke volume mlmodels — langsung berlaku.
+
+    Validasi ditolak 422 (bukan 500) dengan pesan bahasa Indonesia
+    supaya UI Pengaturan bisa menampilkannya apa adanya:
+      - enabled=true  => base_url wajib http(s):// dan model terisi;
+      - api_key BOLEH kosong (Ollama lokal tidak pakai kunci).
+    """
+    await require_internal_key(request)
+    base = (payload.base_url or "").strip()
+    kunci = (payload.api_key or "").strip()
+    model = (payload.model or "").strip()
+
+    if payload.enabled:
+        if not (base.startswith("http://") or base.startswith("https://")):
+            raise HTTPException(
+                status_code=422,
+                detail="Base URL harus berawalan http:// atau https:// "
+                "(contoh: https://api.groq.com/openai/v1).",
+            )
+        if not model:
+            raise HTTPException(
+                status_code=422,
+                detail="Nama model wajib diisi (contoh: llama-3.3-70b-versatile).",
+            )
+
+    save_file_config(base_url=base, api_key=kunci, model=model,
+                     enabled=payload.enabled)
+    return _llm_config_out()

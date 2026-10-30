@@ -1,15 +1,17 @@
-"""Klien LLM OpenAI-compatible (ml-service v3.1.0) — blueprint BAB 3.
+"""Klien LLM OpenAI-compatible (ml-service v3.2.0) — blueprint BAB 3.
 
 Komunikasi keluar ke LLM terjadi LANGSUNG dari FastAPI (bukan dari
 browser) supaya API key tidak pernah melintas ke klien. Endpoint yang
 dipakai adalah standar industri `{base_url}/chat/completions` sehingga
 penyedia mana pun cocok: OpenAI, Groq, Together, OpenRouter, atau
-Ollama lokal (`http://host:11434/v1`).
+Ollama lokal (`http://host:11434/v1`, tanpa kunci).
 
-Konfigurasi env (semua OPSIONAL — kosong = Mode Data tanpa LLM):
-  LLM_BASE_URL  mis. https://api.groq.com/openai/v1
-  LLM_API_KEY   kunci penyedia
-  LLM_MODEL     mis. llama-3.3-70b-versatile / gpt-4o-mini
+Konfigurasi (semua OPSIONAL — kosong = Mode Data tanpa LLM):
+  env  : LLM_BASE_URL / LLM_API_KEY / LLM_MODEL / LLM_ENABLED
+  file : volume mlmodels/llm_config.json — ditulis UI Pengaturan via
+         PUT /assistant/llm-config, MENIMPA env tanpa restart (v3.2.0).
+  LLM_API_KEY boleh kosong bila penyedianya tidak meminta kunci
+  (Ollama lokal) — kunci kosong bukan lagi penghalang Mode AI.
 
 Kegagalan jaringan/HTTP dari penyedia TIDAK menjatuhkan request:
 `complete` meng-raise `LlmError` dan pemanggil (routes/assistant.py)
@@ -22,7 +24,7 @@ from typing import Any
 
 import httpx
 
-from app.core.config import settings
+from app.services.llm_config_store import effective_llm_config
 
 
 class LlmError(RuntimeError):
@@ -79,24 +81,26 @@ class HttpLlmClient:
 
 
 def llm_configured() -> bool:
-    """True bila LLM aktif: saklar menyala + ketiga env terisi."""
-    return bool(
-        settings.LLM_ENABLED
-        and settings.LLM_BASE_URL
-        and settings.LLM_API_KEY
-        and settings.LLM_MODEL
-    )
+    """True bila LLM aktif: saklar menyala + URL + model terisi.
+
+    API key TIDAK diwajibkan (Ollama lokal jalan tanpa kunci) — v3.2.0.
+    """
+    cfg = effective_llm_config()
+    return bool(cfg["enabled"] and cfg["base_url"] and cfg["model"])
 
 
 def get_llm_client() -> HttpLlmClient | None:
     """Klien siap pakai, atau None bila LLM tidak dikonfigurasi.
 
     None => pemanggil memakai jalur Mode Data (build_offline_answer).
+    Dibaca PER PERMINTAAN dari konfigurasi efektif (env + file volume)
+    sehingga pengaturan baru dari UI langsung berlaku tanpa restart.
     """
-    if not llm_configured():
+    cfg = effective_llm_config()
+    if not (cfg["enabled"] and cfg["base_url"] and cfg["model"]):
         return None
     return HttpLlmClient(
-        base_url=settings.LLM_BASE_URL,
-        api_key=settings.LLM_API_KEY,
-        model=settings.LLM_MODEL,
+        base_url=cfg["base_url"],
+        api_key=cfg["api_key"],
+        model=cfg["model"],
     )

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileSpreadsheet, Settings } from "lucide-react";
+import { FileSpreadsheet, Settings, Sparkles } from "lucide-react";
 import { AuroraBackground } from "@/components/aurora-background";
 import { UserMenu } from "@/components/user-menu";
 import { userMenuUser } from "@/lib/session-user";
 import { auth } from "@/lib/auth";
 import { getOutletContext, outletLogoUrl } from "@/lib/outlet-context";
+import { AssistantAiForm } from "./assistant-ai-form";
 import { OutletLogoForm, OutletProfileForm } from "./settings-forms";
 
 export const instant = false;
@@ -99,6 +100,22 @@ export default async function SettingsPage() {
             Logo warungmu — muncul di struk, header kasir, dan ikon browser.
           </p>
           <OutletLogoForm logoUrl={logoUrl} />
+        </section>
+
+        <section className="rounded-2xl glass-card p-6">
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+            <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            Asisten AI (opsional)
+          </h2>
+          <p className="mt-1 mb-5 text-sm text-slate-500 dark:text-slate-400">
+            Naikkan asisten ke Mode AI — jawaban lebih pintar memahami
+            bahasa bebas. Cukup isi sekali di sini; tanpa edit .env, tanpa
+            restart container.
+          </p>
+          {/* v2.5.0: id="asisten-ai" jangkar dari hint panel asisten */}
+          <div id="asisten-ai">
+            <AssistantAiForm />
+          </div>
         </section>
 
         {/* Unduh log outlet (Task 35): GET form biasa ke route export —

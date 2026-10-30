@@ -1,14 +1,19 @@
 "use client";
 
-// Panel Asisten AI (frontend v2.4.0) — bubble chat tema aurora/glass.
+// Panel Asisten AI (frontend v2.5.0) — bubble chat tema aurora/glass.
 //
 // Komponen client murni presentasi + state lokal; seluruh gerbang
 // sesi/role terjadi di route handler /api/assistant/*. Badge "Mode
 // Data" vs "AI" memberi tahu pemilik kapan jawaban dibuat LLM dan
-// kapan murni template data (jujur saat LLM belum dikonfigurasi).
+// kapan murni dari data warung (jujur saat LLM belum dikonfigurasi).
 // aria-live memakai pembaca layar ikut tahu jawaban baru datang.
+//
+// v2.5.0: chip contoh diperluas (identitas + saran minggu depan) dan
+// saat Mode Data aktif muncul tautan ke Pengaturan -> Asisten AI supaya
+// pemilik tahu jalur menaikkan kecerdasan asisten tanpa menduga-duga.
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   Bot,
@@ -30,6 +35,8 @@ const CONTOH_TANYA = [
   "Stok apa yang menipis?",
   "Produk terlaris minggu ini?",
   "Kasih saran untuk minggu ini",
+  "Siapa kamu?",
+  "Saran minggu depan",
 ];
 
 export function AssistantPanel({ outletName }: { outletName: string }) {
@@ -276,6 +283,18 @@ export function AssistantPanel({ outletName }: { outletName: string }) {
         Jawaban dibatasi data outlet ini · maks 500 karakter per
         pertanyaan · ada batas laju per jam.
       </p>
+      {mode === "data" && (
+        <p className="mx-5 mb-4 rounded-xl bg-blue-50 px-3.5 py-2.5 text-xs leading-relaxed text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+          Ingin jawaban yang lebih pintar memahami bahasa bebas?{" "}
+          <Link
+            href="/owner/settings#asisten-ai"
+            className="font-bold underline underline-offset-2"
+          >
+            Aktifkan Mode AI di Pengaturan
+          </Link>{" "}
+          — cukup isi sekali, tanpa restart.
+        </p>
+      )}
     </div>
   );
 }

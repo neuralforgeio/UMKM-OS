@@ -6,12 +6,18 @@ keluar — sehingga dapat diuji tanpa PostgreSQL (tests/test_trainer.py).
 Prophet disuntik sebagai pasangan fungsi (fit/predict) supaya test
 memakai stub; jalur nyata memakai app.ml.prophet_engine.
 
-Aturan duel (disetujui user, ACC 2026-10-26):
-  1. GERBANG DATA: deret < 56 hari, atau < 28 hari ber-pendapatan →
-     tidak ada duel; router memakai jalur statistical in-line seperti
-     sedia kala (artefak tidak dibuat).
-  2. SPLIT fixed-origin: train = 75% awal, test = 25% akhir
-     (dijepit 14..45 hari) — masa lalu tidak pernah bocor ke masa uji.
+Aturan duel:
+  1. GERBANG DATA PROGRESIF (v3.2.0): deret < 28 hari, atau < 14 hari
+     ber-pendapatan -> tidak ada duel; router memakai jalur statistical
+     in-line seperti sedia kala (artefak tidak dibuat). Gerbang lama
+     56/28 menunggu dua bulan pemakaian nyata sebelum model pertama
+     terlatih — terlalu lama bagi warung yang baru hijrah ke sistem;
+     28/14 membuat model mulai terlatih setelah ~2 minggu, lalu makin
+     tajam seiring data bertambah (auto-train v3.2.0 melatih ulang di
+     latar belakang, lihat app/ml/auto_train.py).
+  2. SPLIT fixed-origin: train = 75% awal, test = 25% akhir (dijepit
+     7..45 hari; deret panjang >= 56 hari tetap berperilaku persis
+     split lama 14..45). Masa lalu tidak pernah bocor ke masa uji.
   3. MAPE dihitung HANYA atas hari uji ber-aktual non-zero
      (app/services/mape.py) — hari nol di luar yurisdiksi MAPE.
   4. Prophet menang HANYA bila MAPE-nya mengalahkan statistical dengan
@@ -42,13 +48,13 @@ from app.services.mape import mean_absolute_percentage_error
 
 logger = logging.getLogger(__name__)
 
-# ---- Gerbang data -------------------------------------------------------
-MIN_DAYS = 56          # minimal panjang deret (hari)
-MIN_NONZERO = 28       # minimal hari ber-pendapatan
+# ---- Gerbang data progresif (v3.2.0) ------------------------------------
+MIN_DAYS = 28          # minimal panjang deret (hari) — dulunya 56
+MIN_NONZERO = 14       # minimal hari ber-pendapatan — dulunya 28
 
 # ---- Split backtest -----------------------------------------------------
 TEST_FRACTION = 0.25   # porsi data akhir yang menjadi masa uji
-TEST_MIN = 14          # di bawah ini hasil MAPE terlalu bising
+TEST_MIN = 7           # lantai masa uji deret pendek (28-55 hari)
 TEST_MAX = 45          # di atas ini masa uji menjauh dari "masa kini"
 
 # ---- Aturan pemenang ----------------------------------------------------
@@ -69,8 +75,32 @@ _locks: dict[str, asyncio.Lock] = {}
 _serial: asyncio.Semaphore = asyncio.Semaphore(1)
 
 
+def gate_status(series: Sequence[tuple[date, float]]) -> dict[str, Any]:
+    """Status gerbang data deret — dipakai /forecast/models, konteks
+    asisten, dan auto-train (v3.2.0).
+
+    days  = panjang deret (hari, gap-free hasil zero_fill_daily).
+    nonzero = hari ber-pendapatan (> 0).
+    """
+    pairs = sorted((day, float(value)) for day, value in series)
+    n = len(pairs)
+    nonzero = sum(1 for _, value in pairs if value > 0)
+    return {
+        "days": n,
+        "nonzero": nonzero,
+        "min_days": MIN_DAYS,
+        "min_nonzero": MIN_NONZERO,
+        "ok": n >= MIN_DAYS and nonzero >= MIN_NONZERO,
+    }
+
+
 def split_sizes(n: int) -> tuple[int, int]:
-    """(train_n, test_n) sesuai aturan split; n >= MIN_DAYS diasumsikan."""
+    """(train_n, test_n) sesuai aturan split; n >= MIN_DAYS diasumsikan.
+
+    n >= 56 -> perilaku identik era 56/28 (lantai 14 hari uji).
+    n 28-55 -> masa uji dijepit mulai 7 hari (lantai TEST_MIN) supaya
+    deret pendek masih menyisakan >= 21 hari pelatihan.
+    """
     test_n = round(n * TEST_FRACTION)
     test_n = max(TEST_MIN, min(TEST_MAX, test_n))
     return n - test_n, test_n
@@ -86,11 +116,10 @@ def run_backtest(
     Deret diasumsikan gap-free harian (hasil zero_fill_daily router).
     """
     pairs = sorted((day, float(value)) for day, value in series)
-    n = len(pairs)
-    nonzero = sum(1 for _, value in pairs if value > 0)
-    if n < MIN_DAYS or nonzero < MIN_NONZERO:
+    if not gate_status(pairs)["ok"]:
         return None
 
+    n = len(pairs)
     train_n, test_n = split_sizes(n)
     train = pairs[:train_n]
     test = pairs[train_n:]
@@ -146,7 +175,7 @@ def train_from_series(
     prophet_fit: FitFn | None = None,
     prophet_predict: PredictFn | None = None,
 ) -> dict[str, Any] | None:
-    """Backtest lalu (bila prophet menang) refit penuh → artefak siap simpan.
+    """Backtest lalu (bila prophet menang) refit penuh -> artefak siap simpan.
 
     Mengembalikan None bila gerbang data gagal. Artefak selalu mencatat
     metrik duel secara jujur — termasuk saat pemenangnya statistical.
@@ -159,7 +188,8 @@ def train_from_series(
     if duel["winner"] == "prophet" and prophet_fit is not None:
         try:
             # Standar praktik: backtest memilih metode, model final
-            # dilatih atas SELURUH data (train + test).
+            # dilatih atas SELURUH data (train + test) — setiap kali
+            # dilatih ulang, ia memakai semua data terbaru.
             model = prophet_fit(series)
         except Exception as exc:
             logger.warning("refit final Prophet gagal: %r", exc)
@@ -187,11 +217,11 @@ async def ensure_model(
     """Pastikan artefak outlet segar; latih di background bila perlu.
 
     Alur keputusannya (semua jalur non-blocking):
-      - artefak segar                     → langsung dipakai;
-      - outlet sedang dilatih request lain → pakai artefak basi (kalau
+      - artefak segar                     -> langsung dipakai;
+      - outlet sedang dilatih request lain -> pakai artefak basi (kalau
         ada) TANPA menunggu — request berikutnya mendapat model baru;
-      - Prophet dimatikan/gagal import     → None (statistical in-line);
-      - gerbang data gagal                 → None (statistical in-line).
+      - Prophet dimatikan/gagal import     -> None (statistical in-line);
+      - gerbang data gagal                 -> None (statistical in-line).
     """
     from app.ml import prophet_engine
 

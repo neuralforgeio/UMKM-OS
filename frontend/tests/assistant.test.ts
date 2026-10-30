@@ -215,7 +215,124 @@ describe("kontrak lintas-stack Asisten (ml-service v3.1.0)", () => {
 
   it("status asisten PUBLIK tanpa kunci (kejujuran mode)", () => {
     const isi = bacaRepo("backend/app/api/routes/assistant.py");
-    const blokStatus = isi.split("@router.get(\"/status\"")[1] ?? "";
+    const setelahStatus = isi.split("@router.get(\"/status\"")[1] ?? "";
+    // hotfix RUN-3: blok /status dibatasi sampai decorator "@router." berikutnya;
+    // endpoint /llm-config (v3.2.0) di bawahnya SAH memakai kunci internal,
+    // jangan sampai ikut terbaca sebagai bagian endpoint publik /status.
+    const blokStatus = setelahStatus.split("@router.")[0] ?? "";
     expect(blokStatus).not.toContain("require_internal_key");
+  });
+});
+
+describe("Pengaturan LLM runtime (frontend v2.5.0)", () => {
+  it("lib: fungsi GET/PUT llm-config memakai header internal + no-store", () => {
+    const isi = baca("lib/assistant.ts");
+    expect(isi).toContain("getAssistantLlmConfig");
+    expect(isi).toContain("putAssistantLlmConfig");
+    expect(isi).toContain("/api/v1/assistant/llm-config");
+    expect(isi).toContain("AssistantLlmConfigInput");
+  });
+
+  it("route handler llm-config: sesi wajib, KASIR ditolak 403", () => {
+    const isi = baca("app/api/assistant/llm-config/route.ts");
+    expect(isi).toContain("await auth()");
+    expect(isi).toContain('session.user.role === "KASIR"');
+    expect(isi).toContain("403");
+  });
+
+  it("route handler llm-config: validasi base URL http(s) + model 422", () => {
+    const isi = baca("app/api/assistant/llm-config/route.ts");
+    expect(isi).toContain("/^https?:\\/\\//");
+    expect(isi).toContain("422");
+    expect(isi).toContain("Nama model wajib diisi");
+  });
+
+  it("form Asisten AI ada di Pengaturan dengan jangkar #asisten-ai", () => {
+    const halaman = baca("app/owner/settings/page.tsx");
+    expect(halaman).toContain("<AssistantAiForm />");
+    expect(halaman).toContain('id="asisten-ai"');
+    const form = baca("app/owner/settings/assistant-ai-form.tsx");
+    expect(form).toContain('"/api/assistant/llm-config"');
+    expect(form).toContain("Aktifkan Mode AI");
+    expect(form).toContain("host.docker.internal:11434/v1");
+  });
+
+  it("form tidak pernah menampilkan kunci utuh (masker saja)", () => {
+    const form = baca("app/owner/settings/assistant-ai-form.tsx");
+    expect(form).toContain("api_key_masked");
+    expect(form).toContain('type="password"');
+  });
+
+  it("panel asisten: hint Mode Data menautkan ke Pengaturan", () => {
+    const isi = baca("components/assistant/assistant-panel.tsx");
+    expect(isi).toContain('href="/owner/settings#asisten-ai"');
+    expect(isi).toContain("Aktifkan Mode AI di Pengaturan");
+  });
+
+  it("panel asisten: chip identitas & saran minggu depan hadir", () => {
+    const isi = baca("components/assistant/assistant-panel.tsx");
+    expect(isi).toContain("Siapa kamu?");
+    expect(isi).toContain("Saran minggu depan");
+  });
+});
+
+describe("Asisten Cerdas lintas-stack (ml-service v3.2.0)", () => {
+  it("layanan ML: jawaban Mode Data kini per-maksud (bukan template tunggal)", () => {
+    const isi = bacaRepo("backend/app/services/assistant.py");
+    expect(isi).toContain("def normalize_text(");
+    expect(isi).toContain('maksud == "identitas"');
+    expect(isi).toContain('maksud == "prediksi"');
+    expect(isi).toContain('maksud == "sapaan"');
+  });
+
+  it("layanan ML: taksonomi maksud baru + persona Dea", () => {
+    const isi = bacaRepo("backend/app/services/assistant.py");
+    expect(isi).toContain('ASSISTANT_NAME = "Dea"');
+    expect(isi).toContain('"identitas", "kemampuan", "sapaan", "terima_kasih"');
+  });
+
+  it("layanan ML: store konfigurasi runtime + endpoint PUT llm-config", () => {
+    expect(bacaRepo("backend/app/services/llm_config_store.py")).toContain(
+      "llm_config.json",
+    );
+    const routes = bacaRepo("backend/app/api/routes/assistant.py");
+    expect(routes).toContain('@router.put("/llm-config"');
+    expect(routes).toContain("mask_key");
+    expect(routes).toContain("save_file_config");
+  });
+
+  it("layanan ML: konteks memuat kemajuan gerbang utk jawaban jujur", () => {
+    const routes = bacaRepo("backend/app/api/routes/assistant.py");
+    expect(routes).toContain("_progress_ml");
+    expect(routes).toContain('"ml_progress"');
+  });
+
+  it("layanan ML: auto-train latar belakang + lifespan FastAPI", () => {
+    expect(bacaRepo("backend/app/ml/auto_train.py")).toContain(
+      "train_all_outlets",
+    );
+    expect(bacaRepo("backend/app/ml/auto_train.py")).toContain(
+      "auto_train_loop",
+    );
+    expect(bacaRepo("backend/app/main.py")).toContain("lifespan");
+    expect(bacaRepo("backend/app/main.py")).toContain("ML_AUTO_TRAIN");
+  });
+
+  it("layanan ML: gerbang progresif 28/14 (bukan lagi 56/28)", () => {
+    const isi = bacaRepo("backend/app/ml/trainer.py");
+    expect(isi).toContain("MIN_DAYS = 28");
+    expect(isi).toContain("MIN_NONZERO = 14");
+    expect(isi).toContain("def gate_status(");
+  });
+
+  it("API key opsional (Ollama) — bukan lagi syarat Mode AI", () => {
+    const isi = bacaRepo("backend/app/services/llm.py");
+    expect(isi).toContain("API key TIDAK diwajibkan");
+    expect(isi).toContain("effective_llm_config");
+  });
+
+  it("compose: auto-train bisa dimatikan lewat env root", () => {
+    const isi = bacaRepo("docker-compose.yml");
+    expect(isi).toContain("ML_AUTO_TRAIN:");
   });
 });

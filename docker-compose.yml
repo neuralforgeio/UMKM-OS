@@ -101,6 +101,10 @@ services:
       PROPHET_ENABLED: ${PROPHET_ENABLED:-true}
       OMP_NUM_THREADS: "2"
       ML_MODEL_DIR: /app/mlmodels
+      # v3.2.0 — auto-train model ramalan di latar belakang: model tiap
+      # outlet dilatih ulang menyeluruh berkala (default tiap 6 jam) dan
+      # mulai terlatih begitu gerbang 28 hari / 14 ber-pendapatan lolos.
+      ML_AUTO_TRAIN: ${ML_AUTO_TRAIN:-true}
       # Asisten AI v3.1.0 — LLM OPSIONAL (kosong = Mode Data template).
       # Endpoint standar OpenAI-compatible => agnostik penyedia.
       LLM_ENABLED: ${LLM_ENABLED:-true}

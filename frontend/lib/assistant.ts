@@ -1,4 +1,4 @@
-// Klien sisi-server untuk Asisten AI (ml-service v3.1.0, frontend v2.4.0).
+// Klien sisi-server untuk Asisten AI (ml-service v3.2.0, frontend v2.5.0).
 //
 // BACKEND_URL & INTERNAL_API_KEY adalah env SERVER-ONLY (tanpa awalan
 // NEXT_PUBLIC_): browser tidak pernah memanggil FastAPI langsung —
@@ -116,4 +116,82 @@ export async function getAssistantHistory(
   } catch {
     return null; // riwayat opsional — panel tetap hidup tanpanya
   }
+}
+
+// ----------------------------------------------------------------------
+// Pengaturan LLM runtime (frontend v2.5.0) — UI Pengaturan -> Asisten AI.
+// Konfigurasi tersimpan di volume ml-service (menimpa env compose) dan
+// langsung berlaku tanpa restart container; kunci TIDAK PERNAH dikirim
+// balik ke browser utuh (hanya versi dimasker).
+// ----------------------------------------------------------------------
+export interface AssistantLlmConfig {
+  enabled: boolean;
+  base_url: string;
+  model: string;
+  api_key_masked: string;
+  source: "file" | "env";
+  llm_configured: boolean;
+  llm_model: string | null;
+  mode: "ai" | "data";
+}
+
+export interface AssistantLlmConfigInput {
+  enabled: boolean;
+  base_url: string;
+  api_key: string;
+  model: string;
+}
+
+export async function getAssistantLlmConfig(): Promise<AssistantLlmConfig> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/api/v1/assistant/llm-config`, {
+      headers: internalHeaders(),
+      cache: "no-store",
+    });
+  } catch {
+    throw new AssistantError(
+      "Layanan asisten tidak terjangkau. Coba beberapa saat lagi.",
+      502,
+    );
+  }
+  if (!res.ok) {
+    const isi = (await res.json().catch(() => null)) as
+      | { detail?: string }
+      | null;
+    throw new AssistantError(
+      isi?.detail ?? "Gagal membaca pengaturan asisten.",
+      res.status,
+    );
+  }
+  return (await res.json()) as AssistantLlmConfig;
+}
+
+export async function putAssistantLlmConfig(
+  config: AssistantLlmConfigInput,
+): Promise<AssistantLlmConfig> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/api/v1/assistant/llm-config`, {
+      method: "PUT",
+      headers: internalHeaders(),
+      cache: "no-store",
+      body: JSON.stringify(config),
+    });
+  } catch {
+    throw new AssistantError(
+      "Layanan asisten tidak terjangkau. Coba beberapa saat lagi.",
+      502,
+    );
+  }
+  if (!res.ok) {
+    const isi = (await res.json().catch(() => null)) as
+      | { detail?: string }
+      | null;
+    throw new AssistantError(
+      isi?.detail ?? "Gagal menyimpan pengaturan asisten.",
+      res.status,
+    );
+  }
+  return (await res.json()) as AssistantLlmConfig;
 }
