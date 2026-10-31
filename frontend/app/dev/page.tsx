@@ -18,7 +18,6 @@ import {
   ArrowRight,
   Building2,
   ScrollText,
-  ShieldCheck,
   Store,
   TriangleAlert,
   UserCog,
@@ -29,8 +28,7 @@ import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import { AuditTerminal } from "@/components/audit-terminal";
 import { buildAuditCommand } from "@/lib/audit-terminal";
-import { AuroraBackground } from "@/components/aurora-background";
-import { UserMenu } from "@/components/user-menu";
+import { WorkspaceShell } from "@/components/workspace-shell";
 import { userMenuUser } from "@/lib/session-user";
 import { OutletCreateButton } from "./outlet-create-button";
 
@@ -120,49 +118,16 @@ export default async function DevConsolePage() {
   ];
 
   return (
-    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
-      <AuroraBackground />
-
-      {/* ===== Topbar FULL-WIDTH (v2.2.1): garis memanjang kanan-kiri
-          penuh; baris isinya dibatasi max-w-7xl — pola yang sama dengan
-          navbar kasir & owner. ===== */}
-      <header className="sticky top-0 z-40 shrink-0 border-b border-slate-200/80 bg-slate-100/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-4">
-            <Link href="/dev" className="flex items-center space-x-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 via-purple-600 to-fuchsia-400 p-[1px] shadow-md shadow-violet-500/20">
-                <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-white dark:bg-slate-950">
-                  <ShieldCheck className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                </div>
-              </div>
-              <div>
-                <span className="block text-base leading-none font-extrabold tracking-tight text-slate-900 dark:text-white">
-                  UMKM OS
-                </span>
-                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                  Konsol Developer
-                </span>
-              </div>
-            </Link>
-
-            <div className="hidden items-center space-x-2 border-l border-slate-200 pl-4 text-xs font-medium text-slate-500 md:flex dark:border-slate-800 dark:text-slate-400">
-              <span className="truncate">
-                {session.user.name ?? "Developer"} · akses lintas outlet
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            {/* v2.2.0: chip profil (avatar + nama + email) — menu di
-                bawahnya: Profil / Pengaturan Tampilan / Keluar. Tema
-                hanya di /settings. */}
-            <UserMenu user={userMenuUser(session)} />
-          </div>
-        </div>
-      </header>
-
-      {/* Konten dibatasi kolom max-w-7xl — navbar tetap full-width. */}
-      <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
+    // Shell v3.2.0: sidebar WORKSPACE/MANAGE varian konsol developer
+    // (pola PDF "Platform overview") — akses lintas outlet.
+    <WorkspaceShell
+      variant="dev"
+      active="konsol"
+      user={userMenuUser(session)}
+      overline="Konsol Developer"
+      title="Ringkasan platform"
+      desc={`${session.user.name ?? "Developer"} · operasional global lintas outlet: akun, omzet, dan jejak audit.`}
+    >
         {/* Pintasan Fase B: dua pintu utama konsol. Kartu besar + panah —
             bukan menu tersembunyi, karena ini alasan konsol ini ada. */}
         <section className="grid gap-3 sm:grid-cols-2">
@@ -352,7 +317,6 @@ export default async function DevConsolePage() {
           Multi-outlet v2.0.0 aktif: produk, transaksi, dan antrean tiap
           outlet terpisah — dashboard &amp; POS mengikuti outlet akun.
         </p>
-      </main>
-    </div>
+    </WorkspaceShell>
   );
 }

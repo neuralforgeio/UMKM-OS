@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, FileSpreadsheet, ScrollText } from "lucide-react";
+import { FileSpreadsheet } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { buildLogQuery, logQueryString } from "@/lib/audit-query";
@@ -11,9 +11,8 @@ import {
 } from "@/lib/audit-labels";
 import { buildAuditCommand } from "@/lib/audit-terminal";
 import { AuditTerminal } from "@/components/audit-terminal";
-import { AuroraBackground } from "@/components/aurora-background";
+import { WorkspaceShell } from "@/components/workspace-shell";
 import { SelectInput } from "@/components/select-input";
-import { UserMenu } from "@/components/user-menu";
 import { userMenuUser } from "@/lib/session-user";
 import { LogsPagination } from "./logs-pagination";
 
@@ -170,84 +169,28 @@ export default async function DevLogsPage({
   );
 
   return (
-    <div className="relative min-h-dvh bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
-      <AuroraBackground />
-
-      {/* ===== Topbar FULL-WIDTH (v2.2.1): garis memanjang kanan-kiri
-          penuh; baris isinya dibatasi max-w-7xl — pola navbar kasir &
-          owner. ===== */}
-      <header className="sticky top-0 z-40 shrink-0 border-b border-slate-200/80 bg-slate-100/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-4">
-            <Link href="/dev" className="flex items-center space-x-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 p-[1px] shadow-md shadow-blue-500/20">
-                <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-white dark:bg-slate-950">
-                  <ScrollText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-              <div>
-                <span className="block text-base leading-none font-extrabold tracking-tight text-slate-900 dark:text-white">
-                  Log Aktivitas
-                </span>
-                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                  {total.toLocaleString("id-ID")} baris cocok filter
-                </span>
-              </div>
-            </Link>
-
-            <div className="hidden items-center space-x-2 border-l border-slate-200 pl-4 text-xs font-medium text-slate-500 md:flex dark:border-slate-800 dark:text-slate-400">
-              <Link
-                href="/dev"
-                className="text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-              >
-                Konsol
-              </Link>
-              <span className="text-slate-400 dark:text-slate-600">/</span>
-              <span className="truncate font-semibold text-slate-700 dark:text-slate-300">
-                {actionTitle}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <UserMenu user={userMenuUser(session)} />
-
-            {/* Tautan <a> biasa ke route export: filter sama persis dengan
-                layar, jadi file yang terunduh = yang sedang dilihat. Kini
-                berupa .xlsx: tabel rapi + grafik tren/periodik + pivot. */}
-            <a
-              href={`/api/logs/export${qs}`}
-              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98]"
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              <span className="hidden sm:inline">Unduh Excel (+ Grafik)</span>
-              <span className="sm:hidden">Excel</span>
-            </a>
-          </div>
-        </div>
-      </header>
-
-      {/* Konten dibatasi kolom max-w-7xl — navbar tetap full-width. */}
-      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
-        <Link
-          href="/dev"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+    // Shell v3.2.0: sidebar WORKSPACE/MANAGE varian konsol developer
+    // (pola PDF "Audit log") — tombol Unduh Excel jadi SATU aksi utama.
+    <WorkspaceShell
+      variant="dev"
+      active="log"
+      user={userMenuUser(session)}
+      overline="Konsol Developer"
+      title="Jejak audit sistem"
+      desc={`Setiap aksi tercatat: login, transaksi, stok, akun, hingga percobaan yang gagal — ${total.toLocaleString("id-ID")} baris cocok filter. Filter hidup di URL; maksimum 10.000 baris per unduhan.`}
+      actions={
+        <a
+          href={`/api/logs/export${qs}`}
+          className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover"
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Kembali ke konsol developer
-        </Link>
-
-        <div className="mt-4 mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
-              Jejak Audit Sistem
-            </h1>
-            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500 sm:text-sm dark:text-slate-400">
-              Setiap aksi tercatat: login, transaksi, stok, akun, hingga
-              percobaan yang gagal. Filter hidup di URL — hasilnya bisa
-              di-bookmark dan dibagikan; maksimum 10.000 baris per unduhan.
-            </p>
-          </div>
+          <FileSpreadsheet className="h-4 w-4" />
+          <span className="hidden sm:inline">Unduh Excel (+ Grafik)</span>
+          <span className="sm:hidden">Excel</span>
+        </a>
+      }
+      mainClassName="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8"
+    >
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
 
           {/* v2.2.1: saklar mode Tabel / Terminal — filter aktif
               dipertahankan saat berpindah mode. */}
@@ -495,7 +438,6 @@ export default async function DevLogsPage({
             />
           </section>
         )}
-      </div>
-    </div>
+    </WorkspaceShell>
   );
 }

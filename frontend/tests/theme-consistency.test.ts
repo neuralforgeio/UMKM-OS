@@ -23,7 +23,9 @@ const ROOT_FRONTEND = join(dirname(fileURLToPath(import.meta.url)), "..");
 const baca = (rel: string) => readFileSync(join(ROOT_FRONTEND, rel), "utf-8");
 const bacaKecil = (rel: string) => baca(rel).toLowerCase();
 
-// Seluruh shell halaman (audit v1.8.0 + receipt v1.9.0).
+// Seluruh shell halaman (audit v1.8.0 + receipt v1.9.0). Sejak v3.2.0
+// halaman yang memakai WorkspaceShell mewariskan latar & profil ke
+// shell bersama itu — cukup salah satu dari keduanya hadir di file.
 const SHELL_HALAMAN = [
   "app/page.tsx",
   "app/login/login-client.tsx",
@@ -46,13 +48,32 @@ const SHELL_HALAMAN = [
   "app/verify/[code]/page.tsx",
 ];
 
+// Halaman yang sejak v3.2.0 dibungkus WorkspaceShell (sidebar
+// WORKSPACE/MANAGE pola PDF) — latar & UserMenu datang dari shell.
+const SHELL_WORKSPACE = [
+  "app/owner/page.tsx",
+  "app/owner/assistant/page.tsx",
+  "app/owner/products/products-client.tsx",
+  "app/owner/stock/page.tsx",
+  "app/owner/transactions/transactions-client.tsx",
+  "app/owner/settings/page.tsx",
+  "app/dev/page.tsx",
+  "app/dev/users/users-client.tsx",
+  "app/dev/logs/page.tsx",
+  "app/dev/outlets/[id]/page.tsx",
+];
+
 describe("konsistensi tema v3.1.0 — semua halaman satu bahasa desain", () => {
   it("setiap shell halaman merender latar bersama (AuroraBackground)", () => {
     const lupa = SHELL_HALAMAN.filter((rel) => {
       const isi = baca(rel);
-      return !isi.includes("AuroraBackground");
+      return !isi.includes("AuroraBackground") && !isi.includes("WorkspaceShell");
     });
     expect(lupa).toEqual([]);
+  });
+
+  it("WorkspaceShell sendiri memasang AuroraBackground (satu untuk semua)", () => {
+    expect(baca("components/workspace-shell.tsx")).toContain("AuroraBackground");
   });
 
   it("panel & input inti memakai glass-card / glass-input", () => {
@@ -128,5 +149,55 @@ describe("bebas 'AI slop' v1.3.0 — dekorasi lama tidak boleh kembali", () => {
     expect(isi).not.toContain("animate-wave");
     expect(isi).not.toContain("animate-float");
     expect(isi).not.toContain("LuSparkles");
+  });
+});
+
+describe("v3.2.0 — App Shell sidebar WORKSPACE/MANAGE (pola PDF)", () => {
+  it("setiap halaman owner & konsol dev memakai WorkspaceShell", () => {
+    const lupa = SHELL_WORKSPACE.filter(
+      (rel) => !baca(rel).includes("WorkspaceShell"),
+    );
+    expect(lupa).toEqual([]);
+  });
+
+  it("sidebar bernavigasi dua seksi ber-label + blok pengguna", () => {
+    const isi = baca("components/workspace-shell.tsx");
+    expect(isi).toContain('label: "Workspace"');
+    expect(isi).toContain('label: "Manage"');
+    // seluruh tujuan navigasi header lama tetap terjangkau
+    for (const href of [
+      "/",
+      "/owner",
+      "/owner/transactions",
+      "/owner/verify",
+      "/owner/products",
+      "/owner/stock",
+      "/owner/assistant",
+      "/owner/settings",
+      "/dev",
+      "/dev/users",
+      "/dev/logs",
+    ]) {
+      expect(isi).toContain(`"${href}"`);
+    }
+    expect(isi).toContain('href="/account"');
+  });
+
+  it("navigasi mobile tetap terjangkau (chip bisa digeser)", () => {
+    const isi = baca("components/workspace-shell.tsx");
+    expect(isi).toContain("overflow-x-auto");
+    expect(isi).toContain("lg:hidden");
+  });
+
+  it("login baru: panel merek Midnight + widget status jujur", () => {
+    const isi = baca("app/login/login-client.tsx");
+    // panel merek gelap penuh tinggi + pil jaminan + widget ringkasan
+    expect(isi).toContain("bg-[#171925]");
+    expect(isi).toContain("Satu ruang kerja · semua outlet");
+    expect(isi).toContain("Ringkasan bisnis");
+    // versi backend NYATA (prop dari GET /api/v1/version), bukan demo
+    expect(isi).toContain("backendVersion");
+    // tidak ada SSO palsu (NextAuth credentials — tanpa OAuth)
+    expect(isi).not.toContain("Continue with Google");
   });
 });

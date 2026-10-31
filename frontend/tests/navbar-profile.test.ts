@@ -68,9 +68,11 @@ describe("tema hanya di /settings — navbar bebas pergantian tema", () => {
     const pemakai = [
       ...SHELL_TERAUTENTIKASI,
       "app/settings/appearance-client.tsx",
+      "components/workspace-shell.tsx",
     ].filter((rel) => baca(rel).includes("theme-toggle"));
-    // Halaman ber-autentikasi mana pun tidak boleh mengimpor toggle tema;
-    // pengaturan tampilan memakai kartu pilihannya sendiri, bukan pil kecil.
+    // Halaman ber-autentikasi mana pun (termasuk shell bersama v3.2.0)
+    // tidak boleh mengimpor toggle tema; pengaturan tampilan memakai
+    // kartu pilihannya sendiri, bukan pil kecil.
     expect(pemakai).toEqual([]);
   });
 
@@ -85,11 +87,15 @@ describe("tema hanya di /settings — navbar bebas pergantian tema", () => {
 });
 
 describe("chip profil UserMenu wajib di semua halaman ber-autentikasi", () => {
-  it("setiap shell merender UserMenu", () => {
-    const lupa = SHELL_TERAUTENTIKASI.filter(
-      (rel) => !baca(rel).includes("UserMenu"),
-    );
+  it("setiap shell merender UserMenu (langsung atau lewat WorkspaceShell)", () => {
+    // v3.2.0: halaman yang dibungkus WorkspaceShell mewarisi chip profil
+    // dari shell bersama — shell itu sendiri wajib memuat UserMenu.
+    const lupa = SHELL_TERAUTENTIKASI.filter((rel) => {
+      const isi = baca(rel);
+      return !isi.includes("UserMenu") && !isi.includes("WorkspaceShell");
+    });
     expect(lupa).toEqual([]);
+    expect(baca("components/workspace-shell.tsx")).toContain("UserMenu");
   });
 
   it("server action Keluar tunggal dipakai menu profil", () => {
@@ -191,11 +197,11 @@ describe("v2.2.1 — dropdown portal selalu paling depan", () => {
     expect(isi.includes("userName?:")).toBe(false);
   });
 
-  it("navbar area developer kini full-width ala kasir/owner", () => {
+  it("navbar area developer kini memakai shell sidebar penuh", () => {
     // dulu /dev, /dev/logs, /dev/outlets/[id] membungkus SELURUH
     // halaman (termasuk topbar) dalam kolom max-w-6xl di tengah layar;
-    // kini topbar memanjang penuh dan hanya barisnya yang dibatasi
-    // max-w-7xl — pola navbar kasir/owner.
+    // v2.2.1 topbar memanjang penuh, lalu v3.2.0 seluruh area developer
+    // memakai WorkspaceShell sidebar (kolom lama terlarang kembali).
     const halamanDev = [
       "app/dev/page.tsx",
       "app/dev/logs/page.tsx",
@@ -204,7 +210,7 @@ describe("v2.2.1 — dropdown portal selalu paling depan", () => {
     for (const rel of halamanDev) {
       const isi = baca(rel);
       expect(isi.includes("max-w-6xl")).toBe(false);
-      expect(isi).toContain("max-w-7xl");
+      expect(isi).toContain("WorkspaceShell");
     }
   });
 

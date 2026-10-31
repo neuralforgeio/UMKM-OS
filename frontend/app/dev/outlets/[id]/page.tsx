@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
-  ArrowLeft,
   Boxes,
   Building2,
   Calculator,
@@ -15,8 +14,7 @@ import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import { enterMaintenance } from "@/app/dev/maintenance-actions";
-import { AuroraBackground } from "@/components/aurora-background";
-import { UserMenu } from "@/components/user-menu";
+import { WorkspaceShell } from "@/components/workspace-shell";
 import { userMenuUser } from "@/lib/session-user";
 
 export const instant = false;
@@ -154,80 +152,18 @@ export default async function DevOutletDetailPage({
   ];
 
   return (
-    <div className="relative min-h-dvh bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
-      <AuroraBackground />
-
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-slate-100/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
-        {/* ===== Topbar full-width (v2.2.1): baris dalam dibatasi max-w-7xl ===== */}
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-            <div className="flex min-w-0 items-center gap-4">
-              <Link href="/dev" className="flex items-center space-x-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 p-[1px] shadow-md shadow-blue-500/20">
-                  <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-white dark:bg-slate-950">
-                    <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <span className="block max-w-[200px] truncate text-base leading-none font-extrabold tracking-tight text-slate-900 sm:max-w-none dark:text-white">
-                    {outlet.name}
-                  </span>
-                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                    Drill-down outlet · baca-saja
-                  </span>
-                </div>
-              </Link>
-
-              <div className="hidden items-center space-x-2 border-l border-slate-200 pl-4 text-xs font-medium text-slate-500 md:flex dark:border-slate-800 dark:text-slate-400">
-                <Link
-                  href="/dev"
-                  className="text-slate-600 transition hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
-                >
-                  Konsol
-                </Link>
-                <span className="text-slate-400 dark:text-slate-600">/</span>
-                <span className="truncate font-semibold text-slate-700 dark:text-slate-300">
-                  {outlet.name}
-                </span>
-              </div>
-            </div>
-
-            <UserMenu user={userMenuUser(session)} />
-          </div>
-        </header>
-
-        {/* v2.2.1: konten dibatasi kolom max-w-7xl — topbar tetap full-width. */}
+    // Shell v3.2.0: sidebar WORKSPACE/MANAGE varian konsol developer —
+    // drill-down outlet (baca-saja) + mode maintenance.
+    <WorkspaceShell
+      variant="dev"
+      active="konsol"
+      user={userMenuUser(session)}
+      overline="Konsol Developer · Drill-down outlet"
+      title={outlet.name}
+      desc={`${outlet.address || "alamat belum diisi"}${outlet.phone ? ` · ${outlet.phone}` : ""}${!outlet.is_active ? " · nonaktif" : ""} — data bisnis tampil baca-saja; mode maintenance di bawah membuka konsol owner / kasir outlet ini.`}
+      mainClassName="flex-1"
+    >
         <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
-          <Link
-            href="/dev"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Kembali ke konsol developer
-          </Link>
-
-        <header className="mt-4 mb-4 flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20">
-            <Building2 className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="truncate text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
-              {outlet.name}
-            </h1>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-              {outlet.address || "alamat belum diisi"}
-              {outlet.phone ? ` · ${outlet.phone}` : ""}
-              {!outlet.is_active && (
-                <span className="ml-2 rounded-full border border-slate-400/20 bg-slate-400/10 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                  nonaktif
-                </span>
-              )}
-            </p>
-            <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">
-              Data bisnis tampil baca-saja; mode maintenance di bawah untuk
-              membuka konsol owner / kasir outlet ini.
-            </p>
-          </div>
-        </header>
 
         {/* Mode maintenance (Task 35): developer "menjadi" staf outlet ini
             — membuka /owner atau /cashier yang isinya mengikuti outlet.
@@ -496,6 +432,6 @@ export default async function DevOutletDetailPage({
           </section>
         </div>
       </div>
-    </div>
+    </WorkspaceShell>
   );
 }

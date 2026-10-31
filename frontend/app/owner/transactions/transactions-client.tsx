@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -8,7 +7,6 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
-  ReceiptText,
   RotateCcw,
   Search,
   TrendingUp,
@@ -16,8 +14,7 @@ import {
 import { formatRupiah } from "@/lib/format";
 import { getTransactionDetail, refundTransaction } from "./actions";
 import type { ProfitSummary, TransactionDetail, TransactionRow } from "./types";
-import { AuroraBackground } from "@/components/aurora-background";
-import { UserMenu } from "@/components/user-menu";
+import { WorkspaceShell } from "@/components/workspace-shell";
 import type { UserMenuUser } from "@/components/user-menu";
 import { TablePagination } from "@/components/table-pagination";
 
@@ -503,37 +500,18 @@ export function TransactionsClient({
   );
 
   return (
-    // Shell aurora (v1.8.0): riwayat & laba memakai kartu kaca, ikut tema.
-    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
-      <AuroraBackground />
-      <header className="relative z-10 shrink-0 border-b border-slate-200/80 bg-white/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-500/20">
-              <ReceiptText className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
-                Riwayat Transaksi — {outletName}
-              </h1>
-              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                {userName} · Pemilik
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <UserMenu user={me} />
-            <Link
-              href="/owner"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
-            >
-              Beranda
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6">
+    // Shell v3.2.0: sidebar WORKSPACE/MANAGE (pola PDF "Transactions &
+    // refund review") — riwayat & laba memakai permukaan tenang, ikut
+    // tema pengguna. Navigasi header lama kini menempati sidebar.
+    <WorkspaceShell
+      variant="owner"
+      active="transaksi"
+      user={me}
+      outletName={outletName}
+      overline="Riwayat & Laba"
+      title="Transaksi & tinjauan refund"
+      desc={`Cari struk, rekonsiliasi pembayaran, dan tinjau refund — ${userName} · ${outletName}`}
+    >
         <div className="flex w-fit gap-1 rounded-2xl glass-card p-1">
           <button
             type="button"
@@ -857,7 +835,6 @@ export function TransactionsClient({
             </p>
           </>
         )}
-      </main>
-    </div>
+    </WorkspaceShell>
   );
 }

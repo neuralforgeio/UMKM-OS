@@ -17,8 +17,6 @@ import {
   LuArchive,
   LuArchiveRestore,
   LuArrowRight,
-  LuBell,
-  LuChevronRight,
   LuCircleCheck,
   LuCodeXml,
   LuCrown,
@@ -31,13 +29,12 @@ import {
   LuSearch,
   LuShield,
   LuShieldAlert,
-  LuStore,
   LuTrash2,
   LuUserPlus,
   LuUsers,
   LuX,
 } from "react-icons/lu";
-import { AuroraBackground } from "@/components/aurora-background";
+import { WorkspaceShell } from "@/components/workspace-shell";
 import { SelectInput } from "@/components/select-input";
 import { TablePagination } from "@/components/table-pagination";
 import { UserMenu } from "@/components/user-menu";
@@ -429,95 +426,28 @@ export function UsersClient({
   const namaOutletPertama = outlets[0]?.name;
 
   return (
-    <div className="relative min-h-dvh bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
-      <AuroraBackground />
-
-      <div className="relative z-10 flex min-h-dvh flex-col">
-        {/* ===== Topbar: brand + breadcrumb + notifikasi + profil ===== */}
-        <header className="sticky top-0 z-40 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl">
-          <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center space-x-4">
-              <Link href="/dev" className="flex items-center space-x-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 p-[1px] shadow-md shadow-blue-500/20">
-                  <div className="flex h-full w-full items-center justify-center rounded-[11px] bg-white dark:bg-slate-950">
-                    <LuStore className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                </div>
-                <div>
-                  <span className="block text-base leading-none font-extrabold tracking-tight text-slate-900 dark:text-white">
-                    UMKM OS
-                  </span>
-                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                    Kasir &amp; Intelijensi Bisnis
-                  </span>
-                </div>
-              </Link>
-
-              <div className="hidden items-center space-x-2 border-l border-slate-200 dark:border-slate-800 pl-4 text-xs font-medium text-slate-500 dark:text-slate-400 md:flex">
-                <Link
-                  href="/dev"
-                  className="text-slate-600 dark:text-slate-300 transition hover:text-slate-900 dark:hover:text-white"
-                >
-                  Konsol
-                </Link>
-                <LuChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-slate-600" />
-                <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-1 font-semibold text-blue-600 dark:text-blue-400">
-                  Kelola Akun
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              {/* v2.2.0: chip profil (avatar + nama + email) — menu di
-                  bawahnya: Profil / Pengaturan Tampilan / Keluar. Tema
-                  hanya diatur di /settings. */}
-              <UserMenu user={me} />
-
-              {/* Lonceng = pintu ke log aktivitas (notifikasi sistem). */}
-              <Link
-                href="/dev/logs"
-                title="Notifikasi — log aktivitas sistem"
-                aria-label="Log aktivitas sistem"
-                className="relative rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-2 text-slate-500 dark:text-slate-400 transition-all hover:border-slate-300 dark:hover:border-slate-700 hover:text-slate-900 dark:hover:text-white"
-              >
-                <LuBell className="h-4 w-4" />
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-500" />
-              </Link>
-            </div>
-          </div>
-        </header>
-
-        {/* ===== Konten utama ===== */}
-        <main className="mx-auto w-full max-w-7xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-          {/* Judul halaman + aksi utama */}
-          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-                  Kelola Akun &amp; Hak Akses
-                </h1>
-                <span className="rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                  Semua Outlet
-                </span>
-              </div>
-              <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400 sm:text-sm">
-                Atur wewenang pengguna, alokasi tugas kasir per outlet, serta
-                pantau aktivitas jualan terakhir setiap akun.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setEditing(null)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-blue-600/25 transition-all hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] sm:w-auto"
-              >
-                <LuUserPlus className="h-4 w-4" />
-                <span>Tambah Akun Baru</span>
-              </button>
-            </div>
-          </div>
-
+    // Shell v3.2.0: sidebar WORKSPACE/MANAGE varian konsol developer
+    // (pola PDF "User directory") — kelola akun lintas outlet. Tombol
+    // "Tambah Akun Baru" menjadi SATU aksi utama kepala halaman.
+    <WorkspaceShell
+      variant="dev"
+      active="pengguna"
+      user={me}
+      overline="Konsol Developer"
+      title="Kelola akun & hak akses"
+      desc="Atur wewenang pengguna, alokasi tugas kasir per outlet, serta pantau aktivitas jualan terakhir setiap akun."
+      actions={
+        <button
+          type="button"
+          onClick={() => setEditing(null)}
+          className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition hover:bg-primary-hover"
+        >
+          <LuUserPlus className="h-4 w-4" />
+          <span>Tambah Akun Baru</span>
+        </button>
+      }
+      mainClassName="mx-auto w-full max-w-7xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-8"
+    >
           {/* Kartu metrik */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="glass-card group relative overflow-hidden rounded-2xl p-4 transition-all hover:border-blue-500/40">
@@ -865,9 +795,6 @@ export function UsersClient({
               </div>
             </div>
           </div>
-        </main>
-      </div>
-
       {editing !== undefined && (
         <AccountFormModal
           user={editing}
@@ -884,6 +811,6 @@ export function UsersClient({
       {deleting && (
         <DeleteAccountModal user={deleting} onClose={() => setDeleting(null)} />
       )}
-    </div>
+    </WorkspaceShell>
   );
 }

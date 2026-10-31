@@ -114,7 +114,7 @@ export default async function HomePage() {
       <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-4xl flex-col px-4 py-5 sm:py-8">
         <header className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-500/25">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
               <Store className="h-5 w-5" />
             </div>
             <div className="min-w-0">
@@ -135,21 +135,21 @@ export default async function HomePage() {
           </div>
         </header>
 
-        <section className="relative mt-5 overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-6 text-white sm:p-9">
-          <div
-            aria-hidden="true"
-            className="absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/10 blur-2xl"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute -bottom-32 -left-20 h-72 w-72 rounded-full bg-indigo-400/20 blur-3xl"
-          />
+        {/* Hero v3.2.0: panel merek Midnight tenang (pola halaman login
+            baru) — bukan lagi gradien keras ber-blob putih. */}
+        <section
+          className="relative mt-5 overflow-hidden rounded-2xl bg-[#171925] p-6 text-white sm:p-9 dark:bg-[#0e101a]"
+          style={{
+            backgroundImage:
+              "radial-gradient(520px circle at 90% -10%, rgba(102, 88, 232, 0.18), transparent 55%), radial-gradient(560px circle at -8% 110%, rgba(102, 88, 232, 0.12), transparent 55%)",
+          }}
+        >
           <div className="relative">
             <LiveClock />
-            <h1 className="mt-4 text-2xl font-bold leading-tight sm:text-4xl">
+            <h1 className="mt-4 text-2xl font-bold leading-tight tracking-tight sm:text-4xl">
               Selamat datang, {displayName}
             </h1>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-blue-100 sm:text-base">
+            <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-400 sm:text-base">
               Kasir, laporan, stok, dan foto produk warung semuanya siap
               dipakai dalam satu tempat.
             </p>

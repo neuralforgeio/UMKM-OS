@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileSpreadsheet, Settings, Sparkles } from "lucide-react";
-import { AuroraBackground } from "@/components/aurora-background";
-import { UserMenu } from "@/components/user-menu";
+import { FileSpreadsheet, Sparkles } from "lucide-react";
+import { WorkspaceShell } from "@/components/workspace-shell";
 import { userMenuUser } from "@/lib/session-user";
 import { auth } from "@/lib/auth";
 import { getOutletContext, outletLogoUrl } from "@/lib/outlet-context";
@@ -34,52 +32,19 @@ export default async function SettingsPage() {
     "w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20";
 
   return (
-    // Shell aurora (v1.8.0): header kaca + latar ambient, ikut tema pengguna.
-    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
-      <AuroraBackground />
-      <header className="relative z-10 shrink-0 border-b border-slate-200/80 bg-white/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoUrl}
-                alt={`Logo ${outlet.name}`}
-                className="h-10 w-10 shrink-0 rounded-xl object-contain"
-              />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
-                <Settings className="h-5 w-5" />
-              </div>
-            )}
-            <div className="min-w-0">
-              <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
-                Pengaturan — {outlet.name}
-              </h1>
-              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                {session.user.name ?? "Pemilik"} · Pemilik
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <UserMenu user={userMenuUser(session)} />
-            <Link
-              href="/owner"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
-            >
-              Laporan
-            </Link>
-            <Link
-              href="/"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
-            >
-              Beranda
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="relative z-10 mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-6">
+    // Shell v3.2.0: sidebar WORKSPACE/MANAGE (pola PDF "Configuration")
+    // — pengaturan outlet memakai permukaan tenang, ikut tema pengguna.
+    <WorkspaceShell
+      variant="owner"
+      active="pengaturan"
+      user={userMenuUser(session)}
+      outletName={outlet.name}
+      logoUrl={logoUrl}
+      overline="Pengaturan"
+      title="Pengaturan outlet"
+      desc={`${session.user.name ?? "Pemilik"} · identitas, logo, asisten, dan log outlet ${outlet.name}.`}
+      mainClassName="mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-6 sm:px-6 lg:px-8"
+    >
         <section className="rounded-2xl glass-card p-6">
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Profil Warung</h2>
           <p className="mt-1 mb-5 text-sm text-slate-500 dark:text-slate-400">
@@ -233,7 +198,6 @@ export default async function SettingsPage() {
             </p>
           </div>
         </section>
-      </main>
-    </div>
+    </WorkspaceShell>
   );
 }

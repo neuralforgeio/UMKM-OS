@@ -204,7 +204,7 @@ export default async function VerifyConsolePage({
         </Link>
         <div className="flex min-w-0 items-center gap-2">
           <UserMenu user={userMenuUser(session)} />
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
             <ScanSearch className="h-4 w-4" />
           </div>
           <div className="min-w-0">
@@ -230,7 +230,7 @@ export default async function VerifyConsolePage({
         <ScanSearch className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <button
           type="submit"
-          className="shrink-0 rounded-2xl bg-slate-900 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+          className="shrink-0 rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary-hover"
         >
           Cari
         </button>

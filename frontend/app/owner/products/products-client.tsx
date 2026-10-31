@@ -2,13 +2,10 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import Link from "next/link";
 import {
   AlertTriangle,
   Archive,
   ArchiveRestore,
-  ArrowLeft,
-  Boxes,
   Loader2,
   Package,
   PackagePlus,
@@ -17,8 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { formatRupiah } from "@/lib/format";
-import { AuroraBackground } from "@/components/aurora-background";
-import { UserMenu } from "@/components/user-menu";
+import { WorkspaceShell } from "@/components/workspace-shell";
 import type { UserMenuUser } from "@/components/user-menu";
 import { TablePagination } from "@/components/table-pagination";
 import {
@@ -307,49 +303,31 @@ export function ProductsClient({
   };
 
   return (
-    // Shell aurora (v1.8.0): kartu produk & filter memakai kaca, ikut tema.
-    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-blue-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
-      <AuroraBackground />
-      <header className="relative z-10 shrink-0 border-b border-slate-200/80 bg-white/70 backdrop-blur-xl dark:border-slate-800/80 dark:bg-slate-950/70">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-md shadow-blue-500/20">
-              <Boxes className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-base font-bold leading-tight text-slate-900 dark:text-slate-100">
-                Manajemen Produk — {outletName}
-              </h1>
-              <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                {summary.activeCount} produk aktif · {summary.archivedCount}{" "}
-                arsip
-              </p>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <UserMenu user={me} />
-            <button
-              type="button"
-              onClick={() => setEditingId(null)}
-              className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-            >
-              <PackagePlus className="h-4 w-4" />
-              <span className="hidden sm:inline">Produk Baru</span>
-              <span className="sm:hidden">Baru</span>
-            </button>
-            <Link
-              href="/owner"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Dashboard</span>
-              <span className="sm:hidden">Kembali</span>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 px-4 py-4 sm:py-6">
+    // Shell v3.2.0: sidebar WORKSPACE/MANAGE (pola PDF "Product catalog
+    // & pricing") — kartu produk & filter memakai permukaan tenang, ikut
+    // tema pengguna. Tombol "Produk Baru" menjadi SATU aksi utama kepala
+    // halaman; navigasi header lama kini menempati sidebar.
+    <WorkspaceShell
+      variant="owner"
+      active="produk"
+      user={me}
+      outletName={outletName}
+      overline="Kelola Produk"
+      title="Katalog produk & harga"
+      desc="Kelola detail produk, kategori, ketersediaan, dan harga di outlet Anda."
+      actions={
+        <button
+          type="button"
+          onClick={() => setEditingId(null)}
+          className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary-hover"
+        >
+          <PackagePlus className="h-4 w-4" />
+          <span className="hidden sm:inline">Produk Baru</span>
+          <span className="sm:hidden">Baru</span>
+        </button>
+      }
+      mainClassName="mx-auto w-full max-w-7xl flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-8"
+    >
         <section className="rounded-2xl glass-card p-3 sm:p-4">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-44 flex-1">
@@ -509,7 +487,6 @@ export function ProductsClient({
             </>
           )}
         </section>
-      </main>
 
       {editingProduct !== undefined && (
         <ProductFormModal
@@ -521,6 +498,6 @@ export function ProductsClient({
           onClose={() => setEditingId(undefined)}
         />
       )}
-    </div>
+    </WorkspaceShell>
   );
 }

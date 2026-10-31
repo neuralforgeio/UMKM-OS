@@ -143,9 +143,14 @@ describe("halaman /owner/assistant", () => {
 
 describe("navbar owner menautkan asisten", () => {
   it("link /owner/assistant ada di dashboard owner", () => {
+    // v3.2.0: navigasi dashboard owner hidup di sidebar WorkspaceShell
+    // (shell bersama yang membungkus halaman owner).
     const isi = baca("app/owner/page.tsx");
-    expect(isi).toContain('href="/owner/assistant"');
-    expect(isi).toContain("Asisten");
+    expect(isi).toContain("WorkspaceShell");
+    const shell = baca("components/workspace-shell.tsx");
+    expect(shell).toContain('"/owner/assistant"');
+    // label navigasi sidebar memakai nama persona OSCAR (sejak v2.6.0).
+    expect(shell).toContain("OSCAR");
   });
 });
 

@@ -1,16 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  Home,
-  PackagePlus,
-  ReceiptText,
-  Settings,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
 import ForecastSection from "@/components/forecast/forecast-section";
-import { AuroraBackground } from "@/components/aurora-background";
-import { UserMenu } from "@/components/user-menu";
+import { WorkspaceShell } from "@/components/workspace-shell";
 import { userMenuUser } from "@/lib/session-user";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
@@ -20,17 +10,17 @@ import { formatRupiah } from "@/lib/format";
 export const instant = false;
 
 // =====================================================================
-// Dashboard owner — v3.1.0 restyling "Business overview" (arahan desain
-// atasan: indigo, permukaan netral, hierarki tenang).
+// Dashboard owner — v3.2.0 App Shell sidebar WORKSPACE/MANAGE (arahan
+// desain atasan, PDF "UMKM OS Business Platform · Business overview").
 //
 // LOGIKA DATA TIDAK BERUBAH SAMA SEKALI: seluruh angka statistik tetap
-// datang dari backend-go lewat satu panggilan GET /api/v1/reports/
-// dashboard (ringkasan hari ini & kemarin, grafik 7 hari gap-free,
-// porsi metode pembayaran, 5 produk terlaris, stok menipis + saran
-// restok, dan 6 transaksi terbaru). Yang berubah hanya penyajiannya:
-// kartu KPI tanpa ornamen (label overline 9px → nilai besar → delta),
-// judul seksi dengan deskripsi satu baris, satu aksi utama per area,
-// grafik satu rona indigo, dan header solid tanpa kaca/blur.
+// datang dari backend-go lewat satu panggilan GET /reports/dashboard
+// (ringkasan hari ini & kemarin, grafik 7 hari gap-free, porsi metode
+// pembayaran, 5 produk terlaris, stok menipis + saran restok, dan 6
+// transaksi terbaru). Yang berubah hanya pembungkusnya: sidebar + kepala
+// halaman pola PDF (overline + satu judul + deskripsi), kartu KPI tanpa
+// ornamen, grafik satu rona indigo — navigasi header lama kini menempati
+// sidebar WorkspaceShell, tidak ada tujuan yang hilang.
 // =====================================================================
 
 // Compact chart labels: 1250000 -> "1,3 jt", 45000 -> "45 rb".
@@ -65,25 +55,6 @@ const METHOD_META = [
     badge: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300",
   },
 ] as const;
-
-function StorefrontIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
-      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-      <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4" />
-      <path d="M2 7h20" />
-    </svg>
-  );
-}
 
 function TrendUpIcon({ className }: { className?: string }) {
   return (
@@ -312,371 +283,285 @@ export default async function OwnerPage() {
   });
 
   return (
-    // Shell v3.1.0: latar Cloud/Midnight datar + kartu putih solid,
-    // header solid bergaris tepi (tanpa kaca/blur), satu aksi utama.
-    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-primary/20 dark:bg-slate-950 dark:text-slate-100">
-      <AuroraBackground />
-      <header className="relative z-10 shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoUrl}
-                alt={`Logo ${outlet.name}`}
-                className="h-10 w-10 shrink-0 rounded-lg object-contain"
-              />
+    // Shell v3.2.0: sidebar WORKSPACE/MANAGE + kepala halaman pola PDF.
+    <WorkspaceShell
+      variant="owner"
+      active="ringkasan"
+      user={userMenuUser(session)}
+      outletName={outlet.name}
+      logoUrl={logoUrl}
+      overline="Ringkasan Bisnis"
+      title="Gambaran bisnis hari ini"
+      desc="Gambaran jelas penjualan, stok, dan performa tim — seluruh angka langsung dari data transaksi outlet Anda, tanpa perkiraan buatan."
+    >
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Omzet Hari Ini"
+          value={formatRupiah(omzetToday)}
+          sub={
+            deltaPct !== null ? (
+              <span
+                className={`inline-flex items-center gap-1 font-semibold ${
+                  deltaPct >= 0
+                    ? "text-success-strong dark:text-success-strong"
+                    : "text-red-600 dark:text-red-400"
+                }`}
+              >
+                {deltaPct >= 0 ? (
+                  <TrendUpIcon className="h-3.5 w-3.5" />
+                ) : (
+                  <TrendDownIcon className="h-3.5 w-3.5" />
+                )}
+                {deltaPct >= 0 ? "+" : ""}
+                {deltaPct}% vs kemarin
+              </span>
             ) : (
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
-                <StorefrontIcon className="h-5 w-5" />
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-overline text-muted-foreground">Konsol Owner</p>
-              <h1 className="truncate text-base leading-tight font-bold text-slate-900 dark:text-slate-100">
-                Laporan · {outlet.name}
-              </h1>
+              <span>vs kemarin —</span>
+            )
+          }
+        />
+        <StatCard
+          label="Transaksi Hari Ini"
+          value={String(trxToday)}
+          sub={<span>{yesterday.transactions} struk kemarin</span>}
+        />
+        <StatCard
+          label="Item Terjual Hari Ini"
+          value={String(itemsToday)}
+          sub={<span>unit terjual</span>}
+        />
+        <StatCard
+          label="Rata-rata per Struk"
+          value={formatRupiah(avgToday)}
+          sub={<span>dari {trxToday} struk</span>}
+        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="glass-card p-4 lg:col-span-2 lg:p-5">
+          <SectionHead
+            title="Penjualan 7 Hari Terakhir"
+            desc={`Total ${formatRupiah(weekTotal)} · ${weekCount} transaksi`}
+          />
+          {weekCount === 0 ? (
+            <div className="mt-8 rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
+              Belum ada penjualan dalam 7 hari terakhir.
             </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <UserMenu user={userMenuUser(session)} />
-            {/* Navigasi sekunder: tombol ikon senyap (semua tujuan tetap
-                terjangkau — tidak ada fungsi yang hilang), lalu SATU aksi
-                utama sesuai prinsip "one primary action" arahan desain. */}
-            <Link
-              href="/"
-              title="Beranda"
-              aria-label="Beranda"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              <Home className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/owner/verify"
-              title="Verifikasi Struk"
-              aria-label="Verifikasi Struk"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              <ShieldCheck className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/owner/transactions"
-              title="Riwayat Transaksi"
-              aria-label="Riwayat Transaksi"
-              className="hidden h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 sm:flex dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              <ReceiptText className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/owner/settings"
-              title="Pengaturan"
-              aria-label="Pengaturan"
-              className="hidden h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 sm:flex dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              <Settings className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/owner/assistant"
-              className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition hover:bg-primary/15"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span className="hidden md:inline">Asisten</span>
-            </Link>
-            <Link
-              href="/owner/products"
-              className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary-hover"
-            >
-              <PackagePlus className="h-4 w-4" />
-              <span className="hidden sm:inline">Kelola Produk</span>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="relative z-10 mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6">
-        {/* Kepala halaman pola PDF: satu judul utama + deskripsi. */}
-        <div>
-          <p className="text-overline text-muted-foreground">
-            Ringkasan Bisnis
-          </p>
-          <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100">
-            Gambaran jelas penjualan, stok, dan performa hari ini.
-          </h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Seluruh angka di bawah ini langsung dari data transaksi outlet
-            Anda — tanpa perkiraan buatan.
-          </p>
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            label="Omzet Hari Ini"
-            value={formatRupiah(omzetToday)}
-            sub={
-              deltaPct !== null ? (
-                <span
-                  className={`inline-flex items-center gap-1 font-semibold ${
-                    deltaPct >= 0
-                      ? "text-success-strong dark:text-success-strong"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
-                >
-                  {deltaPct >= 0 ? (
-                    <TrendUpIcon className="h-3.5 w-3.5" />
-                  ) : (
-                    <TrendDownIcon className="h-3.5 w-3.5" />
-                  )}
-                  {deltaPct >= 0 ? "+" : ""}
-                  {deltaPct}% vs kemarin
-                </span>
-              ) : (
-                <span>vs kemarin —</span>
-              )
-            }
-          />
-          <StatCard
-            label="Transaksi Hari Ini"
-            value={String(trxToday)}
-            sub={<span>{yesterday.transactions} struk kemarin</span>}
-          />
-          <StatCard
-            label="Item Terjual Hari Ini"
-            value={String(itemsToday)}
-            sub={<span>unit terjual</span>}
-          />
-          <StatCard
-            label="Rata-rata per Struk"
-            value={formatRupiah(avgToday)}
-            sub={<span>dari {trxToday} struk</span>}
-          />
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          <section className="glass-card p-4 lg:col-span-2 lg:p-5">
-            <SectionHead
-              title="Penjualan 7 Hari Terakhir"
-              desc={`Total ${formatRupiah(weekTotal)} · ${weekCount} transaksi`}
-            />
-            {weekCount === 0 ? (
-              <div className="mt-8 rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
-                Belum ada penjualan dalam 7 hari terakhir.
-              </div>
-            ) : (
-              <div className="mt-5 flex h-44 items-end gap-2 sm:gap-3">
-                {days.map((d, i) => {
-                  const barColor =
-                    d.total === 0
-                      ? "bg-slate-200 dark:bg-slate-800"
-                      : i === days.length - 1
-                        ? "bg-primary"
-                        : "bg-primary/45";
-                  return (
-                    <div
-                      key={d.key}
-                      className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5"
-                    >
-                      <span className="text-[10px] font-semibold tabular-nums text-slate-500 dark:text-slate-400">
-                        {compactRp(d.total)}
-                      </span>
-                      <div className="flex w-full flex-1 items-end">
-                        <div
-                          title={`${d.label}: ${formatRupiah(d.total)} (${d.count} transaksi)`}
-                          style={{
-                            height:
-                              d.total > 0
-                                ? `${Math.max((d.total / maxDay) * 100, 6)}%`
-                                : "3px",
-                          }}
-                          className={`w-full rounded-t-md transition-colors ${barColor}`}
-                        />
-                      </div>
-                      <span
-                        className={`text-[11px] font-semibold ${
-                          i === days.length - 1
-                            ? "text-primary"
-                            : "text-slate-500 dark:text-slate-400"
-                        }`}
-                      >
-                        {d.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="glass-card p-4 lg:p-5">
-            <SectionHead title="Metode Pembayaran" desc="7 hari terakhir" />
-            <div className="mt-5 space-y-5">
-              {METHOD_META.map((m) => {
-                const revenue = methodRevenue[m.key] ?? 0;
-                const count = methodCount[m.key] ?? 0;
-                const share = weekTotal > 0 ? (revenue / weekTotal) * 100 : 0;
+          ) : (
+            <div className="mt-5 flex h-44 items-end gap-2 sm:gap-3">
+              {days.map((d, i) => {
+                const barColor =
+                  d.total === 0
+                    ? "bg-slate-200 dark:bg-slate-800"
+                    : i === days.length - 1
+                      ? "bg-primary"
+                      : "bg-primary/45";
                 return (
-                  <div key={m.key}>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2 font-medium text-slate-700 dark:text-slate-300">
-                        <span className={`h-2.5 w-2.5 rounded-full ${m.dot}`} />
-                        {m.label}
-                      </span>
-                      <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">
-                        {formatRupiah(revenue)}
-                      </span>
-                    </div>
-                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-900">
+                  <div
+                    key={d.key}
+                    className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5"
+                  >
+                    <span className="text-[10px] font-semibold tabular-nums text-slate-500 dark:text-slate-400">
+                      {compactRp(d.total)}
+                    </span>
+                    <div className="flex w-full flex-1 items-end">
                       <div
-                        className={`h-full rounded-full ${m.bar}`}
-                        style={{ width: `${share}%` }}
+                        title={`${d.label}: ${formatRupiah(d.total)} (${d.count} transaksi)`}
+                        style={{
+                          height:
+                            d.total > 0
+                              ? `${Math.max((d.total / maxDay) * 100, 6)}%`
+                              : "3px",
+                        }}
+                        className={`w-full rounded-t-md transition-colors ${barColor}`}
                       />
                     </div>
-                    <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
-                      {count} struk · {Math.round(share)}%
-                    </p>
+                    <span
+                      className={`text-[11px] font-semibold ${
+                        i === days.length - 1
+                          ? "text-primary"
+                          : "text-slate-500 dark:text-slate-400"
+                      }`}
+                    >
+                      {d.label}
+                    </span>
                   </div>
                 );
               })}
             </div>
-          </section>
-        </div>
-
-        <ForecastSection />
-
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section className="glass-card p-4 lg:p-5">
-            <SectionHead title="Produk Terlaris" desc="7 hari terakhir" />
-            {topList.length === 0 ? (
-              <div className="mt-8 rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
-                Belum ada penjualan minggu ini.
-              </div>
-            ) : (
-              <ol className="mt-4 space-y-3.5">
-                {topList.map((item, i) => (
-                  <li
-                    key={`${item.name}-${i}`}
-                    className="flex items-center gap-3"
-                  >
-                    <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
-                        i === 0
-                          ? "bg-amber-100 text-amber-700 dark:text-amber-300"
-                          : "bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400"
-                      }`}
-                    >
-                      {i + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {item.name}
-                      </p>
-                      <p className="text-xs text-slate-400 dark:text-slate-500">
-                        {item.qty} {item.unit} terjual
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
-                      {formatRupiah(item.revenue)}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-
-          <section className="glass-card p-4 lg:p-5">
-            <SectionHead
-              title="Stok Perlu Restok"
-              desc="stok di bawah atau sama dengan batas minimum"
-              meta={
-                lowStock.length > 0 ? (
-                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-                    {lowStock.length} produk
-                  </span>
-                ) : null
-              }
-            />
-            {lowStock.length === 0 ? (
-              <div className="mt-4 flex items-center gap-3 rounded-lg bg-emerald-50 px-4 py-3.5 dark:bg-emerald-950/40">
-                <svg
-                  className="h-4 w-4 shrink-0 text-success-strong"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-                <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                  Semua stok aman di atas batas minimum.
-                </p>
-              </div>
-            ) : (
-              <ul className="mt-4 space-y-3.5">
-                {lowStock.map((p) => (
-                  <li key={p.id} className="flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {p.name}
-                      </p>
-                      <p className="text-xs text-slate-400 dark:text-slate-500">
-                        {p.sku ? `${p.sku} · ` : ""}min {p.minStock} {p.unit}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p
-                        className={`text-xs font-bold ${
-                          p.stock === 0
-                            ? "text-red-600 dark:text-red-400"
-                            : "text-amber-600 dark:text-amber-400"
-                        }`}
-                      >
-                        {p.stock === 0 ? "Habis" : `sisa ${p.stock}`}
-                      </p>
-                      <p className="text-[11px] font-medium text-primary">
-                        restok +{p.restock}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
+          )}
+        </section>
 
         <section className="glass-card p-4 lg:p-5">
-          <SectionHead title="Transaksi Terakhir" desc="6 transaksi terbaru" />
-          {recent.length === 0 ? (
+          <SectionHead title="Metode Pembayaran" desc="7 hari terakhir" />
+          <div className="mt-5 space-y-5">
+            {METHOD_META.map((m) => {
+              const revenue = methodRevenue[m.key] ?? 0;
+              const count = methodCount[m.key] ?? 0;
+              const share = weekTotal > 0 ? (revenue / weekTotal) * 100 : 0;
+              return (
+                <div key={m.key}>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2 font-medium text-slate-700 dark:text-slate-300">
+                      <span className={`h-2.5 w-2.5 rounded-full ${m.dot}`} />
+                      {m.label}
+                    </span>
+                    <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                      {formatRupiah(revenue)}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-900">
+                    <div
+                      className={`h-full rounded-full ${m.bar}`}
+                      style={{ width: `${share}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                    {count} struk · {Math.round(share)}%
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+
+      <ForecastSection />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="glass-card p-4 lg:p-5">
+          <SectionHead title="Produk Terlaris" desc="7 hari terakhir" />
+          {topList.length === 0 ? (
             <div className="mt-8 rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
-              Belum ada transaksi tercatat.
+              Belum ada penjualan minggu ini.
             </div>
           ) : (
-            <ul className="mt-2 divide-y divide-slate-100 dark:divide-slate-800">
-              {recent.map((r) => (
-                <li key={r.code} className="flex items-center gap-3 py-3">
+            <ol className="mt-4 space-y-3.5">
+              {topList.map((item, i) => (
+                <li
+                  key={`${item.name}-${i}`}
+                  className="flex items-center gap-3"
+                >
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
+                      i === 0
+                        ? "bg-amber-100 text-amber-700 dark:text-amber-300"
+                        : "bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400"
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
-                      {r.code}
+                    <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {item.name}
                     </p>
-                    <p className="truncate text-xs text-slate-400 dark:text-slate-500">
-                      {r.cashier} · {r.time}
+                    <p className="text-xs text-slate-400 dark:text-slate-500">
+                      {item.qty} {item.unit} terjual
                     </p>
                   </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${r.methodBadge}`}
-                  >
-                    {r.methodLabel}
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                    {formatRupiah(item.revenue)}
                   </span>
-                  <span className="w-28 shrink-0 text-right text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
-                    {formatRupiah(r.total)}
-                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+
+        <section className="glass-card p-4 lg:p-5">
+          <SectionHead
+            title="Stok Perlu Restok"
+            desc="stok di bawah atau sama dengan batas minimum"
+            meta={
+              lowStock.length > 0 ? (
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                  {lowStock.length} produk
+                </span>
+              ) : null
+            }
+          />
+          {lowStock.length === 0 ? (
+            <div className="mt-4 flex items-center gap-3 rounded-lg bg-emerald-50 px-4 py-3.5 dark:bg-emerald-950/40">
+              <svg
+                className="h-4 w-4 shrink-0 text-success-strong"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+              <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                Semua stok aman di atas batas minimum.
+              </p>
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-3.5">
+              {lowStock.map((p) => (
+                <li key={p.id} className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                      {p.name}
+                    </p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">
+                      {p.sku ? `${p.sku} · ` : ""}min {p.minStock} {p.unit}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p
+                      className={`text-xs font-bold ${
+                        p.stock === 0
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-amber-600 dark:text-amber-400"
+                      }`}
+                    >
+                      {p.stock === 0 ? "Habis" : `sisa ${p.stock}`}
+                    </p>
+                    <p className="text-[11px] font-medium text-primary">
+                      restok +{p.restock}
+                    </p>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </section>
-      </main>
-    </div>
+      </div>
+
+      <section className="glass-card p-4 lg:p-5">
+        <SectionHead title="Transaksi Terakhir" desc="6 transaksi terbaru" />
+        {recent.length === 0 ? (
+          <div className="mt-8 rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400 dark:border-slate-800 dark:text-slate-500">
+            Belum ada transaksi tercatat.
+          </div>
+        ) : (
+          <ul className="mt-2 divide-y divide-slate-100 dark:divide-slate-800">
+            {recent.map((r) => (
+              <li key={r.code} className="flex items-center gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                    {r.code}
+                  </p>
+                  <p className="truncate text-xs text-slate-400 dark:text-slate-500">
+                    {r.cashier} · {r.time}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${r.methodBadge}`}
+                >
+                  {r.methodLabel}
+                </span>
+                <span className="w-28 shrink-0 text-right text-sm font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                  {formatRupiah(r.total)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </WorkspaceShell>
   );
 }
