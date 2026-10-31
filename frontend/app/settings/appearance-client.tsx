@@ -1,23 +1,25 @@
 "use client";
 
-// Pemilih tema (v1.3.0): System (default) / Gelap / Terang.
-// Kartu berisi PRATINJAU tampilan yang sebenarnya — pengguna melihat
-// bedanya sebelum mengeklik. Terapkan seketika lewat next-themes.
-// v1.6.0: tombol "Kembali" sadar peran (prop dari server component
-// induk) — kasir pulang ke POS, owner ke konsol, developer ke /dev.
+// Pengaturan Tampilan (v1.3.0; v3.3.0 ikut bahasa desain "Indigo & Quiet
+// Surfaces"). Pemilih tema tetap tiga pilihan: Sistem (default) / Gelap /
+// Terang — tiap kartu memperlihatkan PRATINJAU tampilan yang sebenarnya
+// supaya pengguna melihat bedanya sebelum mengeklik. Pilihan diterapkan
+// seketika lewat next-themes dan tersimpan per-akun (lihat
+// lib/theme-storage.ts).
+//
+// v3.3.0 — bahasa shell yang sama dengan halaman lain:
+//   - pita atas berbatas: ubin merek "U" + chip profil (bila login);
+//   - kepala halaman pola PDF 01: overline + SATU judul + deskripsi;
+//   - kartu pemilih = permukaan tenang (glass-card) + cekal indigo statis,
+//     tanpa gerakan dekoratif — halaman pengaturan adalah alat, bukan
+//     panggung.
+// Tombol "Kembali" tetap sadar peran (prop dari server component induk).
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { motion } from "framer-motion";
-import {
-  LuArrowLeft,
-  LuCheck,
-  LuMonitor,
-  LuMoon,
-  LuSparkles,
-  LuSun,
-} from "react-icons/lu";
+import { ArrowLeft, Check, Monitor, Moon, Sun } from "lucide-react";
 import { AuroraBackground } from "@/components/aurora-background";
+import { UserMenu, type UserMenuUser } from "@/components/user-menu";
 
 type ThemeOption = "system" | "dark" | "light";
 
@@ -25,27 +27,38 @@ const OPTIONS: {
   value: ThemeOption;
   label: string;
   desc: string;
-  icon: typeof LuMonitor;
+  icon: typeof Monitor;
 }[] = [
   {
     value: "system",
     label: "Gunakan Pengaturan Sistem",
     desc: "Otomatis mengikuti tema perangkat — berganti sendiri saat perangkat berganti.",
-    icon: LuMonitor,
+    icon: Monitor,
   },
   {
     value: "dark",
     label: "Mode Gelap",
     desc: "Cocok untuk jadwal malam dan ruangan remang — hemat mata & baterai.",
-    icon: LuMoon,
+    icon: Moon,
   },
   {
     value: "light",
     label: "Mode Terang",
     desc: "Klasik dan kontras tinggi untuk siang hari di terik warung.",
-    icon: LuSun,
+    icon: Sun,
   },
 ];
+
+// Ubin merek "U" — sama dengan sidebar WorkspaceShell & halaman login.
+function BrandTile({ className = "h-9 w-9 text-base" }: { className?: string }) {
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center rounded-lg bg-primary font-extrabold tracking-tight text-primary-foreground ${className}`}
+    >
+      U
+    </div>
+  );
+}
 
 // Mockup jendela mini — masing-masing kartu memperlihatkan tema pilihannya.
 function ThemePreview({ mode }: { mode: ThemeOption }) {
@@ -96,7 +109,7 @@ function ThemePreview({ mode }: { mode: ThemeOption }) {
           />
         ))}
       </div>
-      {/* titik aksen brand */}
+      {/* titik aksen merek */}
       <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-blue-500" />
     </div>
   );
@@ -105,9 +118,11 @@ function ThemePreview({ mode }: { mode: ThemeOption }) {
 export function AppearanceSettings({
   backHref,
   backLabel,
+  user,
 }: {
   backHref: string;
   backLabel: string;
+  user: UserMenuUser | null;
 }) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -119,78 +134,82 @@ export function AppearanceSettings({
     : null;
 
   return (
-    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+    <div className="relative flex min-h-dvh flex-col bg-slate-100 font-sans text-slate-900 antialiased selection:bg-primary/20 dark:bg-slate-950 dark:text-slate-100">
       <AuroraBackground />
 
-      <div className="relative z-10 mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+      {/* Pita atas berbatas — bahasa shell: ubin merek kiri, chip profil
+          (bila sedang login) di kanan. */}
+      <header className="relative z-20 shrink-0 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <BrandTile className="h-8 w-8 text-sm" />
+            <div className="min-w-0">
+              <p className="truncate text-sm leading-none font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                UMKM OS
+              </p>
+              <p className="text-overline mt-0.5 text-muted-foreground">
+                Pengaturan tampilan
+              </p>
+            </div>
+          </div>
+          {user ? <UserMenu user={user} /> : null}
+        </div>
+      </header>
+
+      <main className="relative z-10 mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
         <Link
           href={backHref}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
         >
-          <LuArrowLeft className="h-3.5 w-3.5" />
+          <ArrowLeft className="h-3.5 w-3.5" />
           {backLabel}
         </Link>
 
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-6"
-        >
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3.5 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-300">
-            <LuSparkles className="h-3.5 w-3.5" />
-            Pengaturan — akan terus berkembang
-          </div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+        {/* Kepala halaman (pola PDF 01): overline + SATU judul utama +
+            deskripsi satu baris. */}
+        <div className="mt-5">
+          <p className="text-overline text-muted-foreground">Pengaturan</p>
+          <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-slate-50">
             Tampilan
           </h1>
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">
             Pilih tema aplikasi. Defaultnya{" "}
-            <b className="text-slate-700 dark:text-slate-200">
+            <b className="font-semibold text-slate-700 dark:text-slate-200">
               Pengaturan Sistem
             </b>{" "}
             — aplikasi mengikuti tema perangkatmu secara otomatis.
           </p>
-        </motion.div>
+        </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {OPTIONS.map((opt, i) => {
+        <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {OPTIONS.map((opt) => {
             const active = current === opt.value;
             return (
-              <motion.button
+              <button
                 key={opt.value}
                 type="button"
                 onClick={() => setTheme(opt.value)}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.15 + i * 0.1 }}
-                whileHover={{ y: -4 }}
-                whileTap={{ scale: 0.98 }}
                 aria-pressed={active}
-                className={`glass-card relative rounded-2xl p-4 text-left transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                  active ? "ring-2 ring-blue-500" : "hover:shadow-lg"
+                className={`glass-card relative rounded-2xl p-4 text-left transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  active ? "ring-2 ring-primary" : "hover:shadow-lg"
                 }`}
               >
                 {active && (
-                  <motion.span
-                    layoutId="theme-check"
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    className="absolute top-3 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white shadow-md"
-                  >
-                    <LuCheck className="h-3.5 w-3.5" />
-                  </motion.span>
+                  <span className="absolute top-3 right-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                    <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                  </span>
                 )}
                 <div className="mb-3 flex items-center gap-2">
                   <div
                     className={`flex h-8 w-8 items-center justify-center rounded-xl border ${
                       active
-                        ? "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                        : "border-slate-200 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
+                        ? "border-primary/30 bg-primary/10 text-primary"
+                        : "border-slate-200 bg-slate-100 text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400"
                     }`}
                   >
                     <opt.icon className="h-4 w-4" />
                   </div>
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
                     {opt.label}
                   </p>
                 </div>
@@ -198,21 +217,20 @@ export function AppearanceSettings({
                 <p className="mt-3 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
                   {opt.desc}
                 </p>
-              </motion.button>
+              </button>
             );
           })}
         </div>
 
-        <p className="mt-8 rounded-2xl border border-slate-200/80 bg-white/60 p-4 text-[11px] leading-relaxed text-slate-500 backdrop-blur dark:border-slate-800/80 dark:bg-slate-900/60 dark:text-slate-400">
+        <div className="glass-card mt-7 rounded-2xl p-4 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
           Pilihan tersimpan di mesin ini (localStorage) dengan kunci khusus
           AKUNMU — tema mengikuti orang, bukan browser: dua orang yang
           berbagi satu komputer tetap punya tema masing-masing, dan tema
-          terakhir tersimpan juga sebagai tema halaman masuk. Halaman login,
-          pengaturan, konsol Kelola Akun, dan seluruh area developer sudah
-          mendukung penuh dua tema — area owner & kasir menyusul didandani
-          bertahap.
-        </p>
-      </div>
+          terakhir tersimpan juga sebagai tema halaman masuk. Seluruh
+          halaman aplikasi kini mendukung penuh dua tema — terang dan gelap
+          sama pentingnya sesuai arahan desain.
+        </div>
+      </main>
     </div>
   );
 }

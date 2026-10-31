@@ -205,7 +205,15 @@ describe("receipt-view memakai jalur WhatsApp", () => {
     const isi = baca("app/cashier/receipt-view.tsx");
     // blok aksi berada dalam section print:hidden — cukup pastikan
     // section aksi tetap print:hidden (penjaga regresi cetak struk).
-    expect(isi).toMatch(/<section className="space-y-6 print:hidden">/);
+    // v3.3.0: section kini membawa kelas urutan mobile-first
+    // (order-2 lg:order-1 — kertas struk tampil dulu di HP);
+    // maksud penjaga tidak berubah.
+    expect(isi).toMatch(
+      /<section className="order-2 space-y-6 lg:order-1 print:hidden">/,
+    );
+    // bilah aksi melekat (HP) juga tidak boleh ikut tercetak.
+    const bilah = isi.split("sticky bottom-0")[1] ?? "";
+    expect(bilah.slice(0, 400)).toContain("print:hidden");
   });
 });
 

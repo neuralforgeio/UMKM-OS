@@ -46,3 +46,6 @@ umkm-os-*.ps1
 Thumbs.db
 .idea/
 .vscode/
+
+# Artefak build docker yang pernah nyasar ke indeks git (dibersihkan v3.3.0)
+frontend/frontend/

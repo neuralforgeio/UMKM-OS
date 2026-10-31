@@ -201,3 +201,55 @@ describe("v3.2.0 — App Shell sidebar WORKSPACE/MANAGE (pola PDF)", () => {
     expect(isi).not.toContain("Continue with Google");
   });
 });
+
+describe("v3.3.0 — halaman sempit & struk mengikuti bahasa shell yang sama", () => {
+  it("/settings & /account: pita berbatas + kartu tenang, tanpa sisa slop lama", () => {
+    const tampilan = baca("app/settings/appearance-client.tsx");
+    expect(tampilan).toContain("AuroraBackground");
+    expect(tampilan).toContain("glass-card");
+    expect(tampilan).toContain("text-overline");
+    // sisa "AI slop" era lama tidak boleh kembali ke halaman pengaturan
+    expect(tampilan).not.toContain("LuSparkles");
+    expect(tampilan).not.toContain("motion.");
+    expect(tampilan).not.toContain("backdrop-blur");
+
+    const akun = baca("app/account/page.tsx");
+    expect(akun).toContain("AuroraBackground");
+    expect(akun).toContain("UserMenu");
+    expect(akun).toContain("glass-card");
+    expect(akun).not.toContain("bg-gradient-to");
+    expect(akun).not.toContain("backdrop-blur-xl");
+  });
+
+  it("konsol verifikasi staf: kode + QR + jejak kejadian tetap utuh", () => {
+    const detail = baca("app/owner/verify/[id]/page.tsx");
+    expect(detail).toContain("AuroraBackground");
+    expect(detail).toContain("UserMenu");
+    expect(detail).toContain("Kode verifikasi");
+    expect(detail).toContain("Jejak kejadian");
+    expect(detail).toContain("QRCode");
+  });
+
+  it("struk pembeli di HP: dua mode + kartu struk + latar bersama", () => {
+    const publik = baca("app/verify/[code]/page.tsx");
+    expect(publik).toContain("AuroraBackground");
+    expect(publik).toContain("glass-card");
+    // mode readonly (nomor struk) dan interactive (kode klaim) keduanya ada
+    expect(publik).toContain("Status Pesanan");
+    expect(publik).toContain("Bukti Serah Terima");
+    expect(publik).toContain("BuyerConfirmForm");
+    expect(publik).toContain("BuyerDisputeButton");
+  });
+
+  it("layar struk kasir fokus-mobile: aksi selalu terjangkau jempol", () => {
+    const struk = baca("app/cashier/receipt-view.tsx");
+    expect(struk).toContain("Cetak Struk");
+    expect(struk).toContain("Kirim via WhatsApp");
+    expect(struk).toContain("Transaksi Baru");
+    // bilah aksi melekat di dasar layar HP (desktop memakai kolom kiri)
+    expect(struk).toContain("sticky bottom-0");
+    expect(struk).toContain("lg:hidden");
+    // kertas struk tetap satu-satunya yang tercetak
+    expect(struk).toContain('id="struk-paper"');
+  });
+});

@@ -1,6 +1,8 @@
 "use client";
 
-// Formulir-formulir Profil Saya (v2.2.0). Satu berkas tiga komponen:
+// Formulir-formulir Profil Saya (v2.2.0; v3.3.0 restyle bahasa desain
+// baru — kartu seksi & judul kini disediakan page.tsx, komponen ini murni
+// isi formulir). Satu berkas tiga komponen:
 //   1. ProfilePhotoCard — avatar besar, unggah/hapus foto (wajah);
 //   2. IdentityForm    — nama lengkap & email;
 //   3. AccountForm     — ganti password (tidak berubah sejak v1.0.3).
@@ -35,7 +37,7 @@ function StatusMessage({ state }: { state: AccountActionState }) {
   return (
     <p
       className={`flex items-start gap-1.5 text-sm font-medium ${
-        state.ok ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600"
+        state.ok ? "text-success-strong" : "text-destructive"
       }`}
     >
       {state.ok ? (
@@ -104,18 +106,7 @@ export function ProfilePhotoCard({ user }: { user: UserMenuUser }) {
   };
 
   return (
-    <div className="rounded-2xl glass-card p-5 sm:p-6">
-      <div className="mb-5 space-y-1">
-        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-          Foto Profil
-        </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Foto wajah Anda tampil sebagai avatar di navbar semua halaman —
-          hanya Anda yang bisa melihat & menggantinya. JPEG/PNG/WebP, maks.
-          3 MB.
-        </p>
-      </div>
-
+    <div>
       <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
         {/* Avatar saat ini atau pratinjau berkas baru */}
         <div className="relative">
@@ -124,7 +115,7 @@ export function ProfilePhotoCard({ user }: { user: UserMenuUser }) {
             <img
               src={previewUrl}
               alt="Pratinjau foto baru"
-              className="h-24 w-24 rounded-full object-cover ring-4 ring-blue-500/30"
+              className="h-24 w-24 rounded-full object-cover ring-4 ring-primary/25"
             />
           ) : (
             <UserAvatar
@@ -132,12 +123,12 @@ export function ProfilePhotoCard({ user }: { user: UserMenuUser }) {
               className="h-24 w-24 text-2xl ring-4 ring-slate-200/60 dark:ring-slate-700/60"
             />
           )}
-          <span className="pointer-events-none absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white shadow-md">
+          <span className="pointer-events-none absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md">
             <Camera className="h-4 w-4" />
           </span>
         </div>
 
-        <div className="flex-1 space-y-3">
+        <div className="w-full flex-1 space-y-3">
           {/* Unggah: input file disembunyikan, label jadi tombol.
               Form terkirim saat "Simpan Foto" (atau batal membatalkan). */}
           <form
@@ -163,7 +154,7 @@ export function ProfilePhotoCard({ user }: { user: UserMenuUser }) {
                   <button
                     type="submit"
                     disabled={uploading}
-                    className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
+                    className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary-hover disabled:opacity-60"
                   >
                     {uploading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -175,7 +166,7 @@ export function ProfilePhotoCard({ user }: { user: UserMenuUser }) {
                   <button
                     type="button"
                     onClick={cancelPick}
-                    className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60"
                   >
                     Batal
                   </button>
@@ -187,18 +178,16 @@ export function ProfilePhotoCard({ user }: { user: UserMenuUser }) {
                 <button
                   type="button"
                   onClick={() => inputRef.current?.click()}
-                  className="flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60"
                 >
                   <Camera className="h-4 w-4" />
-                  {user.photoVersion > 0
-                    ? "Ganti Foto"
-                    : "Unggah Foto"}
+                  {user.photoVersion > 0 ? "Ganti Foto" : "Unggah Foto"}
                 </button>
               )}
             </div>
 
             {fileError && (
-              <p className="flex items-center gap-1.5 text-sm font-medium text-rose-600">
+              <p className="flex items-center gap-1.5 text-sm font-medium text-destructive">
                 <TriangleAlert className="h-4 w-4 shrink-0" />
                 {fileError}
               </p>
@@ -212,7 +201,7 @@ export function ProfilePhotoCard({ user }: { user: UserMenuUser }) {
               <button
                 type="submit"
                 disabled={deleting}
-                className="flex items-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-900/50 px-4 py-2 text-sm font-semibold text-rose-600 dark:text-rose-400 transition hover:bg-rose-50 dark:hover:bg-rose-950/30 disabled:opacity-60"
+                className="flex items-center gap-1.5 rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-60 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950/30"
               >
                 {deleting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -265,7 +254,7 @@ export function IdentityForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Nama yang tampil di navbar & struk"
-            className="w-full rounded-xl glass-input px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100"
+            className="glass-input w-full rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100"
           />
         </div>
       </div>
@@ -284,7 +273,7 @@ export function IdentityForm({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="email@contoh.id"
-            className="w-full rounded-xl glass-input px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100"
+            className="glass-input w-full rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-slate-100"
           />
         </div>
         <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">
@@ -297,7 +286,7 @@ export function IdentityForm({
       <button
         type="submit"
         disabled={pending || !dirty || name.trim().length === 0}
-        className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
+        className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary-hover disabled:opacity-60"
       >
         {pending ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -311,7 +300,7 @@ export function IdentityForm({
 }
 
 // =====================================================================
-// 3) Ganti password (v1.0.3 — dipertahankan apa adanya)
+// 3) Ganti password (v1.0.3 — perilaku dipertahankan apa adanya)
 // =====================================================================
 export function AccountForm() {
   const [state, formAction, pending] = useActionState(changePasswordAction, {
@@ -378,7 +367,7 @@ export function AccountForm() {
           />
         </div>
         {confirmMismatch && (
-          <p className="mt-1.5 text-xs font-medium text-rose-600">
+          <p className="mt-1.5 text-xs font-medium text-destructive">
             Belum sama dengan password baru.
           </p>
         )}
@@ -394,7 +383,7 @@ export function AccountForm() {
           newPassword.length === 0 ||
           currentPassword.length === 0
         }
-        className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
+        className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary-hover disabled:opacity-60"
       >
         {pending ? (
           <Loader2 className="h-4 w-4 animate-spin" />

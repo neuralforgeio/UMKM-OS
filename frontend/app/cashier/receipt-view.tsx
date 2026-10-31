@@ -1,10 +1,33 @@
 // frontend/app/cashier/receipt-view.tsx
 "use client";
 
+// Layar sukses struk kasir (v1.3.0 → v3.3.0 FOKUS-MOBILE).
+//
+// v3.3.0 — mengikuti arahan desain "prioritize task flows on mobile":
+//   - HP: kertas struk tampil PALING ATAS (bukti yang pegang kasir lihat
+//     dulu), lalu ringkasan angka; bilah aksi MELEKAT di dasar layar
+//     (Cetak / WhatsApp / Transaksi Baru) supaya selalu terjangkau jempol
+//     tanpa gulir.
+//   - Desktop: kembali dua kolom (ringkasan+aksi kiri, kertas kanan yang
+//     melekat saat menggulir).
+//   - Kertas struk fisik TIDAK berubah satu bit: tetap putih di kedua
+//     tema, 58mm saat dicetak, hanya #struk-paper yang keluar di kertas
+//     (aturan cetak v1.9.0 dijaga tests/theme-consistency.test.ts).
+//
+// LOGIKA TIDAK BERUBAH: cetak via window.print(), struk digital via
+// wa.me (tanpa nomor tersimpan), kode klaim, dan penandaan "sudah
+// diserahkan" tetap satu ketukan ke POST /transactions/{id}/serve.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { ArrowLeft, Check, Loader2, MessageCircle, Printer, RotateCcw } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Loader2,
+  MessageCircle,
+  Printer,
+  RotateCcw,
+} from "lucide-react";
 import { AuroraBackground } from "@/components/aurora-background";
 import type { OutletInfo, Receipt as ReceiptType } from "./types";
 import { formatRupiah } from "@/lib/format";
@@ -124,192 +147,55 @@ export function ReceiptView({
     });
   }
 
+  // v2.4.0 — struk digital via wa.me: pesan terformat penuh (outlet,
+  // item, total, tautan verifikasi) dibangun di sisi klien TANPA nomor
+  // tujuan — pembeli dipilih DI WHATSAPP, aplikasi tidak pernah
+  // menyimpan nomor pembeli.
+  function kirimWhatsapp() {
+    const pesan = buildReceiptMessage(
+      receipt,
+      outlet,
+      receipt.claimCode
+        ? `${window.location.origin}/verify/${receipt.claimCode}`
+        : undefined,
+    );
+    window.open(buildWhatsAppUrl(pesan), "_blank", "noopener");
+  }
+
   return (
-    // Shell aurora (v1.9.0): latar ambient + kartu kaca mengikuti tema
-    // pengguna — sama dengan POS dan area owner. Saat mencetak, seluruh
-    // chrome disembunyikan (print:hidden) dan hanya #struk-paper yang
-    // keluar di atas kertas putih polos.
+    // Latar tenang dua tema (v3.1.0). Saat mencetak, seluruh chrome
+    // disembunyikan (print:hidden) dan hanya #struk-paper yang keluar
+    // di atas kertas putih polos.
     <div className="relative min-h-dvh bg-slate-100 dark:bg-slate-950 print:bg-white">
       <AuroraBackground />
-      <div className="mx-auto w-full max-w-5xl px-4 py-8 lg:py-10">
-        {/* Success header spans the full width ABOVE the grid, so the
-            summary card and the receipt paper both start at exactly
-            the same height — perfectly level side by side. */}
+      <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-8 lg:px-8 print:block print:p-0">
+        {/* Kepala sukses — overline + SATU judul + deskripsi (pola PDF). */}
         <div className="flex items-center gap-4 print:hidden">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-500/15">
-            <Check className="h-7 w-7 text-emerald-600 dark:text-emerald-400" strokeWidth={2.5} />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 sm:h-14 sm:w-14 dark:bg-emerald-500/15">
+            <Check
+              className="h-6 w-6 text-emerald-600 sm:h-7 sm:w-7 dark:text-emerald-400"
+              strokeWidth={2.5}
+            />
           </div>
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+            <p className="text-overline text-muted-foreground">
+              Kasir · transaksi selesai
+            </p>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100">
               Transaksi Berhasil
             </h1>
             <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-              Struk siap dicetak — periksa sekali lagi sebelum menutup halaman
-              ini.
+              Struk siap dicetak — periksa sekali lagi sebelum menutup
+              halaman ini.
             </p>
           </div>
         </div>
 
-        <div className="mt-8 grid items-start gap-8 lg:grid-cols-[1fr_340px] print:mt-0 print:block">
-          {/* Summary + actions — never printed. */}
-          <section className="space-y-6 print:hidden">
-            <dl className="divide-y divide-slate-100 dark:divide-white/10 rounded-2xl glass-card">
-              <div className="flex items-center justify-between gap-4 px-5 py-3.5">
-                <dt className="text-sm text-slate-500 dark:text-slate-400">Kode struk</dt>
-                <dd className="font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  {receipt.code}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-4 px-5 py-3.5">
-                <dt className="text-sm text-slate-500 dark:text-slate-400">Waktu</dt>
-                <dd className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {createdAt} WIB
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-4 px-5 py-3.5">
-                <dt className="text-sm text-slate-500 dark:text-slate-400">Metode pembayaran</dt>
-                <dd className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                  {PAYMENT_LABELS[receipt.paymentMethod]}
-                </dd>
-              </div>
-              {/* v1.3.0: kode klaim = kunci interaktif pembeli. Ditampilkan
-                  di layar sukses supaya kasir bisa membacakannya saat pembeli
-                  takeaway menelepon tanpa membawa struk. */}
-              {receipt.claimCode && (
-                <div className="flex items-center justify-between gap-4 px-5 py-3.5">
-                  <dt className="text-sm text-slate-500 dark:text-slate-400">Kode klaim</dt>
-                  <dd className="font-mono text-sm font-bold tracking-widest text-slate-900 dark:text-slate-100">
-                    {receipt.claimCode}
-                  </dd>
-                </div>
-              )}
-            </dl>
-
-            <div className="space-y-3 rounded-2xl glass-card p-5">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500 dark:text-slate-400">Subtotal</span>
-                <span className="font-medium tabular-nums text-slate-900 dark:text-slate-100">
-                  {formatRupiah(receipt.subtotal)}
-                </span>
-              </div>
-              {receipt.discount > 0 && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500 dark:text-slate-400">Diskon</span>
-                  <span className="font-medium tabular-nums text-rose-600">
-                    -{formatRupiah(receipt.discount)}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-baseline justify-between border-t border-slate-100 dark:border-slate-800/60 pt-3">
-                <span className="text-base font-bold text-slate-900 dark:text-slate-100">
-                  Total
-                </span>
-                <span className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
-                  {formatRupiah(receipt.total)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500 dark:text-slate-400">
-                  Dibayar ({PAYMENT_LABELS[receipt.paymentMethod]})
-                </span>
-                <span className="font-medium tabular-nums text-slate-900 dark:text-slate-100">
-                  {formatRupiah(receipt.paidAmount)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500 dark:text-slate-400">Kembalian</span>
-                <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                  {formatRupiah(receipt.changeAmount)}
-                </span>
-              </div>
-            </div>
-
-            <div className="rounded-xl glass-card px-3 py-2.5 text-xs text-slate-600 dark:text-slate-400">
-              <p className="font-bold text-slate-800 dark:text-slate-200">Serah terima pesanan</p>
-              <p className="mt-0.5 leading-relaxed">
-                Makan di tempat / eceran: tandai sekarang supaya tidak
-                menggantung di Antrean Penyajian kasir.
-                {receipt.claimCode
-                  ? " Takeaway / diantar: serahkan saja struknya — pembeli mengonfirmasi sendiri dari HP lewat QR dan kode klaim yang tercetak."
-                  : ""}
-              </p>
-              {served ? (
-                <p className="mt-2 rounded-lg bg-emerald-100 px-2.5 py-1.5 text-xs font-semibold text-emerald-800">
-                  Tercatat disajikan — terima kasih!
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={submitServed}
-                  disabled={servePending}
-                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-950/40 px-3 py-2 text-xs font-bold text-blue-700 dark:text-blue-300 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {servePending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Check className="h-3.5 w-3.5" />
-                  )}
-                  {servePending ? "Menyimpan…" : "Sudah Diserahkan ke Pembeli"}
-                </button>
-              )}
-              {serveError && (
-                <p className="mt-1.5 text-xs font-semibold text-red-600 dark:text-red-400">
-                  {serveError}
-                </p>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500"
-              >
-                <Printer className="h-4 w-4" />
-                Cetak Struk
-              </button>
-              {/* v2.4.0 — struk digital via wa.me: pesan terformat penuh
-                  (outlet, item, total, tautan verifikasi) dibangun di sisi
-                  klien TANPA nomor tujuan — pembeli dipilih DI WhatsApp,
-                  aplikasi tidak pernah menyimpan nomor pembeli. */}
-              <button
-                type="button"
-                onClick={() => {
-                  const pesan = buildReceiptMessage(
-                    receipt,
-                    outlet,
-                    receipt.claimCode
-                      ? `${window.location.origin}/verify/${receipt.claimCode}`
-                      : undefined,
-                  );
-                  window.open(buildWhatsAppUrl(pesan), "_blank", "noopener");
-                }}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-500 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 dark:border-emerald-500/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
-              >
-                <MessageCircle className="h-4 w-4" />
-                Kirim via WhatsApp
-              </button>
-              <button
-                type="button"
-                onClick={onNewTransaction}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300 shadow-sm transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Transaksi Baru
-              </button>
-            </div>
-
-            <Link
-              href="/"
-              className="flex items-center justify-center gap-1.5 text-sm font-medium text-slate-500 dark:text-slate-400 transition hover:text-slate-700 dark:hover:text-slate-300"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Kembali ke beranda
-            </Link>
-          </section>
-
-          {/* The receipt paper — the ONLY thing that prints. */}
-          <div className="lg:sticky lg:top-8 print:static">
+        {/* HP: kertas struk dulu (bukti di tangan), baru ringkasan.
+            Desktop: ringkasan kiri, kertas kanan yang melekat. */}
+        <div className="mt-6 flex flex-col gap-6 lg:mt-8 lg:grid lg:grid-cols-[1fr_340px] lg:items-start lg:gap-8 print:mt-0 print:block">
+          {/* Kertas struk — satu-satunya yang tercetak. */}
+          <div className="order-1 lg:order-2 lg:sticky lg:top-8 print:static">
             <div
               id="struk-paper"
               // Kertas struk = thermal fisik: TETAP PUTIH meski aplikasi
@@ -486,8 +372,204 @@ export function ReceiptView({
               Pratinjau struk 58mm — yang tercetak hanya kertas struk ini.
             </p>
           </div>
+
+          {/* Ringkasan + aksi — tidak pernah ikut tercetak. */}
+          <section className="order-2 space-y-6 lg:order-1 print:hidden">
+            <dl className="glass-card divide-y divide-slate-100 rounded-2xl dark:divide-white/10">
+              <div className="flex items-center justify-between gap-4 px-5 py-3.5">
+                <dt className="text-sm text-slate-500 dark:text-slate-400">
+                  Kode struk
+                </dt>
+                <dd className="font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {receipt.code}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-4 px-5 py-3.5">
+                <dt className="text-sm text-slate-500 dark:text-slate-400">
+                  Waktu
+                </dt>
+                <dd className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  {createdAt} WIB
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-4 px-5 py-3.5">
+                <dt className="text-sm text-slate-500 dark:text-slate-400">
+                  Metode pembayaran
+                </dt>
+                <dd className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  {PAYMENT_LABELS[receipt.paymentMethod]}
+                </dd>
+              </div>
+              {/* v1.3.0: kode klaim = kunci interaktif pembeli. Ditampilkan
+                  di layar sukses supaya kasir bisa membacakannya saat pembeli
+                  takeaway menelepon tanpa membawa struk. */}
+              {receipt.claimCode && (
+                <div className="flex items-center justify-between gap-4 px-5 py-3.5">
+                  <dt className="text-sm text-slate-500 dark:text-slate-400">
+                    Kode klaim
+                  </dt>
+                  <dd className="font-mono text-sm font-bold tracking-widest text-slate-900 dark:text-slate-100">
+                    {receipt.claimCode}
+                  </dd>
+                </div>
+              )}
+            </dl>
+
+            <div className="glass-card space-y-3 rounded-2xl p-5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500 dark:text-slate-400">
+                  Subtotal
+                </span>
+                <span className="font-medium tabular-nums text-slate-900 dark:text-slate-100">
+                  {formatRupiah(receipt.subtotal)}
+                </span>
+              </div>
+              {receipt.discount > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500 dark:text-slate-400">
+                    Diskon
+                  </span>
+                  <span className="font-medium tabular-nums text-rose-600">
+                    -{formatRupiah(receipt.discount)}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-baseline justify-between border-t border-slate-100 pt-3 dark:border-slate-800/60">
+                <span className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  Total
+                </span>
+                <span className="text-2xl font-extrabold tracking-tight tabular-nums text-slate-900 dark:text-slate-100">
+                  {formatRupiah(receipt.total)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500 dark:text-slate-400">
+                  Dibayar ({PAYMENT_LABELS[receipt.paymentMethod]})
+                </span>
+                <span className="font-medium tabular-nums text-slate-900 dark:text-slate-100">
+                  {formatRupiah(receipt.paidAmount)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500 dark:text-slate-400">
+                  Kembalian
+                </span>
+                <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  {formatRupiah(receipt.changeAmount)}
+                </span>
+              </div>
+            </div>
+
+            <div className="glass-card rounded-xl px-3 py-2.5 text-xs text-slate-600 dark:text-slate-400">
+              <p className="font-bold text-slate-800 dark:text-slate-200">
+                Serah terima pesanan
+              </p>
+              <p className="mt-0.5 leading-relaxed">
+                Makan di tempat / eceran: tandai sekarang supaya tidak
+                menggantung di Antrean Penyajian kasir.
+                {receipt.claimCode
+                  ? " Takeaway / diantar: serahkan saja struknya — pembeli mengonfirmasi sendiri dari HP lewat QR dan kode klaim yang tercetak."
+                  : ""}
+              </p>
+              {served ? (
+                <p className="mt-2 rounded-lg bg-emerald-100 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+                  Tercatat disajikan — terima kasih!
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={submitServed}
+                  disabled={servePending}
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-950/40 dark:text-blue-300"
+                >
+                  {servePending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Check className="h-3.5 w-3.5" />
+                  )}
+                  {servePending ? "Menyimpan…" : "Sudah Diserahkan ke Pembeli"}
+                </button>
+              )}
+              {serveError && (
+                <p className="mt-1.5 text-xs font-semibold text-red-600 dark:text-red-400">
+                  {serveError}
+                </p>
+              )}
+            </div>
+
+            {/* Aksi penuh (desktop) — di HP memakai bilah melekat di dasar
+                layar supaya terjangkau jempol tanpa gulir. */}
+            <div className="hidden flex-col gap-3 sm:flex-row lg:flex">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary-hover"
+              >
+                <Printer className="h-4 w-4" />
+                Cetak Struk
+              </button>
+              <button
+                type="button"
+                onClick={kirimWhatsapp}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-500 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition hover:bg-emerald-100 dark:border-emerald-500/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Kirim via WhatsApp
+              </button>
+              <button
+                type="button"
+                onClick={onNewTransaction}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Transaksi Baru
+              </button>
+            </div>
+
+            <Link
+              href="/"
+              className="flex items-center justify-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Kembali ke beranda
+            </Link>
+          </section>
         </div>
       </div>
+
+      {/* Bilah aksi melekat (HP) — Cetak selalu terjangkau jempol.
+          Desktop memakai deretan tombol penuh di kolom kiri. */}
+      <div className="sticky bottom-0 z-30 mt-6 border-t border-slate-200 bg-white px-4 py-3 lg:hidden print:hidden dark:border-slate-800 dark:bg-slate-900">
+        <div className="mx-auto flex w-full max-w-5xl items-center gap-2">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary-hover"
+          >
+            <Printer className="h-4 w-4" />
+            Cetak Struk
+          </button>
+          <button
+            type="button"
+            onClick={kirimWhatsapp}
+            aria-label="Kirim via WhatsApp"
+            title="Kirim via WhatsApp"
+            className="flex items-center justify-center rounded-xl border border-emerald-500 bg-emerald-50 px-4 py-3 text-emerald-700 shadow-sm transition hover:bg-emerald-100 dark:border-emerald-500/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+          >
+            <MessageCircle className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onNewTransaction}
+            aria-label="Transaksi Baru"
+            title="Transaksi Baru"
+            className="flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
       <style>{RECEIPT_CSS}</style>
     </div>
   );
