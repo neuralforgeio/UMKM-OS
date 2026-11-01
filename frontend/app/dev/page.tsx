@@ -4,12 +4,11 @@
 // dan 20 jejak audit terbaru.
 // v1.6.0: design aurora + glassmorphism, sadar tema (terang/gelap/sistem).
 // v2.0.0: seluruh data dari backend-go (GET /reports/by-outlet +
-// GET /audit-logs) — tabel Prisma tidak disentuh lagi; outlet baru
+// GET /audit-logs), tabel Prisma tidak disentuh lagi; outlet baru
 // langsung tampil di sini.
 // v2.2.1: (1) topbar FULL-WIDTH memanjang kanan-kiri seperti navbar
 // kasir/owner (dulu terkurung kolom 72rem di tengah layar);
-// (2) kartu "Jejak Audit Terbaru" kini jendela TERMINAL PowerShell —
-// ringkas, berbatas (maks 320px, scroll internal), warna per tingkat
+// (2) kartu "Jejak Audit Terbaru" kini jendela TERMINAL PowerShell, // ringkas, berbatas (maks 320px, scroll internal), warna per tingkat
 // keseriusan & peran, selalu gelap di kedua tema.
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -18,6 +17,7 @@ import {
   ArrowRight,
   Building2,
   ScrollText,
+  ShieldCheck,
   Store,
   TriangleAlert,
   UserCog,
@@ -28,9 +28,12 @@ import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import { AuditTerminal } from "@/components/audit-terminal";
 import { buildAuditCommand } from "@/lib/audit-terminal";
-import { WorkspaceShell } from "@/components/workspace-shell";
 import { userMenuUser } from "@/lib/session-user";
 import { OutletCreateButton } from "./outlet-create-button";
+
+import { AppShell } from "@/components/shell/app-shell";
+import { getOutletContext } from "@/lib/outlet-context";
+import { outletLogoUrl } from "@/lib/outlet-branding";
 
 export const instant = false;
 
@@ -47,7 +50,7 @@ type GoOutletStat = {
   omzet_today: number;
 };
 
-// Bentuk baris audit (backend-go GET /audit-logs) — v2.2.1 menambah
+// Bentuk baris audit (backend-go GET /audit-logs), v2.2.1 menambah
 // user_role & outlet_name yang dikirim Go sejak v1.6.0 untuk warna
 // peran & label outlet di terminal.
 type GoAuditRow = {
@@ -66,15 +69,17 @@ type GoAuditRow = {
 export default async function DevConsolePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  // Hanya DEVELOPER boleh melihat konsol ini — owner & kasir punya
+  // Hanya DEVELOPER boleh melihat konsol ini, owner & kasir punya
   // halamannya sendiri dan tidak boleh membaca data lintas outlet.
   if (session.user.role !== "DEVELOPER") redirect("/");
   if (!session.user.goToken) {
-    throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
+    throw new Error("Sesi tidak memiliki token backend, silakan login ulang.");
   }
 
+  const outlet = await getOutletContext();
+
   // v2.0.0: statistik per-outlet + 20 jejak audit terbaru, semuanya dari
-  // backend-go. Konsol super-user gagal keras bila backend mati — tidak
+  // backend-go. Konsol super-user gagal keras bila backend mati, tidak
   // ada angka lama yang bisa tertukar dengan kondisi sekarang.
   const [statsRes, auditRes] = await Promise.all([
     goFetch<GoOutletStat[]>(session.user.goToken, "/reports/by-outlet"),
@@ -118,18 +123,16 @@ export default async function DevConsolePage() {
   ];
 
   return (
-    // Shell v3.2.0: sidebar WORKSPACE/MANAGE varian konsol developer
-    // (pola PDF "Platform overview") — akses lintas outlet.
-    <WorkspaceShell
-      variant="dev"
-      active="konsol"
+    <AppShell
+      role="DEVELOPER"
       user={userMenuUser(session)}
-      overline="Konsol Developer"
-      title="Ringkasan platform"
-      desc={`${session.user.name ?? "Developer"} · operasional global lintas outlet: akun, omzet, dan jejak audit.`}
+      outlet={{ name: outlet?.name ?? "Konsol Developer", logoUrl: outlet ? outletLogoUrl(outlet) : null, address: outlet?.address ?? null }}
+      crumb="Konsol Developer"
+      title="Ringkasan"
+      subtitle={outlet?.name ?? "Pantauan lintas outlet"}
     >
-        {/* Pintasan Fase B: dua pintu utama konsol. Kartu besar + panah —
-            bukan menu tersembunyi, karena ini alasan konsol ini ada. */}
+
+        {/* Pintasan Fase B: dua pintu utama konsol. Kartu besar + panah, bukan menu tersembunyi, karena ini alasan konsol ini ada. */}
         <section className="grid gap-3 sm:grid-cols-2">
           <Link
             href="/dev/users"
@@ -244,7 +247,7 @@ export default async function DevConsolePage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                      {o.address || "—"}
+                      {o.address || ""}
                     </td>
                     <td className="px-4 py-3 tabular-nums text-slate-600 dark:text-slate-300">
                       {o.products}
@@ -260,7 +263,7 @@ export default async function DevConsolePage() {
                       colSpan={4}
                       className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
                     >
-                      Belum ada outlet terdaftar — tekan &quot;Outlet Baru&quot;
+                      Belum ada outlet terdaftar, tekan &quot;Outlet Baru&quot;
                       untuk membuat yang pertama.
                     </td>
                   </tr>
@@ -270,7 +273,7 @@ export default async function DevConsolePage() {
           </div>
         </section>
 
-        {/* ===== Jejak Audit Terbaru — kini TERMINAL PowerShell (v2.2.1):
+        {/* ===== Jejak Audit Terbaru, kini TERMINAL PowerShell (v2.2.1):
             ringkas satu baris info + satu baris detail, berbatas 320px
             dengan scroll internal, warna per tingkat & peran, selalu
             gelap di kedua tema. ===== */}
@@ -280,7 +283,7 @@ export default async function DevConsolePage() {
             Jejak Audit Terbaru
           </h2>
           <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Terminal hidup: 20 aksi terakhir lintas outlet —{" "}
+            Terminal hidup: 20 aksi terakhir lintas outlet, {" "}
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">
               SUKSES
             </span>{" "}
@@ -296,7 +299,7 @@ export default async function DevConsolePage() {
           </p>
           <div className="mt-3">
             <AuditTerminal
-              title="umkm-os — jejak audit — 20 terbaru"
+              title="umkm-os, jejak audit, 20 terbaru"
               command={buildAuditCommand({}, 20, true)}
               note="tingkat: SUKSES hijau · PERINGATAN kuning · GAGAL merah"
               rows={auditRows}
@@ -315,8 +318,8 @@ export default async function DevConsolePage() {
 
         <p className="mt-4 text-center text-xs text-slate-400 dark:text-slate-500">
           Multi-outlet v2.0.0 aktif: produk, transaksi, dan antrean tiap
-          outlet terpisah — dashboard &amp; POS mengikuti outlet akun.
+          outlet terpisah, dashboard &amp; POS mengikuti outlet akun.
         </p>
-    </WorkspaceShell>
+    </AppShell>
   );
 }

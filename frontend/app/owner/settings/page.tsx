@@ -1,11 +1,13 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileSpreadsheet, Sparkles } from "lucide-react";
-import { WorkspaceShell } from "@/components/workspace-shell";
+import { FileSpreadsheet, Settings, Sparkles } from "lucide-react";
 import { userMenuUser } from "@/lib/session-user";
 import { auth } from "@/lib/auth";
 import { getOutletContext, outletLogoUrl } from "@/lib/outlet-context";
 import { AssistantAiForm } from "./assistant-ai-form";
 import { OutletLogoForm, OutletProfileForm } from "./settings-forms";
+
+import { AppShell } from "@/components/shell/app-shell";
 
 export const instant = false;
 
@@ -16,14 +18,13 @@ export default async function SettingsPage() {
     redirect("/cashier");
   }
 
-  // v2.0.0: identitas outlet dari backend-go — pengaturan mengedit outlet
+  // v2.0.0: identitas outlet dari backend-go, pengaturan mengedit outlet
   // IKATAN akun pemanggil, bukan lagi baris pertama tabel Prisma yang
   // diam-diam dipakai bersama semua outlet.
   const outlet = await getOutletContext();
   if (!outlet) {
     throw new Error(
-      "Identitas outlet tidak terbaca dari backend — pastikan backend-go berjalan, lalu muat ulang halaman ini.",
-    );
+      "Identitas outlet tidak terbaca dari backend, pastikan backend-go berjalan, lalu muat ulang halaman ini.");
   }
 
   const logoUrl = outletLogoUrl(outlet);
@@ -32,19 +33,15 @@ export default async function SettingsPage() {
     "w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20";
 
   return (
-    // Shell v3.2.0: sidebar WORKSPACE/MANAGE (pola PDF "Configuration")
-    // — pengaturan outlet memakai permukaan tenang, ikut tema pengguna.
-    <WorkspaceShell
-      variant="owner"
-      active="pengaturan"
+    <AppShell
+      role={session.user.role === "DEVELOPER" ? "DEVELOPER" : "OWNER"}
       user={userMenuUser(session)}
-      outletName={outlet.name}
-      logoUrl={logoUrl}
-      overline="Pengaturan"
-      title="Pengaturan outlet"
-      desc={`${session.user.name ?? "Pemilik"} · identitas, logo, asisten, dan log outlet ${outlet.name}.`}
-      mainClassName="mx-auto w-full max-w-3xl flex-1 space-y-6 px-4 py-6 sm:px-6 lg:px-8"
+      outlet={{ name: outlet?.name ?? "Warung Anda", logoUrl: outlet ? outletLogoUrl(outlet) : null, address: outlet?.address ?? null }}
+      crumb="Pengelolaan"
+      title="Pengaturan"
+      subtitle={outlet?.name ?? "Pengaturan warung"}
     >
+
         <section className="rounded-2xl glass-card p-6">
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Profil Warung</h2>
           <p className="mt-1 mb-5 text-sm text-slate-500 dark:text-slate-400">
@@ -62,7 +59,7 @@ export default async function SettingsPage() {
         <section className="rounded-2xl glass-card p-6">
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Logo UMKM</h2>
           <p className="mt-1 mb-5 text-sm text-slate-500 dark:text-slate-400">
-            Logo warungmu — muncul di struk, header kasir, dan ikon browser.
+            Logo warungmu, muncul di struk, header kasir, dan ikon browser.
           </p>
           <OutletLogoForm logoUrl={logoUrl} />
         </section>
@@ -73,7 +70,7 @@ export default async function SettingsPage() {
             Asisten AI (opsional)
           </h2>
           <p className="mt-1 mb-5 text-sm text-slate-500 dark:text-slate-400">
-            Naikkan asisten ke Mode AI — jawaban lebih pintar memahami
+            Naikkan asisten ke Mode AI, jawaban lebih pintar memahami
             bahasa bebas. Cukup isi sekali di sini; tanpa edit .env, tanpa
             restart container.
           </p>
@@ -83,8 +80,7 @@ export default async function SettingsPage() {
           </div>
         </section>
 
-        {/* Unduh log outlet (Task 35): GET form biasa ke route export —
-            owner otomatis di-scope ke outletnya sendiri di server, jadi
+        {/* Unduh log outlet (Task 35): GET form biasa ke route export, owner otomatis di-scope ke outletnya sendiri di server, jadi
             tidak ada parameter outlet yang bisa (perlu) diutak-atik. */}
         <section className="rounded-2xl glass-card p-6">
           <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -94,7 +90,7 @@ export default async function SettingsPage() {
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Unduh jejak audit outlet ini sebagai Excel: tabel log yang rapi
             (bisa difilter), grafik tren periodik, aktivitas per jam, top
-            aksi, dan pivot harian — siap untuk analisa.
+            aksi, dan pivot harian, siap untuk analisa.
           </p>
           <form
             method="get"
@@ -138,8 +134,7 @@ export default async function SettingsPage() {
             </button>
           </form>
           <p className="mt-2 text-[11px] leading-relaxed text-slate-400 dark:text-slate-500">
-            Rentang kosong = semua waktu. Maksimal 10.000 baris per unduhan —
-            untuk penelusuran panjang, unduh per rentang bulan. Hanya event
+            Rentang kosong = semua waktu. Maksimal 10.000 baris per unduhan, untuk penelusuran panjang, unduh per rentang bulan. Hanya event
             outlet {outlet.name} yang ikut.
           </p>
         </section>
@@ -198,6 +193,6 @@ export default async function SettingsPage() {
             </p>
           </div>
         </section>
-    </WorkspaceShell>
+    </AppShell>
   );
 }

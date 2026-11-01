@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
+  ArrowLeft,
   Boxes,
   Building2,
   Calculator,
@@ -14,8 +15,10 @@ import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import { enterMaintenance } from "@/app/dev/maintenance-actions";
-import { WorkspaceShell } from "@/components/workspace-shell";
 import { userMenuUser } from "@/lib/session-user";
+
+import { AppShell } from "@/components/shell/app-shell";
+import { outletLogoUrl } from "@/lib/outlet-branding";
 
 export const instant = false;
 
@@ -68,15 +71,15 @@ type GoDrillDashboard = {
   low_stock: unknown[];
 };
 
-// Drill-down outlet (Task 34 Fase B) — data bisnis READ-ONLY by design:
+// Drill-down outlet (Task 34 Fase B), data bisnis READ-ONLY by design:
 // developer MEMBACA untuk memantau, mengubah hanya lewat jalurnya
 // masing-masing (produk/stok oleh owner outlet, akun oleh /dev/users).
 // Task 35 menambah pintu MAINTENANCE: developer bisa membuka konsol
-// owner & POS kasir outlet ini "menjadi stafnya" — memakai cookie
+// owner & POS kasir outlet ini "menjadi stafnya", memakai cookie
 // dev_outlet yang disuntikkan ke sesi (lihat lib/auth.ts), keluar
 // kapan saja lewat banner amber.
 // v1.6.0: design aurora + glass sadar tema.
-// v2.0.0: seluruh data dari backend-go ter-scope ?outlet_id= — outlet
+// v2.0.0: seluruh data dari backend-go ter-scope ?outlet_id=, outlet
 // baru juga bisa di-drill-down, bukan cuma tabel Prisma lama.
 export default async function DevOutletDetailPage({
   params,
@@ -87,7 +90,7 @@ export default async function DevOutletDetailPage({
   if (!session?.user) redirect("/login");
   if (session.user.role !== "DEVELOPER") redirect("/");
   if (!session.user.goToken) {
-    throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
+    throw new Error("Sesi tidak memiliki token backend, silakan login ulang.");
   }
   const goToken = session.user.goToken;
 
@@ -96,7 +99,7 @@ export default async function DevOutletDetailPage({
   if (!Number.isInteger(outletId) || outletId <= 0) notFound();
 
   // Outlet + data bisnisnya, semuanya ter-scope ?outlet_id= (DEVELOPER
-  // wajib eksplisit — inilah aturan scoping backend-go v1.5.0).
+  // wajib eksplisit, inilah aturan scoping backend-go v1.5.0).
   const [outletRes, productsRes, usersRes, transactionsRes, dashRes] =
     await Promise.all([
       goFetch<GoOutlet>(goToken, `/outlets/${outletId}`),
@@ -107,7 +110,7 @@ export default async function DevOutletDetailPage({
     ]);
   // Outlet tidak ada / sudah terhapus -> 404 (pola notFound bawaan).
   if (!outletRes.ok) notFound();
-  // Halaman inti super-user gagal keras bila backend mati — tidak ada
+  // Halaman inti super-user gagal keras bila backend mati, tidak ada
   // grid kosong yang terlihat normal.
   if (!productsRes.ok) {
     throw new Error(productsRes.message);
@@ -152,21 +155,49 @@ export default async function DevOutletDetailPage({
   ];
 
   return (
-    // Shell v3.2.0: sidebar WORKSPACE/MANAGE varian konsol developer —
-    // drill-down outlet (baca-saja) + mode maintenance.
-    <WorkspaceShell
-      variant="dev"
-      active="konsol"
+    <AppShell
+      role="DEVELOPER"
       user={userMenuUser(session)}
-      overline="Konsol Developer · Drill-down outlet"
-      title={outlet.name}
-      desc={`${outlet.address || "alamat belum diisi"}${outlet.phone ? ` · ${outlet.phone}` : ""}${!outlet.is_active ? " · nonaktif" : ""} — data bisnis tampil baca-saja; mode maintenance di bawah membuka konsol owner / kasir outlet ini.`}
-      mainClassName="flex-1"
+      outlet={{ name: outlet.name, logoUrl: null, address: outlet.address ?? null }}
+      crumb="Konsol Developer"
+      title="Detail Outlet"
+      subtitle={outlet.name}
     >
-        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
 
-        {/* Mode maintenance (Task 35): developer "menjadi" staf outlet ini
-            — membuka /owner atau /cashier yang isinya mengikuti outlet.
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
+          <Link
+            href="/dev"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Kembali ke konsol developer
+          </Link>
+
+        <header className="mt-4 mb-4 flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white shadow-md shadow-blue-500/20">
+            <Building2 className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
+              {outlet.name}
+            </h1>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              {outlet.address || "alamat belum diisi"}
+              {outlet.phone ? ` · ${outlet.phone}` : ""}
+              {!outlet.is_active && (
+                <span className="ml-2 rounded-full border border-slate-400/20 bg-slate-400/10 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                  nonaktif
+                </span>
+              )}
+            </p>
+            <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">
+              Data bisnis tampil baca-saja; mode maintenance di bawah untuk
+              membuka konsol owner / kasir outlet ini.
+            </p>
+          </div>
+        </header>
+
+        {/* Mode maintenance (Task 35): developer "menjadi" staf outlet ini, membuka /owner atau /cashier yang isinya mengikuti outlet.
             Masuk & keluar tercatat (DEV_MAINTENANCE_ENTER/EXIT). */}
         <section className="mt-2 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-5 dark:border-amber-500/20 dark:bg-amber-950/20">
           <h2 className="flex items-center gap-2 text-lg font-bold text-amber-900 dark:text-amber-300">
@@ -175,7 +206,7 @@ export default async function DevOutletDetailPage({
           </h2>
           <p className="mt-0.5 text-sm text-amber-800/90 dark:text-amber-200/80">
             Buka area owner atau kasir outlet {outlet.name} seolah Anda
-            stafnya — untuk men-debug, melatih, atau memperbaiki. Banner
+            stafnya, untuk men-debug, melatih, atau memperbaiki. Banner
             amber di halaman tersebut jadi pengingat bahwa Anda sedang
             bertindak sebagai developer; tekan &quot;Keluar Mode&quot; untuk
             kembali.
@@ -259,11 +290,11 @@ export default async function DevOutletDetailPage({
                           </span>
                         )}
                         <p className="font-mono text-[11px] font-medium tracking-wide text-slate-400 uppercase dark:text-slate-500">
-                          {p.sku ?? "—"}
+                          {p.sku ?? ""}
                         </p>
                       </td>
                       <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                        {p.category || "—"}
+                        {p.category || ""}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-600 dark:text-slate-300">
                         {formatRupiah(Math.round(Number(p.price)))}
@@ -278,7 +309,7 @@ export default async function DevOutletDetailPage({
                           </span>
                         ) : (
                           <span className="text-xs text-slate-400 dark:text-slate-500">
-                            {p.is_active ? "aman" : "—"}
+                            {p.is_active ? "aman" : ""}
                           </span>
                         )}
                       </td>
@@ -409,7 +440,7 @@ export default async function DevOutletDetailPage({
                         {formatWib(new Date(t.created_at))}
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">
-                        {t.cashier_name || "—"}
+                        {t.cashier_name || ""}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums text-slate-600 dark:text-slate-300">
                         {formatRupiah(Math.round(Number(t.total)))}
@@ -432,6 +463,6 @@ export default async function DevOutletDetailPage({
           </section>
         </div>
       </div>
-    </WorkspaceShell>
+    </AppShell>
   );
 }

@@ -3,12 +3,14 @@ import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { getOutletContext } from "@/lib/outlet-context";
 import { userMenuUser } from "@/lib/session-user";
+import { AppShell } from "@/components/shell/app-shell";
+import { outletLogoUrl } from "@/lib/outlet-branding";
 import { TransactionsClient } from "./transactions-client";
 import type { ProfitSummary, TransactionRow } from "./types";
 
 export const instant = false;
 
-// Latest N receipts loaded for the history list — 200 covers roughly a
+// Latest N receipts loaded for the history list, 200 covers roughly a
 // busy fortnight at warung scale; older history stays queryable the
 // day the page grows real pagination.
 const LIST_LIMIT = 200;
@@ -51,8 +53,7 @@ type GoProfitSummary = {
   rows: GoProfitProductRow[];
 };
 
-// Pemetaan murni snake_case Go -> bentuk camelCase komponen klien —
-// komponenTransactionsClient dan types.ts tidak berubah sama sekali.
+// Pemetaan murni snake_case Go -> bentuk camelCase komponen klien, // komponenTransactionsClient dan types.ts tidak berubah sama sekali.
 function mapProfit(s: GoProfitSummary): ProfitSummary {
   return {
     periodDays: s.period_days,
@@ -81,30 +82,26 @@ export default async function OwnerTransactionsPage() {
   const token = session.user.goToken;
   if (!token) redirect("/login");
 
-  // Outlet konteks ditentukan Go (ikatan akun / cookie maintenance dev) —
-  // satu pintu yang sama dengan kasir & dashboard, tanpa fallback tabel
+  // Outlet konteks ditentukan Go (ikatan akun / cookie maintenance dev), // satu pintu yang sama dengan kasir & dashboard, tanpa fallback tabel
   // beku era Prisma.
   const outlet = await getOutletContext();
   if (!outlet) redirect("/owner");
 
   // Riwayat + ringkasan laba 7/30 hari dalam dua panggilan paralel.
-  // Omzet hanya menghitung struk COMPLETED — refund mengembalikan uang,
+  // Omzet hanya menghitung struk COMPLETED, refund mengembalikan uang,
   // jadi tidak pernah masuk angka laba (dihitung Go, sama dengan era
-  // Prisma). Backend mati = halaman gagal dengan pesan yang jelas —
-  // tidak ada angka palsu untuk keputusan bisnis.
+  // Prisma). Backend mati = halaman gagal dengan pesan yang jelas, // tidak ada angka palsu untuk keputusan bisnis.
   const [listRes, profitRes] = await Promise.all([
     goFetch<GoTransactionRow[]>(token, `/transactions?limit=${LIST_LIMIT}`),
     goFetch<{ week: GoProfitSummary; month: GoProfitSummary }>(
       token,
-      "/reports/profit",
-    ),
+      "/reports/profit"),
   ]);
   if (!listRes.ok) throw new Error(listRes.message);
   if (!profitRes.ok) throw new Error(profitRes.message);
   if (!Array.isArray(listRes.data) || !profitRes.data?.week || !profitRes.data?.month) {
     throw new Error(
-      "Backend lama masih berjalan di port 8080 (tanpa scope outlet v1.5.0). Jalankan docker compose up -d --build, lalu muat ulang halaman ini.",
-    );
+      "Backend lama masih berjalan di port 8080 (tanpa scope outlet v1.5.0). Jalankan docker compose up -d --build, lalu muat ulang halaman ini.");
   }
 
   const listRows: TransactionRow[] = listRes.data.map((row) => ({
@@ -123,13 +120,26 @@ export default async function OwnerTransactionsPage() {
   }));
 
   return (
-    <TransactionsClient
-      outletName={outlet.name}
-      userName={session.user.name ?? "Pemilik"}
-      rows={listRows}
-      weekSummary={mapProfit(profitRes.data.week)}
-      monthSummary={mapProfit(profitRes.data.month)}
-      me={userMenuUser(session)}
-    />
+    <AppShell
+      role={session.user.role === "DEVELOPER" ? "DEVELOPER" : "OWNER"}
+      user={userMenuUser(session)}
+      outlet={{
+        name: outlet.name,
+        logoUrl: outletLogoUrl(outlet),
+        address: outlet.address,
+      }}
+      crumb="Menu Utama"
+      title="Transaksi"
+      subtitle={outlet.name}
+    >
+      <TransactionsClient
+        outletName={outlet.name}
+        userName={session.user.name ?? "Pemilik"}
+        rows={listRows}
+        weekSummary={mapProfit(profitRes.data.week)}
+        monthSummary={mapProfit(profitRes.data.month)}
+        me={userMenuUser(session)}
+      />
+    </AppShell>
   );
 }

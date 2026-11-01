@@ -2,10 +2,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   Archive,
   ArchiveRestore,
+  ArrowLeft,
+  Boxes,
   Loader2,
   Package,
   PackagePlus,
@@ -14,7 +17,6 @@ import {
   X,
 } from "lucide-react";
 import { formatRupiah } from "@/lib/format";
-import { WorkspaceShell } from "@/components/workspace-shell";
 import type { UserMenuUser } from "@/components/user-menu";
 import { TablePagination } from "@/components/table-pagination";
 import {
@@ -65,7 +67,7 @@ function StockBadge({ product }: { product: ProductRow }) {
 }
 
 // Product identity tile: the chosen photo when one exists, otherwise
-// the colored category initials — the same fallback language as the POS.
+// the colored category initials, the same fallback language as the POS.
 function ProductAvatar({ product }: { product: ProductRow }) {
   if (product.thumbImageId) {
     return (
@@ -130,7 +132,7 @@ function ProductRowItem({
             {product.categoryName}
           </span>
         ) : (
-          <span className="text-[11px] text-slate-300">—</span>
+          <span className="text-[11px] text-slate-300"></span>
         )}
       </div>
 
@@ -159,7 +161,7 @@ function ProductRowItem({
             <span className="font-normal text-slate-400 dark:text-slate-500">{product.unit}</span>
           </>
         ) : (
-          <span className="font-normal text-slate-300">—</span>
+          <span className="font-normal text-slate-300"></span>
         )}
       </p>
 
@@ -223,8 +225,7 @@ export function ProductsClient({
   // re-resolved from the live list below, so photo uploads inside the
   // modal repaint it instantly after router.refresh().
   const [editingId, setEditingId] = useState<string | null | undefined>(
-    undefined,
-  );
+    undefined);
   const [listError, setListError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -253,8 +254,7 @@ export function ProductsClient({
   const safePage = Math.min(page, pageCount);
   const pageRows = filtered.slice(
     (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE,
-  );
+    safePage * PAGE_SIZE);
 
   const summary = useMemo(() => {
     const active = products.filter((product) => product.isActive);
@@ -262,8 +262,7 @@ export function ProductsClient({
     // Stock value at purchase cost: what the shelves are worth.
     const stockValue = products.reduce(
       (sum, product) => sum + product.stock * product.costRupiah,
-      0,
-    );
+      0);
     return {
       activeCount: active.length,
       archivedCount: products.length - active.length,
@@ -303,31 +302,7 @@ export function ProductsClient({
   };
 
   return (
-    // Shell v3.2.0: sidebar WORKSPACE/MANAGE (pola PDF "Product catalog
-    // & pricing") — kartu produk & filter memakai permukaan tenang, ikut
-    // tema pengguna. Tombol "Produk Baru" menjadi SATU aksi utama kepala
-    // halaman; navigasi header lama kini menempati sidebar.
-    <WorkspaceShell
-      variant="owner"
-      active="produk"
-      user={me}
-      outletName={outletName}
-      overline="Kelola Produk"
-      title="Katalog produk & harga"
-      desc="Kelola detail produk, kategori, ketersediaan, dan harga di outlet Anda."
-      actions={
-        <button
-          type="button"
-          onClick={() => setEditingId(null)}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary-hover"
-        >
-          <PackagePlus className="h-4 w-4" />
-          <span className="hidden sm:inline">Produk Baru</span>
-          <span className="sm:hidden">Baru</span>
-        </button>
-      }
-      mainClassName="mx-auto w-full max-w-7xl flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-8"
-    >
+    <div className="space-y-6">
         <section className="rounded-2xl glass-card p-3 sm:p-4">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-44 flex-1">
@@ -387,8 +362,7 @@ export function ProductsClient({
                   type="button"
                   onClick={() =>
                     setCategoryId(
-                      category.id === categoryId ? null : category.id,
-                    )
+                      category.id === categoryId ? null : category.id)
                   }
                   className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition ${
                     categoryId === category.id
@@ -487,7 +461,6 @@ export function ProductsClient({
             </>
           )}
         </section>
-
       {editingProduct !== undefined && (
         <ProductFormModal
           product={editingProduct}
@@ -498,6 +471,6 @@ export function ProductsClient({
           onClose={() => setEditingId(undefined)}
         />
       )}
-    </WorkspaceShell>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ToastProvider } from "@/components/ui/toast";
 import { auth } from "@/lib/auth";
 import { themeKeyForUser } from "@/lib/theme-storage";
 import "./globals.css";
@@ -57,7 +58,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${jakarta.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <ThemeProvider storageKey={themeStorageKey}>{children}</ThemeProvider>
+        <ThemeProvider storageKey={themeStorageKey}>
+        <ToastProvider>{children}</ToastProvider>
+      </ThemeProvider>
       </body>
     </html>
   );

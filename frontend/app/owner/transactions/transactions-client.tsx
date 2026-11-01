@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -7,6 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   Loader2,
+  ReceiptText,
   RotateCcw,
   Search,
   TrendingUp,
@@ -14,7 +16,6 @@ import {
 import { formatRupiah } from "@/lib/format";
 import { getTransactionDetail, refundTransaction } from "./actions";
 import type { ProfitSummary, TransactionDetail, TransactionRow } from "./types";
-import { WorkspaceShell } from "@/components/workspace-shell";
 import type { UserMenuUser } from "@/components/user-menu";
 import { TablePagination } from "@/components/table-pagination";
 
@@ -72,7 +73,7 @@ const formatTime = (iso: string) =>
   });
 
 const formatPct = (value: number | null) =>
-  value === null ? "—" : `${value.toFixed(1)}%`;
+  value === null ? "" : `${value.toFixed(1)}%`;
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
@@ -267,7 +268,7 @@ function DetailPanel({
           {detail.discountRupiah > 0 && (
             <DetailRow
               label="Diskon"
-              value={`− ${formatRupiah(detail.discountRupiah)}`}
+              value={`, ${formatRupiah(detail.discountRupiah)}`}
               valueClass="text-red-600 dark:text-red-400"
             />
           )}
@@ -292,12 +293,12 @@ function DetailPanel({
           />
           <DetailRow
             label="Kode klaim"
-            value={detail.claimCode ?? "—"}
+            value={detail.claimCode ?? ""}
             valueClass="font-mono"
           />
           <DetailRow
             label="Serah terima"
-            value={handover?.label ?? "—"}
+            value={handover?.label ?? ""}
             valueClass={
               handover ? `text-xs ${handover.badge}` : "text-slate-400 dark:text-slate-500"
             }
@@ -312,7 +313,7 @@ function DetailPanel({
           </p>
           {detail.handoverStatus === "SERVED" ? (
             <p className="mt-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
-              Struk ini tercatat SUDAH DISAJIKAN — refund tetap bisa dilakukan,
+              Struk ini tercatat SUDAH DISAJIKAN, refund tetap bisa dilakukan,
               tetapi WAJIB menyertakan alasan (tercatat permanen untuk
               evaluasi).
             </p>
@@ -329,7 +330,7 @@ function DetailPanel({
             maxLength={120}
             placeholder={
               detail.handoverStatus === "SERVED"
-                ? "Alasan (WAJIB — struk tercatat sudah disajikan)"
+                ? "Alasan (WAJIB, struk tercatat sudah disajikan)"
                 : "Alasan (opsional, mis. barang rusak / salah input)"
             }
             className="mt-2 w-full resize-none rounded-lg border border-red-200 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100 dark:focus:ring-red-500/20"
@@ -358,7 +359,7 @@ function DetailPanel({
         </div>
       ) : (
         <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/40 px-3 py-2.5 text-sm text-red-700 dark:text-red-300">
-          Transaksi ini sudah direfund — stok telah dikembalikan dan uang
+          Transaksi ini sudah direfund, stok telah dikembalikan dan uang
           dianggap kembali ke pembeli.
         </div>
       )}
@@ -417,15 +418,13 @@ export function TransactionsClient({
   const safePage = Math.min(page, pageCount);
   const pageRows = filtered.slice(
     (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE,
-  );
+    safePage * PAGE_SIZE);
 
   const completedOmzet = filtered
     .filter((row) => row.status === "COMPLETED")
     .reduce((sum, row) => sum + row.totalRupiah, 0);
   const refundCount = filtered.filter(
-    (row) => row.status === "REFUNDED",
-  ).length;
+    (row) => row.status === "REFUNDED").length;
 
   async function loadDetail(transactionId: string) {
     setDetailLoading(true);
@@ -491,27 +490,14 @@ export function TransactionsClient({
   }, [profitDays]);
   const profitPageCount = Math.max(
     1,
-    Math.ceil(activeSummary.rows.length / PAGE_SIZE),
-  );
+    Math.ceil(activeSummary.rows.length / PAGE_SIZE));
   const safeProfitPage = Math.min(profitPage, profitPageCount);
   const profitPageRows = activeSummary.rows.slice(
     (safeProfitPage - 1) * PAGE_SIZE,
-    safeProfitPage * PAGE_SIZE,
-  );
+    safeProfitPage * PAGE_SIZE);
 
   return (
-    // Shell v3.2.0: sidebar WORKSPACE/MANAGE (pola PDF "Transactions &
-    // refund review") — riwayat & laba memakai permukaan tenang, ikut
-    // tema pengguna. Navigasi header lama kini menempati sidebar.
-    <WorkspaceShell
-      variant="owner"
-      active="transaksi"
-      user={me}
-      outletName={outletName}
-      overline="Riwayat & Laba"
-      title="Transaksi & tinjauan refund"
-      desc={`Cari struk, rekonsiliasi pembayaran, dan tinjau refund — ${userName} · ${outletName}`}
-    >
+    <div className="space-y-6">
         <div className="flex w-fit gap-1 rounded-2xl glass-card p-1">
           <button
             type="button"
@@ -829,12 +815,12 @@ export function TransactionsClient({
 
             <p className="text-[11px] text-slate-400 dark:text-slate-500">
               Catatan: HPP dihitung memakai harga beli terkini tiap produk
-              (harga beli tidak di-snapshot saat penjualan) — angka laba adalah
+              (harga beli tidak di-snapshot saat penjualan), angka laba adalah
               perkiraan yang wajar untuk warung. Transaksi refund tidak
               dihitung.
             </p>
           </>
         )}
-    </WorkspaceShell>
+    </div>
   );
 }

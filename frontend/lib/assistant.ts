@@ -1,8 +1,7 @@
 // Klien sisi-server untuk Asisten AI (ml-service v3.2.0, frontend v2.5.0).
 //
 // BACKEND_URL & INTERNAL_API_KEY adalah env SERVER-ONLY (tanpa awalan
-// NEXT_PUBLIC_): browser tidak pernah memanggil FastAPI langsung —
-// semua permintaan lewat route handler /api/assistant/* yang sudah
+// NEXT_PUBLIC_): browser tidak pernah memanggil FastAPI langsung, // semua permintaan lewat route handler /api/assistant/* yang sudah
 // memeriksa sesi NextAuth. X-Internal-Key (blueprint BAB 5.4) hanya
 // dipakai ANTAR layanan di jaringan internal docker.
 //
@@ -67,8 +66,7 @@ export class AssistantError extends Error {
 export async function postAssistantChat(
   userId: number,
   question: string,
-  outletId?: number,
-): Promise<AssistantChatResponse> {
+  outletId?: number): Promise<AssistantChatResponse> {
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}/api/v1/assistant/chat`, {
@@ -84,11 +82,10 @@ export async function postAssistantChat(
       }),
     });
   } catch {
-    // Jaringan/layanan ML tumbang — pesan ramah untuk pemilik warung.
+    // Jaringan/layanan ML tumbang, pesan ramah untuk pemilik warung.
     throw new AssistantError(
       "Layanan asisten tidak terjangkau. Coba beberapa saat lagi.",
-      502,
-    );
+      502);
   }
   if (!res.ok) {
     const isi = (await res.json().catch(() => null)) as
@@ -96,30 +93,27 @@ export async function postAssistantChat(
       | null;
     throw new AssistantError(
       isi?.detail ?? "Asisten sedang tidak bisa menjawab.",
-      res.status,
-    );
+      res.status);
   }
   return (await res.json()) as AssistantChatResponse;
 }
 
 export async function getAssistantHistory(
   userId: number,
-  limit = 20,
-): Promise<AssistantHistoryResponse | null> {
+  limit = 20): Promise<AssistantHistoryResponse | null> {
   try {
     const res = await fetch(
       `${BASE_URL}/api/v1/assistant/history?user_id=${userId}&limit=${limit}`,
-      { headers: internalHeaders(), cache: "no-store" },
-    );
+      { headers: internalHeaders(), cache: "no-store" });
     if (!res.ok) return null;
     return (await res.json()) as AssistantHistoryResponse;
   } catch {
-    return null; // riwayat opsional — panel tetap hidup tanpanya
+    return null; // riwayat opsional, panel tetap hidup tanpanya
   }
 }
 
 // ----------------------------------------------------------------------
-// Pengaturan LLM runtime (frontend v2.5.0) — UI Pengaturan -> Asisten AI.
+// Pengaturan LLM runtime (frontend v2.5.0), UI Pengaturan -> Asisten AI.
 // Konfigurasi tersimpan di volume ml-service (menimpa env compose) dan
 // langsung berlaku tanpa restart container; kunci TIDAK PERNAH dikirim
 // balik ke browser utuh (hanya versi dimasker).
@@ -152,8 +146,7 @@ export async function getAssistantLlmConfig(): Promise<AssistantLlmConfig> {
   } catch {
     throw new AssistantError(
       "Layanan asisten tidak terjangkau. Coba beberapa saat lagi.",
-      502,
-    );
+      502);
   }
   if (!res.ok) {
     const isi = (await res.json().catch(() => null)) as
@@ -161,15 +154,13 @@ export async function getAssistantLlmConfig(): Promise<AssistantLlmConfig> {
       | null;
     throw new AssistantError(
       isi?.detail ?? "Gagal membaca pengaturan asisten.",
-      res.status,
-    );
+      res.status);
   }
   return (await res.json()) as AssistantLlmConfig;
 }
 
 export async function putAssistantLlmConfig(
-  config: AssistantLlmConfigInput,
-): Promise<AssistantLlmConfig> {
+  config: AssistantLlmConfigInput): Promise<AssistantLlmConfig> {
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}/api/v1/assistant/llm-config`, {
@@ -181,8 +172,7 @@ export async function putAssistantLlmConfig(
   } catch {
     throw new AssistantError(
       "Layanan asisten tidak terjangkau. Coba beberapa saat lagi.",
-      502,
-    );
+      502);
   }
   if (!res.ok) {
     const isi = (await res.json().catch(() => null)) as
@@ -190,8 +180,52 @@ export async function putAssistantLlmConfig(
       | null;
     throw new AssistantError(
       isi?.detail ?? "Gagal menyimpan pengaturan asisten.",
-      res.status,
-    );
+      res.status);
   }
   return (await res.json()) as AssistantLlmConfig;
+}
+
+// ----------------------------------------------------------------------
+// Uji sambungan LLM (frontend v1.0.0), tombol "Tes Koneksi" di
+// Pengaturan -> Asisten AI. Route handler /api/assistant/llm-selftest
+// memanggil layanan ML yang kemudian MENYAPA penyedia sungguhan dengan
+// konfigurasi efektif saat itu; hasilnya (latensi, contoh jawaban,
+// kunci termasker) kembali ke pengaturan tanpa pernah membocorkan
+// kunci utuhnya.
+// ----------------------------------------------------------------------
+export interface AssistantLlmSelftest {
+  ok: boolean;
+  configured: boolean;
+  mode: "ai" | "data";
+  answer_sample: string | null;
+  latency_ms: number | null;
+  error: string | null;
+  model: string;
+  api_key_masked: string;
+  source: "file" | "env";
+  base_url: string;
+}
+
+export async function postAssistantLlmSelftest(): Promise<AssistantLlmSelftest> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}/api/v1/assistant/llm-selftest`, {
+      method: "POST",
+      headers: internalHeaders(),
+      cache: "no-store",
+    });
+  } catch {
+    throw new AssistantError(
+      "Layanan asisten tidak terjangkau. Coba beberapa saat lagi.",
+      502);
+  }
+  if (!res.ok) {
+    const isi = (await res.json().catch(() => null)) as
+      | { detail?: string }
+      | null;
+    throw new AssistantError(
+      isi?.detail ?? "Uji sambungan asisten gagal.",
+      res.status);
+  }
+  return (await res.json()) as AssistantLlmSelftest;
 }

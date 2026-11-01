@@ -1,13 +1,13 @@
 "use client";
 
-// Konsol "Kelola Akun & Hak Akses" — design v1.5.0 (ala mockup Gemini:
+// Konsol "Kelola Akun & Hak Akses", design v1.5.0 (ala mockup Gemini:
 // aurora + glassmorphism) kini SADAR TEMA: mengikuti tema aplikasi
-// (terang/gelap/sistem) lewat varian dark: — tidak lagi memaksa gelap.
+// (terang/gelap/sistem) lewat varian dark:, tidak lagi memaksa gelap.
 // LOGIC TETAP VERSI KITA: data dari backend-go lewat server component
 // induk; filter (cari/peran/outlet/status) + pagination 20 baris di
 // klien; aksi lewat server action (buat/ubah/reset password/toggle
 // aktif/hapus ketik-email); baris DEVELOPER & baris sendiri terkunci
-// (server juga menolak); akun terhapus tidak pernah dikirim Go — dari
+// (server juga menolak); akun terhapus tidak pernah dikirim Go, dari
 // sudut daftar, hapus = selamanya; jejaknya hidup di /dev/logs.
 import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
@@ -17,6 +17,8 @@ import {
   LuArchive,
   LuArchiveRestore,
   LuArrowRight,
+  LuBell,
+  LuChevronRight,
   LuCircleCheck,
   LuCodeXml,
   LuCrown,
@@ -29,15 +31,14 @@ import {
   LuSearch,
   LuShield,
   LuShieldAlert,
+  LuStore,
   LuTrash2,
   LuUserPlus,
   LuUsers,
   LuX,
 } from "react-icons/lu";
-import { WorkspaceShell } from "@/components/workspace-shell";
 import { SelectInput } from "@/components/select-input";
 import { TablePagination } from "@/components/table-pagination";
-import { UserMenu } from "@/components/user-menu";
 import type { UserMenuUser } from "@/components/user-menu";
 import { PasswordInput } from "@/components/password-input";
 import { isPasswordValid } from "@/lib/password-policy";
@@ -59,7 +60,7 @@ const PAGE_SIZE = 20;
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
-// Ikon + bayangan avatar per peran (visual saja — label & warna kelas
+// Ikon + bayangan avatar per peran (visual saja, label & warna kelas
 // ada di view-helpers.roleBadgeDark/avatarGradient supaya bisa diuji).
 const ROLE_ICON: Record<UserRow["role"], typeof LuCrown> = {
   DEVELOPER: LuCodeXml,
@@ -77,7 +78,7 @@ const AVATAR_SHADOW: Record<UserRow["role"], string> = {
 const ACTION_BTN =
   "p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all disabled:cursor-not-allowed disabled:opacity-30";
 
-// Spinner resident — gaya tombol design (sama dengan login).
+// Spinner resident, gaya tombol design (sama dengan login).
 function Spinner({ className = "" }: { className?: string }) {
   return (
     <svg
@@ -105,7 +106,7 @@ function Spinner({ className = "" }: { className?: string }) {
 }
 
 // Modal reset password: aksi sensitif selalu butuh langkah (dan niat)
-// tersendiri — terpisah dari form utama. Checklist syarat hidup di
+// tersendiri, terpisah dari form utama. Checklist syarat hidup di
 // bawah input (4 syarat: panjang, huruf besar, angka, simbol).
 function ResetPasswordModal({
   user,
@@ -194,7 +195,7 @@ function ResetPasswordModal({
               showChecklist
             />
             <span className="mt-1 block text-[10px] text-slate-500">
-              Minimal 8 karakter — wajib ada huruf besar, angka, dan simbol.
+              Minimal 8 karakter, wajib ada huruf besar, angka, dan simbol.
             </span>
           </div>
           <p className="text-[11px] leading-relaxed text-slate-500">
@@ -302,11 +303,10 @@ function DeleteAccountModal({
             </p>
           )}
           <p className="text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-            Akun dihapus <b className="text-slate-900 dark:text-white">selamanya dari daftar</b> —
-            tidak bisa dibatalkan. Email{" "}
+            Akun dihapus <b className="text-slate-900 dark:text-white">selamanya dari daftar</b>, tidak bisa dibatalkan. Email{" "}
             <b className="text-slate-700 dark:text-slate-200">{user.email}</b> dibebaskan supaya
             bisa dipakai akun baru. Riwayat transaksi dan jejak log atas nama
-            akun ini <b className="text-slate-900 dark:text-white">tetap tersimpan</b> — penghapusan
+            akun ini <b className="text-slate-900 dark:text-white">tetap tersimpan</b>, penghapusan
             ini sendiri juga masuk log.
           </p>
           <div>
@@ -400,8 +400,7 @@ export function UsersClient({
   const safePage = Math.min(page, pageCount);
   const pageRows = filtered.slice(
     (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE,
-  );
+    safePage * PAGE_SIZE);
 
   async function handleToggle(user: UserRow) {
     setTogglingId(user.id);
@@ -418,7 +417,7 @@ export function UsersClient({
     }
   }
 
-  // Angka kartu metrik: ASLI dari data yang sama dengan tabel — bukan
+  // Angka kartu metrik: ASLI dari data yang sama dengan tabel, bukan
   // angka demo. Kartu 2 & 4 memang kualitatif (hirarki & status audit).
   const activeCount = users.filter((u) => u.isActive).length;
   const activePct =
@@ -426,28 +425,36 @@ export function UsersClient({
   const namaOutletPertama = outlets[0]?.name;
 
   return (
-    // Shell v3.2.0: sidebar WORKSPACE/MANAGE varian konsol developer
-    // (pola PDF "User directory") — kelola akun lintas outlet. Tombol
-    // "Tambah Akun Baru" menjadi SATU aksi utama kepala halaman.
-    <WorkspaceShell
-      variant="dev"
-      active="pengguna"
-      user={me}
-      overline="Konsol Developer"
-      title="Kelola akun & hak akses"
-      desc="Atur wewenang pengguna, alokasi tugas kasir per outlet, serta pantau aktivitas jualan terakhir setiap akun."
-      actions={
-        <button
-          type="button"
-          onClick={() => setEditing(null)}
-          className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground transition hover:bg-primary-hover"
-        >
-          <LuUserPlus className="h-4 w-4" />
-          <span>Tambah Akun Baru</span>
-        </button>
-      }
-      mainClassName="mx-auto w-full max-w-7xl flex-1 space-y-8 px-4 py-8 sm:px-6 lg:px-8"
-    >
+    <div className="space-y-6">
+          {/* Judul halaman + aksi utama */}
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+                  Kelola Akun &amp; Hak Akses
+                </h1>
+                <span className="rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                  Semua Outlet
+                </span>
+              </div>
+              <p className="mt-1.5 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400 sm:text-sm">
+                Atur wewenang pengguna, alokasi tugas kasir per outlet, serta
+                pantau aktivitas jualan terakhir setiap akun.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 px-5 py-3 text-xs font-bold text-white shadow-lg shadow-blue-600/25 transition-all hover:from-blue-500 hover:to-indigo-500 active:scale-[0.98] sm:w-auto"
+              >
+                <LuUserPlus className="h-4 w-4" />
+                <span>Tambah Akun Baru</span>
+              </button>
+            </div>
+          </div>
+
           {/* Kartu metrik */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="glass-card group relative overflow-hidden rounded-2xl p-4 transition-all hover:border-blue-500/40">
@@ -533,7 +540,7 @@ export function UsersClient({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12">
               <div className="relative lg:col-span-5">
                 {/* Ikon cari dipasang top-1/2 -translate-y-1/2 agar SELALU
-                    di tengah vertikal — pola inset-y-0 + h-4 membuat ikon
+                    di tengah vertikal, pola inset-y-0 + h-4 membuat ikon
                     terpaku di atas input (menceng 11px) karena CSS
                     mengabaikan bottom saat top+height sudah ditentukan. */}
                 <LuSearch className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -606,11 +613,10 @@ export function UsersClient({
                 <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800/50 text-xs">
                   {pageRows.map((user) => {
                     const isSelf = user.id === currentUserId;
-                    // Baris developer & baris sendiri hanya bisa DILIHAT —
-                    // semua tombol modifikasinya mati (server juga menolak).
+                    // Baris developer & baris sendiri hanya bisa DILIHAT, // semua tombol modifikasinya mati (server juga menolak).
                     const locked = user.role === "DEVELOPER" || isSelf;
                     const lockTitle = isSelf
-                      ? "Akun Anda sendiri — ubah lewat Akun Saya"
+                      ? "Akun Anda sendiri, ubah lewat Akun Saya"
                       : "Akun developer dikelola lewat DEV_SEED_* di .env";
                     const rb = roleBadgeDark(user.role);
                     const RoleIcon = ROLE_ICON[user.role];
@@ -655,11 +661,10 @@ export function UsersClient({
                               {user.outletName}
                             </span>
                           ) : user.role === "OWNER" ? (
-                            <span className="italic text-slate-500 dark:text-slate-400">
-                              — (Akses Semua)
+                            <span className="italic text-slate-500 dark:text-slate-400">, (Akses Semua)
                             </span>
                           ) : (
-                            <span className="italic text-slate-500 dark:text-slate-400">—</span>
+                            <span className="italic text-slate-500 dark:text-slate-400"></span>
                           )}
                         </td>
                         <td className="px-4 py-4">
@@ -811,6 +816,6 @@ export function UsersClient({
       {deleting && (
         <DeleteAccountModal user={deleting} onClose={() => setDeleting(null)} />
       )}
-    </WorkspaceShell>
+    </div>
   );
 }

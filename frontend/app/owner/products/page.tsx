@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { getOutletContext } from "@/lib/outlet-context";
 import { userMenuUser } from "@/lib/session-user";
+import { AppShell } from "@/components/shell/app-shell";
+import { outletLogoUrl } from "@/lib/outlet-branding";
 import { ProductsClient } from "./products-client";
 import type { CategoryOption, ProductRow, UnitOption } from "./types";
 
@@ -32,36 +34,34 @@ export default async function OwnerProductsPage() {
   if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER")
     redirect("/cashier");
   if (!session.user.goToken) {
-    throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
+    throw new Error("Sesi tidak memiliki token backend, silakan login ulang.");
   }
   const goToken = session.user.goToken;
 
-  // v2.0.0: nama outlet header dari backend-go (GET /my/outlet) — kelola
+  // v2.0.0: nama outlet header dari backend-go (GET /my/outlet), kelola
   // produk ter-scope ke outlet konteks pemanggil.
   const outlet = await getOutletContext();
 
   // Produk (termasuk terarsip) + permintaan 30 hari terakhir, keduanya
-  // dari backend-go — satu sumber kebenaran yang sama dengan kasir.
+  // dari backend-go, satu sumber kebenaran yang sama dengan kasir.
   // Laporan terlaris bersifat pelengkap: kegagalannya tidak boleh
   // menutup halaman produk.
   const [productsResult, topResult] = await Promise.all([
     goFetch<GoProduct[]>(goToken, "/products?all=true"),
     goFetch<{ products: GoTopProduct[] }>(
       goToken,
-      "/reports/top-products?days=30&limit=1000",
-    ),
+      "/reports/top-products?days=30&limit=1000"),
   ]);
   if (!productsResult.ok) {
     throw new Error(productsResult.message);
   }
 
   // Deteksi backend versi lama yang masih berjalan (pra foto produk):
-  // responsnya tidak punya field "images"/"unit" — beri pesan yang jelas
+  // responsnya tidak punya field "images"/"unit", beri pesan yang jelas
   // alih-alih TypeError "Cannot read properties of undefined".
   if (productsResult.data.length > 0 && !("images" in productsResult.data[0])) {
     throw new Error(
-      "Backend lama masih berjalan di port 8080. Matikan proses 'go run .' yang lama, jalankan ulang dari folder backend-go, lalu muat ulang halaman ini.",
-    );
+      "Backend lama masih berjalan di port 8080. Matikan proses 'go run .' yang lama, jalankan ulang dari folder backend-go, lalu muat ulang halaman ini.");
   }
   const soldById = new Map<number, number>();
   if (topResult.ok) {
@@ -80,7 +80,7 @@ export default async function OwnerProductsPage() {
         id: String(product.id),
         name: product.name,
         sku: product.sku ?? "",
-        // Era backend-go: kategori adalah teks pada produk — namanya
+        // Era backend-go: kategori adalah teks pada produk, namanya
         // sekaligus menjadi id di seluruh form.
         categoryId: product.category || null,
         categoryName: product.category || null,
@@ -102,11 +102,10 @@ export default async function OwnerProductsPage() {
     .sort(
       (a, b) =>
         Number(b.isActive) - Number(a.isActive) ||
-        a.name.localeCompare(b.name, "id"),
-    );
+        a.name.localeCompare(b.name, "id"));
 
   // Opsi kategori turun dari produk yang ada (nama unik, deduped
-  // case-insensitive, urut abjad) — kategori baru tetap bisa diketik
+  // case-insensitive, urut abjad), kategori baru tetap bisa diketik
   // langsung di form lalu otomatis ikut daftar di muat berikutnya.
   const categoryByName = new Map<string, string>();
   for (const product of productsResult.data) {
@@ -120,7 +119,7 @@ export default async function OwnerProductsPage() {
     .map((name) => ({ id: name, name }));
 
   // Unit dropdown options: satuan yang benar-benar dipakai produk
-  // (case-insensitive dedupe) + "pcs" sebagai dasar — satuan baru
+  // (case-insensitive dedupe) + "pcs" sebagai dasar, satuan baru
   // ditulis bebas di form dan langsung terpakai (maks. 16 karakter).
   const unitByName = new Map<string, string>([["pcs", "pcs"]]);
   for (const product of productsResult.data) {
@@ -143,13 +142,26 @@ export default async function OwnerProductsPage() {
   }
 
   return (
-    <ProductsClient
-      outletName={outlet?.name ?? "Outlet"}
-      products={rows}
-      categories={categoryOptions}
-      units={unitOptions}
-      skuCounts={skuCounts}
-      me={userMenuUser(session)}
-    />
+    <AppShell
+      role={session.user.role === "DEVELOPER" ? "DEVELOPER" : "OWNER"}
+      user={userMenuUser(session)}
+      outlet={{
+        name: outlet?.name ?? "Outlet",
+        logoUrl: outlet ? outletLogoUrl(outlet) : null,
+        address: outlet?.address ?? null,
+      }}
+      crumb="Pengelolaan"
+      title="Produk"
+      subtitle={outlet?.name ?? "Kelola produk"}
+    >
+      <ProductsClient
+        outletName={outlet?.name ?? "Outlet"}
+        products={rows}
+        categories={categoryOptions}
+        units={unitOptions}
+        skuCounts={skuCounts}
+        me={userMenuUser(session)}
+      />
+    </AppShell>
   );
 }

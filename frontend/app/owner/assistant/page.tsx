@@ -1,19 +1,35 @@
 import { redirect } from "next/navigation";
-import { Sparkles } from "lucide-react";
-import { WorkspaceShell } from "@/components/workspace-shell";
-import { userMenuUser } from "@/lib/session-user";
+import { Database, Sparkles } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { getOutletContext } from "@/lib/outlet-context";
+import { getOutletContext, outletLogoUrl } from "@/lib/outlet-context";
+import { getAssistantLlmConfig } from "@/lib/assistant";
+import {
+  OSCAR_CREATOR,
+  OSCAR_LONG_NAME,
+  OSCAR_NAME,
+  OSCAR_ORIGIN,
+} from "@/lib/oscar";
+import { AppShell } from "@/components/shell/app-shell";
+import { PageHeader } from "@/components/shell/page-header";
+import { Panel } from "@/components/ui/panel";
+import { StatusPill } from "@/components/ui/status-pill";
+import { UiAlert } from "@/components/ui/alert";
 import { AssistantPanel } from "@/components/assistant/assistant-panel";
+import { userMenuUser } from "@/lib/session-user";
 
-// Halaman OSCAR (frontend v3.2.0) — server component ringan: gerbang
-// sesi/role + identitas outlet, lalu panel client yang bicara ke
-// /api/assistant/*. Pemilik multi-outlet otomatis bertanya tentang
-// outlet konteksnya (satu sumber kebenaran dengan dashboard).
+export const instant = false;
+
+// Halaman OSCAR UMKM OS v1.0.0.
 //
-// Tata letak mengikuti halaman "OSCAR business copilot" PDF: kolom
-// percakapan sebagai panggung utama + panel "Konteks bisnis" di kanan
-// yang menjelaskan sumber data & batasan secara jujur.
+// PERBAIKAN judul halaman (permintaan pemilik): topbar kini memuat nama
+// panjang OSCAR (Online Shop Center for Assistance & Response) sebagai
+// subjudul di bawah judul "OSCAR". Nama panjang yang sama tampil di kepala panel obrolan
+// sehingga identitas asisten tidak pernah samar.
+//
+// Sisi kanan memuat konteks bisnis NYATA (mode jawaban dan model dibaca
+// dari pengaturan layanan ML) serta aturan main OSCAR yang memang
+// diterapkan sistem (hanya data outlet sendiri, keputusan tetap milik
+// pemilik, kunci tidak pernah dibocorkan).
 
 export default async function HalamanAsisten() {
   const session = await auth();
@@ -23,101 +39,120 @@ export default async function HalamanAsisten() {
   }
 
   const outlet = await getOutletContext();
-  const namaOutlet = outlet?.name ?? "Warung";
+  const namaOutlet = outlet?.name ?? "Warung Anda";
+
+  let modeJawaban: "ai" | "data" | null = null;
+  let namaModel: string | null = null;
+  try {
+    const cfg = await getAssistantLlmConfig();
+    modeJawaban = cfg.mode;
+    namaModel = cfg.llm_model;
+  } catch {
+    // Layanan ML tidak terjangkau, konteks tampil jujur tanpa mode.
+  }
 
   return (
-    <WorkspaceShell
-      variant="owner"
-      active="oscar"
+    <AppShell
+      role={session.user.role === "DEVELOPER" ? "DEVELOPER" : "OWNER"}
       user={userMenuUser(session)}
-      outletName={namaOutlet}
-      overline="Asisten Bisnis"
-      title="OSCAR — kopilot bisnis"
-      desc="Bantuan AI yang berpijak pada data bisnis Anda, bukan karangan."
-      mainClassName="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8"
+      outlet={{
+        name: namaOutlet,
+        logoUrl: outlet ? outletLogoUrl(outlet) : null,
+        address: outlet?.address ?? null,
+      }}
+      crumb="Pengelolaan"
+      title={OSCAR_NAME}
+      subtitle={OSCAR_LONG_NAME}
     >
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Kolom percakapan — panggung utama. */}
-        <div className="lg:col-span-2">
-          <AssistantPanel outletName={namaOutlet} />
-        </div>
+      <PageHeader
+        eyebrow="Asisten bisnis"
+        title={`${OSCAR_NAME} (${OSCAR_LONG_NAME})`}
+        description={`Asisten bisnis UMKM OS yang menjawab dari data ${namaOutlet}. Diciptakan oleh ${OSCAR_CREATOR} dari ${OSCAR_ORIGIN}.`}
+      />
 
-        {/* Panel konteks bisnis — jujur soal sumber data & batasan. */}
-        <aside className="space-y-4">
-          <section className="glass-card p-5">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Sparkles className="h-4 w-4" />
-              </span>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Konteks bisnis
-              </h2>
-            </div>
-            <dl className="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
-              <div className="flex items-center justify-between gap-3 py-2.5">
-                <dt className="text-xs text-slate-500 dark:text-slate-400">
-                  Outlet aktif
-                </dt>
-                <dd className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.75fr)]">
+        <AssistantPanel outletName={namaOutlet} />
+
+        <div className="grid content-start gap-4">
+          <Panel title="Konteks bisnis" subtitle="Keadaan asisten saat halaman ini dibuka">
+            <ul className="grid gap-3 text-xs">
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-shell-muted">Outlet aktif</span>
+                <span className="truncate font-semibold text-shell-ink">
                   {namaOutlet}
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3 py-2.5">
-                <dt className="text-xs text-slate-500 dark:text-slate-400">
-                  Sumber data
-                </dt>
-                <dd className="text-right text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  Penjualan · stok · produk
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3 py-2.5">
-                <dt className="text-xs text-slate-500 dark:text-slate-400">
-                  Mode jawaban
-                </dt>
-                <dd className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  Data / AI
-                </dd>
-              </div>
-              <div className="flex items-center justify-between gap-3 py-2.5">
-                <dt className="text-xs text-slate-500 dark:text-slate-400">
-                  Batas laju
-                </dt>
-                <dd className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  Per jam, per pengguna
-                </dd>
-              </div>
-            </dl>
-          </section>
-
-          <section className="glass-card p-5">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              Aturan main OSCAR
-            </h2>
-            <ul className="mt-3 space-y-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-              <li className="flex gap-2.5">
-                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                Menjawab HANYA dari data outlet ini — penjualan, stok,
-                produk, dan ramalan.
+                </span>
               </li>
-              <li className="flex gap-2.5">
-                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                Angka yang tidak lolos validasi data ditandai peringatan
-                agar tetap bisa diperiksa di dashboard.
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-shell-muted">Sumber data</span>
+                <span className="text-right font-semibold text-shell-ink">
+                  Penjualan, stok, produk, ramalan
+                </span>
               </li>
-              <li className="flex gap-2.5">
-                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                Saran tindakan bersifat pendukung keputusan — tindakan
-                finansial tetap disetujui manusia.
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-shell-muted">Mode jawaban</span>
+                {modeJawaban === "ai" ? (
+                  <StatusPill tone="ok">
+                    <Sparkles className="mr-1 h-3 w-3" />
+                    Mode AI
+                  </StatusPill>
+                ) : modeJawaban === "data" ? (
+                  <StatusPill tone="netral">
+                    <Database className="mr-1 h-3 w-3" />
+                    Mode Data
+                  </StatusPill>
+                ) : (
+                  <StatusPill tone="warn">Tidak terbaca</StatusPill>
+                )}
               </li>
-              <li className="flex gap-2.5">
-                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                Riwayat percakapan tersimpan per pengguna; baca kebijakan
-                privasi di Pengaturan.
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-shell-muted">Model</span>
+                <span className="truncate font-semibold text-shell-ink">
+                  {namaModel ?? "Belum dipilih"}
+                </span>
+              </li>
+              <li className="flex items-center justify-between gap-3">
+                <span className="text-shell-muted">Batas laju</span>
+                <span className="font-semibold text-shell-ink">
+                  12 pertanyaan per jam per pengguna
+                </span>
               </li>
             </ul>
-          </section>
-        </aside>
+          </Panel>
+
+          <Panel title={`Aturan main ${OSCAR_NAME}`} subtitle="Diterapkan langsung oleh sistem">
+            <ol className="grid gap-2.5 text-[11px] leading-relaxed text-shell-ink-soft">
+              <li className="flex gap-2">
+                <span className="font-bold text-shell-primary-strong">1.</span>
+                Menjawab hanya dari data outlet yang sedang aktif; permintaan
+                data toko lain ditolak sopan.
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold text-shell-primary-strong">2.</span>
+                Keputusan finansial tetap di tangan pemilik; saran OSCAR
+                bersifat bantuan, bukan perintah.
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold text-shell-primary-strong">3.</span>
+                Angka pada jawaban divalidasi terhadap data; angka yang belum
+                lolos validasi ditandai peringatan.
+              </li>
+              <li className="flex gap-2">
+                <span className="font-bold text-shell-primary-strong">4.</span>
+                Kunci API dan kredensial tidak pernah dibocorkan dalam
+                percakapan.
+              </li>
+            </ol>
+          </Panel>
+
+          {modeJawaban === "data" && (
+            <UiAlert variant="peringatan" title="Mode Data sedang aktif">
+              OSCAR saat ini menjawab dari data toko tanpa bantuan model
+              bahasa. Aktifkan Mode AI melalui Pengaturan untuk jawaban yang
+              lebih luas cakupannya.
+            </UiAlert>
+          )}
+        </div>
       </div>
-    </WorkspaceShell>
+    </AppShell>
   );
 }

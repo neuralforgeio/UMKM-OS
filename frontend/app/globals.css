@@ -408,3 +408,141 @@ a:focus-visible,
 .animate-float-delayed {
   animation: none;
 }
+
+/* =====================================================================
+   Design language UMKM OS v1.0.0, shell operasional (sidebar + topbar).
+
+   Diturunkan dari referensi desain HTML pemilik: panel datar berbatas
+   halus, aksen ungu kebiruan, dua tema yang sama kuat. Token semantik
+   dipakai lewat kelas Tailwind (bg-shell-card, border-shell-line,
+   text-shell-muted, dst.) sehingga seluruh halaman konsisten dan mudah
+   dirawat di satu tempat. Kelas kaca/aurora lama tetap dipertahankan
+   untuk halaman masuk dan komponen formulir yang belum berpindah.
+   ===================================================================== */
+
+:root {
+  --shell-bg: #f3f5fb;
+  --shell-sidebar: #ffffff;
+  --shell-card: #ffffff;
+  --shell-raised: #ffffff;
+  --shell-soft: #f7f8fc;
+  --shell-line: #e5e8ef;
+  --shell-line-strong: #d8ddea;
+  --shell-ink: #1b2234;
+  --shell-ink-soft: #4d5669;
+  --shell-muted: #7b8497;
+  --shell-primary: #6554df;
+  --shell-primary-strong: #5545cf;
+  --shell-ok: #288b69;
+  --shell-warn: #a87527;
+  --shell-bad: #c25262;
+  --shell-cyan: #2f8ba3;
+  --shell-shadow: 0 18px 50px rgba(27, 38, 65, 0.08);
+  color-scheme: light;
+}
+
+.dark {
+  --shell-bg: #0b1020;
+  --shell-sidebar: #0d1425;
+  --shell-card: #121b2e;
+  --shell-raised: #172238;
+  --shell-soft: #1b2942;
+  --shell-line: #22304b;
+  --shell-line-strong: #354058;
+  --shell-ink: #f3f6ff;
+  --shell-ink-soft: #c6cfdf;
+  --shell-muted: #8e9bb4;
+  --shell-primary: #796bff;
+  --shell-primary-strong: #9a90ff;
+  --shell-ok: #49c69a;
+  --shell-warn: #eebd65;
+  --shell-bad: #f17d88;
+  --shell-cyan: #5bc7dd;
+  --shell-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-shell: var(--shell-bg);
+  --color-shell-sidebar: var(--shell-sidebar);
+  --color-shell-card: var(--shell-card);
+  --color-shell-raised: var(--shell-raised);
+  --color-shell-soft: var(--shell-soft);
+  --color-shell-line: var(--shell-line);
+  --color-shell-line-strong: var(--shell-line-strong);
+  --color-shell-ink: var(--shell-ink);
+  --color-shell-ink-soft: var(--shell-ink-soft);
+  --color-shell-muted: var(--shell-muted);
+  --color-shell-primary: var(--shell-primary);
+  --color-shell-primary-strong: var(--shell-primary-strong);
+  --color-shell-ok: var(--shell-ok);
+  --color-shell-warn: var(--shell-warn);
+  --color-shell-bad: var(--shell-bad);
+  --color-shell-cyan: var(--shell-cyan);
+}
+
+/* ---- Animasi shell v1.0.0 (GPU-accelerated, hormati reduce motion) ---- */
+@keyframes toastNaik {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-toast-in {
+  animation: toastNaik 0.22s ease-out;
+  will-change: transform, opacity;
+}
+
+@keyframes munculNaik {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise-in {
+  animation: munculNaik 0.32s ease-out both;
+  will-change: transform, opacity;
+}
+
+@keyframes garisGrafik {
+  from {
+    stroke-dashoffset: var(--panjang-garis, 1200);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.animate-chart-line {
+  stroke-dasharray: var(--panjang-garis, 1200);
+  animation: garisGrafik 0.9s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-toast-in,
+  .animate-rise-in,
+  .animate-chart-line {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
+
+/* ---- Scrollbar shell ramping (dua tema) ---- */
+.scroll-shell::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-shell::-webkit-scrollbar-thumb {
+  background: var(--shell-line-strong);
+  border-radius: 9999px;
+}
+.scroll-shell::-webkit-scrollbar-track {
+  background: transparent;
+}

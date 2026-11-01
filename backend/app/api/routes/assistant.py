@@ -621,6 +621,20 @@ async def put_llm_config(
                      enabled=payload.enabled)
     return _llm_config_out()
 
+
+@router.post("/llm-selftest")
+async def llm_selftest_endpoint(request: Request) -> dict:
+    """Uji sambungan LLM sungguhan memakai konfigurasi efektif saat ini.
+
+    Dipakai tombol "Tes Koneksi" di Pengaturan -> Asisten AI: menyapa
+    penyedia dengan satu prompt pendek, mengukur latensi, dan mengembalikan
+    contoh jawaban. Kunci hanya keluar dalam bentuk dimasker (aturan 11).
+    """
+    await require_internal_key(request)
+    from app.services import llm_selftest as uji
+
+    return await uji.run_selftest()
+
 # ----------------------------------------------------------------------
 # v2.7.0 — OSCAR Developer AI: laporan lintas toko ber-PIN (tanpa LLM)
 # ----------------------------------------------------------------------

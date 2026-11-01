@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
-import { AuroraBackground } from "@/components/aurora-background";
 import { userMenuUser } from "@/lib/session-user";
+import { AppShell } from "@/components/shell/app-shell";
+import { outletLogoUrl } from "@/lib/outlet-branding";
+import { getOutletContext } from "@/lib/outlet-context";
 import { UsersClient } from "./users-client";
 import {
   mapGoOutlets,
@@ -13,7 +15,7 @@ import {
 
 export const instant = false;
 
-// Konsol kelola akun (khusus DEVELOPER) — kini membaca langsung dari
+// Konsol kelola akun (khusus DEVELOPER), kini membaca langsung dari
 // backend-go: GET /users (akun live + last_transaction_at) dan
 // GET /outlets (pilihan ikatan di form akun). Akun terhapus tidak
 // pernah dikirim Go (deleted_at IS NULL), jadi filter di UI tidak
@@ -24,17 +26,16 @@ export default async function DevUsersPage() {
   if (session.user.role !== "DEVELOPER") redirect("/");
 
   const goToken = session.user.goToken ?? "";
+  const outlet = await getOutletContext();
   const [usersRes, outletsRes] = await Promise.all([
     goFetch<GoUserDTO[]>(goToken, "/users"),
     goFetch<GoOutletDTO[]>(goToken, "/outlets"),
   ]);
 
-  // Backend tidak terjangkau: kartu error yang jelas, bukan crash —
-  // mengikuti tema aplikasi (aurora + glass, terang/gelap).
+  // Backend tidak terjangkau: kartu error yang jelas, bukan crash, // mengikuti tema aplikasi (aurora + glass, terang/gelap).
   if (!usersRes.ok || !outletsRes.ok) {
     return (
-      <div className="relative flex min-h-dvh items-center justify-center bg-slate-100 p-4 font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
-        <AuroraBackground />
+      <div className="relative flex min-h-dvh items-center justify-center bg-shell p-4 font-sans text-shell-ink antialiased">
         <div className="glass-card relative z-10 w-full max-w-md rounded-2xl p-8 text-center">
           <p className="text-sm font-extrabold text-slate-900 dark:text-white">
             Kelola Akun tidak bisa dimuat
@@ -50,11 +51,24 @@ export default async function DevUsersPage() {
   }
 
   return (
-    <UsersClient
-      users={mapGoUsers(usersRes.data)}
-      outlets={mapGoOutlets(outletsRes.data)}
-      currentUserId={session.user.id}
-      me={userMenuUser(session)}
-    />
+    <AppShell
+      role="DEVELOPER"
+      user={userMenuUser(session)}
+      outlet={{
+        name: outlet?.name ?? "Konsol Developer",
+        logoUrl: outlet ? outletLogoUrl(outlet) : null,
+        address: outlet?.address ?? null,
+      }}
+      crumb="Konsol Developer"
+      title="Pengguna"
+      subtitle="Kelola akun dan ikatan outlet"
+    >
+      <UsersClient
+        users={mapGoUsers(usersRes.data)}
+        outlets={mapGoOutlets(outletsRes.data)}
+        currentUserId={session.user.id}
+        me={userMenuUser(session)}
+      />
+    </AppShell>
   );
 }

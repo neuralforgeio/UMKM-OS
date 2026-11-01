@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, ScrollText } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { buildLogQuery, logQueryString } from "@/lib/audit-query";
@@ -11,29 +11,30 @@ import {
 } from "@/lib/audit-labels";
 import { buildAuditCommand } from "@/lib/audit-terminal";
 import { AuditTerminal } from "@/components/audit-terminal";
-import { WorkspaceShell } from "@/components/workspace-shell";
 import { SelectInput } from "@/components/select-input";
 import { userMenuUser } from "@/lib/session-user";
 import { LogsPagination } from "./logs-pagination";
 
+import { AppShell } from "@/components/shell/app-shell";
+import { getOutletContext } from "@/lib/outlet-context";
+import { outletLogoUrl } from "@/lib/outlet-branding";
+
 export const instant = false;
 
-// Query jejak audit penuh (Task 34 Fase B, diperbarui Task 35) —
-// khusus DEVELOPER. Pagination dan filter HIDUP DI URL (server-side):
+// Query jejak audit penuh (Task 34 Fase B, diperbarui Task 35), // khusus DEVELOPER. Pagination dan filter HIDUP DI URL (server-side):
 // tabel audit tumbuh tanpa batas (setiap transaksi/stok/login menambah
-// baris), jadi tidak seperti halaman produk yang memuat semua baris —
-// di sini setiap halaman hanya membaca 20 baris dari database.
+// baris), jadi tidak seperti halaman produk yang memuat semua baris, // di sini setiap halaman hanya membaca 20 baris dari database.
 // Task 35: kolom aksi label manusiawi + kode mentah, tingkat
 // SUKSES/PERINGATAN/GAGAL (filter-able), unduhan EXCEL ber-grafik.
 // v2.1.0: data dari GET /audit-logs backend-go (ber-outlet sejak
-// backend-go v1.6.0 — kolom Outlet hidup, bukan data beku Prisma).
+// backend-go v1.6.0, kolom Outlet hidup, bukan data beku Prisma).
 // v2.2.1: (1) topbar FULL-WIDTH memanjang kanan-kiri seperti navbar
-// kasir/owner; (2) DUA MODE TAMPILAN — "Tabel" (default, seperti
+// kasir/owner; (2) DUA MODE TAMPILAN, "Tabel" (default, seperti
 // sebelumnya) dan "Terminal" (?view=terminal, hidup di URL sehingga
 // bisa di-bookmark): jendela terminal PowerShell penuh yang baris
 // perintahnya MENCERMINKAN filter aktif (-Level/-Outlet/-Actor/-From/
 // -To); filter, pagination, dan unduh Excel tetap berfungsi di kedua
-// mode — pagination mempertahankan mode lewat query string.
+// mode, pagination mempertahankan mode lewat query string.
 const PAGE_SIZE = 20;
 
 const ROLE_BADGE: Record<string, string> = {
@@ -85,6 +86,8 @@ export default async function DevLogsPage({
   if (!session.user.goToken) redirect("/login");
   const token = session.user.goToken;
 
+  const outletShell = await getOutletContext();
+
   const sp = await searchParams;
   const one = (key: string): string | undefined => {
     const value = sp[key];
@@ -99,7 +102,7 @@ export default async function DevLogsPage({
   const to = one("to") ?? "";
   const level = one("level") ?? "";
   const page = Math.max(1, parseInt(one("page") ?? "1", 10) || 1);
-  // v2.2.1: mode tampilan — "table" (default) atau "terminal", hidup
+  // v2.2.1: mode tampilan, "table" (default) atau "terminal", hidup
   // di URL supaya bisa di-bookmark & dibagikan seperti filter lainnya.
   const view = one("view") === "terminal" ? "terminal" : "table";
 
@@ -115,7 +118,7 @@ export default async function DevLogsPage({
   query.set("offset", String((page - 1) * PAGE_SIZE));
 
   // Daftar aksi yang BENAR-BENAR pernah terjadi + daftar outlet & aktor
-  // untuk dropdown — semuanya dari Go, bukan tabel beku era Prisma.
+  // untuk dropdown, semuanya dari Go, bukan tabel beku era Prisma.
   const [logsRes, outletsRes, usersRes] = await Promise.all([
     goFetch<GoAuditResponse>(token, `/audit-logs?${query.toString()}`),
     goFetch<GoOutletOption[]>(token, "/outlets"),
@@ -128,8 +131,7 @@ export default async function DevLogsPage({
   const actionOptions = logsRes.data.actions ?? [];
   const outlets = outletsRes.ok
     ? [...(outletsRes.data ?? [])].sort((a, b) =>
-        a.name.localeCompare(b.name, "id-ID"),
-      )
+        a.name.localeCompare(b.name, "id-ID"))
     : [];
   const actors = usersRes.ok
     ? [...(usersRes.data ?? [])]
@@ -140,13 +142,13 @@ export default async function DevLogsPage({
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
 
-  // Query string filter aktif — dipakai pagination (pertahankan filter)
+  // Query string filter aktif, dipakai pagination (pertahankan filter)
   // dan tombol export (unduh hasil filter INI, bukan semua log).
   const qs = logQueryString(filterInput);
 
   // v2.2.1: alamat mode (filter dipertahankan) + query string untuk
   // pagination yang juga MEMPERTAHANKAN mode terminal saat berpindah
-  // halaman — tanpa ini, klik halaman 2 diam-diam melempar balik ke
+  // halaman, tanpa ini, klik halaman 2 diam-diam melempar balik ke
   // mode tabel.
   const tableHref = qs ? `/dev/logs${qs}` : "/dev/logs";
   const terminalHref = qs
@@ -156,7 +158,7 @@ export default async function DevLogsPage({
     view === "terminal" ? (qs ? `${qs}&view=terminal` : "?view=terminal") : qs;
 
   // Nama outlet/aktor untuk baris perintah PowerShell di kepala
-  // terminal — id mentah (#3) dipakai bila namanya tak ketemu.
+  // terminal, id mentah (#3) dipakai bila namanya tak ketemu.
   const outletName = outlet
     ? outlets.find((o) => String(o.id) === outlet)?.name
     : undefined;
@@ -165,34 +167,40 @@ export default async function DevLogsPage({
     : undefined;
   const command = buildAuditCommand(
     { q, action, level, outletId: outlet, outletName, actorId: actor, actorName, from, to },
-    PAGE_SIZE,
-  );
+    PAGE_SIZE);
 
   return (
-    // Shell v3.2.0: sidebar WORKSPACE/MANAGE varian konsol developer
-    // (pola PDF "Audit log") — tombol Unduh Excel jadi SATU aksi utama.
-    <WorkspaceShell
-      variant="dev"
-      active="log"
+    <AppShell
+      role="DEVELOPER"
       user={userMenuUser(session)}
-      overline="Konsol Developer"
-      title="Jejak audit sistem"
-      desc={`Setiap aksi tercatat: login, transaksi, stok, akun, hingga percobaan yang gagal — ${total.toLocaleString("id-ID")} baris cocok filter. Filter hidup di URL; maksimum 10.000 baris per unduhan.`}
-      actions={
-        <a
-          href={`/api/logs/export${qs}`}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover"
-        >
-          <FileSpreadsheet className="h-4 w-4" />
-          <span className="hidden sm:inline">Unduh Excel (+ Grafik)</span>
-          <span className="sm:hidden">Excel</span>
-        </a>
-      }
-      mainClassName="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8"
+      outlet={{ name: outletShell?.name ?? "Konsol Developer", logoUrl: outletShell ? outletLogoUrl(outletShell) : null, address: outletShell?.address ?? null }}
+      crumb="Konsol Developer"
+      title="Log Aktivitas"
+      subtitle={`${total.toLocaleString("id-ID")} baris tercatat`}
     >
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
 
-          {/* v2.2.1: saklar mode Tabel / Terminal — filter aktif
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
+        <Link
+          href="/dev"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Kembali ke konsol developer
+        </Link>
+
+        <div className="mt-4 mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl dark:text-white">
+              Jejak Audit Sistem
+            </h1>
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-500 sm:text-sm dark:text-slate-400">
+              Setiap aksi tercatat: login, transaksi, stok, akun, hingga
+              percobaan yang gagal. Filter hidup di URL, hasilnya bisa
+              di-bookmark dan dibagikan; maksimum 10.000 baris per unduhan.
+            </p>
+          </div>
+
+          {/* v2.2.1: saklar mode Tabel / Terminal, filter aktif
               dipertahankan saat berpindah mode. */}
           <div
             className="flex rounded-xl border border-slate-300 bg-white p-1 text-xs font-bold dark:border-slate-700 dark:bg-slate-900"
@@ -230,7 +238,7 @@ export default async function DevLogsPage({
           method="get"
           className="glass-card grid gap-2.5 rounded-2xl p-4 sm:grid-cols-2 lg:grid-cols-4"
         >
-          {/* Mode tampilan ikut terkirim saat filter diterapkan — tanpa
+          {/* Mode tampilan ikut terkirim saat filter diterapkan, tanpa
               ini, menekan "Terapkan Filter" diam-diam kembali ke tabel. */}
           <input type="hidden" name="view" defaultValue={view} />
           <div className="relative lg:col-span-2">
@@ -253,9 +261,9 @@ export default async function DevLogsPage({
           </SelectInput>
           <SelectInput name="level" defaultValue={level} aria-label="Filter tingkat">
             <option value="">Semua tingkat</option>
-            <option value="SUKSES">SUKSES — selesai normal</option>
-            <option value="PERINGATAN">PERINGATAN — aksi sensitif</option>
-            <option value="GAGAL">GAGAL — ada error</option>
+            <option value="SUKSES">SUKSES, selesai normal</option>
+            <option value="PERINGATAN">PERINGATAN, aksi sensitif</option>
+            <option value="GAGAL">GAGAL, ada error</option>
           </SelectInput>
           <SelectInput name="outlet" defaultValue={outlet} aria-label="Filter outlet">
             <option value="">Semua outlet</option>
@@ -313,12 +321,11 @@ export default async function DevLogsPage({
         </form>
 
         {view === "terminal" ? (
-          /* ===== MODE TERMINAL (v2.2.1): jendela PowerShell penuh —
-              perintah di kepala = filter aktif, baris log padat
+          /* ===== MODE TERMINAL (v2.2.1): jendela PowerShell penuh, perintah di kepala = filter aktif, baris log padat
               berwarna, pagination di bawah tetap berbasis URL. ===== */
           <section className="mt-3">
             <AuditTerminal
-              title={`umkm-os — jejak audit — ${total.toLocaleString("id-ID")} baris cocok filter`}
+              title={`umkm-os, jejak audit, ${total.toLocaleString("id-ID")} baris cocok filter`}
               command={command}
               note="filter & unduhan Excel tetap berlaku di mode ini"
               rows={rows}
@@ -345,7 +352,7 @@ export default async function DevLogsPage({
           </section>
         ) : (
           /* ===== MODE TABEL (default): tampilan lama yang sudah
-              dikenal — lebih renggang, cocok dibaca pelan-pelan. ===== */
+              dikenal, lebih renggang, cocok dibaca pelan-pelan. ===== */
           <section className="glass-card mt-3 overflow-hidden rounded-2xl border-slate-200/80 dark:border-slate-800/80">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] text-sm">
@@ -390,7 +397,7 @@ export default async function DevLogsPage({
                           )}
                         </td>
                         <td className="px-4 py-3 text-slate-500 dark:text-slate-400">
-                          {row.outlet_name || "—"}
+                          {row.outlet_name || ""}
                         </td>
                         <td className="px-4 py-3">
                           {/* Label manusiawi berwarna tingkat + kode mentah:
@@ -406,7 +413,7 @@ export default async function DevLogsPage({
                           </p>
                         </td>
                         <td className="px-4 py-3 font-mono text-[11px] text-slate-400 dark:text-slate-500">
-                          {entityLabel || "—"}
+                          {entityLabel || ""}
                         </td>
                         <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                           {row.detail}
@@ -420,7 +427,7 @@ export default async function DevLogsPage({
                         colSpan={6}
                         className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
                       >
-                        Tidak ada log yang cocok — longgarkan filter atau
+                        Tidak ada log yang cocok, longgarkan filter atau
                         perlebar rentang tanggal.
                       </td>
                     </tr>
@@ -438,6 +445,7 @@ export default async function DevLogsPage({
             />
           </section>
         )}
-    </WorkspaceShell>
+      </div>
+    </AppShell>
   );
 }

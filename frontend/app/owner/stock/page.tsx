@@ -1,14 +1,18 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { WorkspaceShell } from "@/components/workspace-shell";
+import { Boxes, ClipboardList } from "lucide-react";
 import { userMenuUser } from "@/lib/session-user";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
-import { getOutletContext, outletLogoUrl } from "@/lib/outlet-context";
 import {
   StockClient,
   type StockMovementRow,
   type StockProductOption,
 } from "./stock-client";
+
+import { AppShell } from "@/components/shell/app-shell";
+import { getOutletContext } from "@/lib/outlet-context";
+import { outletLogoUrl } from "@/lib/outlet-branding";
 
 export const instant = false;
 
@@ -56,18 +60,19 @@ export default async function OwnerStockPage() {
   if (session.user.role !== "OWNER" && session.user.role !== "DEVELOPER")
     redirect("/cashier");
   if (!session.user.goToken) {
-    throw new Error("Sesi tidak memiliki token backend — silakan login ulang.");
+    throw new Error("Sesi tidak memiliki token backend, silakan login ulang.");
   }
   const goToken = session.user.goToken;
 
+  const outlet = await getOutletContext();
+
   // Produk aktif + 200 gerakan terakhir + total gerakan, semuanya dari
-  // backend-go — kartu stok dan kasir membaca angka yang sama.
+  // backend-go, kartu stok dan kasir membaca angka yang sama.
   const [productsResult, movementsResult] = await Promise.all([
     goFetch<GoProduct[]>(goToken, "/products"),
     goFetch<{ total: number; rows: GoMovement[] }>(
       goToken,
-      "/stock-movements?limit=200",
-    ),
+      "/stock-movements?limit=200"),
   ]);
   if (!productsResult.ok) throw new Error(productsResult.message);
   if (!movementsResult.ok) throw new Error(movementsResult.message);
@@ -81,12 +86,11 @@ export default async function OwnerStockPage() {
       minStock: product.min_stock,
       unit: product.unit || "pcs",
       costRupiah: product.cost,
-    }),
-  );
+    }));
 
   // Rows are plain serializable objects. Display strings are prepared on
   // the server so the client render stays hydration-safe. Gerakan OUT
-  // yang terikat nomor struk = penjualan kasir — ditampilkan SALE agar
+  // yang terikat nomor struk = penjualan kasir, ditampilkan SALE agar
   // makna barisnya sama dengan era sebelumnya.
   const movementRows: StockMovementRow[] = movementsResult.data.rows.map(
     (movement) => ({
@@ -102,17 +106,10 @@ export default async function OwnerStockPage() {
       userName: movement.user_name,
       transactionCode: movement.receipt_no,
       timeLabel: timeFmt.format(new Date(movement.created_at)),
-    }),
-  );
+    }));
 
   const lowStockCount = productOptions.filter(
-    (product) => product.stock <= product.minStock,
-  ).length;
-
-  // v3.2.0: identitas outlet untuk sidebar (pola yang sama dengan
-  // halaman owner lain — tanpa mengubah pengambilan data stok).
-  const outlet = await getOutletContext();
-  const logoUrl = outlet ? outletLogoUrl(outlet) : null;
+    (product) => product.stock <= product.minStock).length;
 
   const stats = [
     {
@@ -133,18 +130,24 @@ export default async function OwnerStockPage() {
   ];
 
   return (
-    // Shell v3.2.0: sidebar WORKSPACE/MANAGE (pola PDF "Inventory &
-    // procurement") — kartu stok memakai permukaan tenang, ikut tema.
-    <WorkspaceShell
-      variant="owner"
-      active="stok"
+    <AppShell
+      role={session.user.role === "DEVELOPER" ? "DEVELOPER" : "OWNER"}
       user={userMenuUser(session)}
-      outletName={outlet?.name}
-      logoUrl={logoUrl}
-      overline="Kelola Stok"
-      title="Kartu stok & pengadaan"
-      desc="Catat restok dan hasil opname. Setiap perubahan stok terekam di riwayat, terbaru paling atas."
+      outlet={{ name: outlet?.name ?? "Warung Anda", logoUrl: outlet ? outletLogoUrl(outlet) : null, address: outlet?.address ?? null }}
+      crumb="Pengelolaan"
+      title="Kartu Stok"
+      subtitle={outlet?.name ?? "Restok dan jejak gerakan barang"}
     >
+
+      <div className="flex flex-col gap-1">
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+          Kartu Stok
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Catat restok dan hasil opname. Setiap perubahan stok terekam di
+          riwayat, terbaru paling atas.
+        </p>
+      </div>
 
       <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((stat) => {
@@ -170,6 +173,6 @@ export default async function OwnerStockPage() {
       </dl>
 
       <StockClient products={productOptions} rows={movementRows} />
-    </WorkspaceShell>
+    </AppShell>
   );
 }

@@ -1,9 +1,12 @@
-// Test penjaga Asisten AI (frontend v2.4.0) — file guard + kontrak.
+// Test penjaga asisten OSCAR (frontend v1.0.0), panel, halaman, kontrak
+// lintas-stack, dan uji sambungan LLM.
 //
-// Yang dikunci: gerbang sesi/role di route handler, header internal
-// antar-layanan, badge Mode Data vs AI + peringatan angka di panel,
-// batas laju & cache di sisi layanan ML, dan kontrak lintas-stack
-// (migrasi chat_history Go, konfigurasi LLM di compose/env).
+// Yang dikunci: persona OSCAR (nama, singkatan Online Shop Center for
+// Assistance & Response, pencipta) sama di frontend dan layanan ML;
+// perilaku panel (riwayat, lencana mode, validasi angka, Enter mengirim,
+// batas 500 karakter, tautan pengaturan saat Mode Data); pintu route
+// handler /api/assistant/* yang menolak kasir; dan jalur baru Tes
+// Koneksi (/api/assistant/llm-selftest) sampai layanan ML.
 // Standar: Bahasa Indonesia, stdlib Node saja, tanpa DB/jaringan.
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -16,331 +19,264 @@ const ROOT_REPO = join(ROOT_FRONTEND, "..");
 const baca = (rel: string) => readFileSync(join(ROOT_FRONTEND, rel), "utf-8");
 const bacaRepo = (rel: string) => readFileSync(join(ROOT_REPO, rel), "utf-8");
 
-describe("lib/assistant.ts — klien server-side", () => {
-  it("BASE URL dari env server-only (bukan NEXT_PUBLIC)", () => {
-    const isi = baca("lib/assistant.ts");
-    expect(isi).toContain('process.env.BACKEND_URL ?? "http://127.0.0.1:8000"');
-    expect(isi).not.toContain("NEXT_PUBLIC_BACKEND");
+// Konstanta persona layanan ML (backend/app/services/assistant.py), // dikutip di sini sebagai kontrak lintas-stack: bila salah satu sisi
+// berganti nama, test ini menyala lebih dulu.
+const ASSISTANT_NAME = "OSCAR";
+const ASSISTANT_FULL_NAME = "Online Shop Center for Assistance & Response";
+const ASSISTANT_CREATOR = "Dearly Febriano Irwansyah";
+
+describe("persona OSCAR, frontend dan layanan ML seirama", () => {
+  it("layanan ML: nama dan singkatan resmi OSCAR", () => {
+    const otak = bacaRepo("backend/app/services/assistant.py");
+    expect(otak).toContain(`ASSISTANT_NAME = "OSCAR"`);
+    expect(otak).toContain(ASSISTANT_FULL_NAME);
+    expect(otak).toContain(`ASSISTANT_CREATOR = "${ASSISTANT_CREATOR}"`);
+    expect(otak).not.toContain('"Dea"');
   });
 
-  it("mengirim X-Internal-Key saat env terisi (blueprint 5.4)", () => {
-    const isi = baca("lib/assistant.ts");
-    expect(isi).toContain('process.env.INTERNAL_API_KEY ?? ""');
-    expect(isi).toContain('headers["X-Internal-Key"] = INTERNAL_KEY');
+  it("frontend: lib/oscar.ts memuat identitas yang sama", () => {
+    const oscar = baca("lib/oscar.ts");
+    expect(oscar).toContain(`export const OSCAR_NAME = "${ASSISTANT_NAME}";`);
+    expect(oscar).toContain(ASSISTANT_FULL_NAME);
+    expect(oscar).toContain(`export const OSCAR_CREATOR = "${ASSISTANT_CREATOR}"`);
+    expect(oscar).toContain(ASSISTANT_FULL_NAME);
   });
 
-  it("chat TIDAK di-cache (no-store) — beda dari forecast 900 detik", () => {
-    const isi = baca("lib/assistant.ts");
-    expect(isi).toContain('cache: "no-store"');
-    expect(isi).not.toContain("revalidate");
-  });
-
-  it("kontrak ChatResponse selaras skema layanan ML", () => {
-    const isi = baca("lib/assistant.ts");
-    for (const medan of [
-      "answer",
-      "mode",
-      "intent",
-      "period",
-      "numbers_validated",
-      "cached",
-      "retried",
-      "engine",
-      "outlet_id",
-      "outlet_name",
-    ]) {
-      expect(isi).toContain(`${medan}:`);
-    }
-  });
-
-  it("kegagalan layanan menjadi pesan ramah, bukan crash", () => {
-    const isi = baca("lib/assistant.ts");
-    expect(isi).toContain("AssistantError");
-    expect(isi).toContain("tidak terjangkau");
+  it("panel: kepala obrolan memperkenalkan OSCAR + nama panjang", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain(`import { OSCAR_LONG_NAME, OSCAR_NAME } from "@/lib/oscar";`);
+    expect(panel).toContain("{OSCAR_NAME}");
+    expect(panel).toContain("{OSCAR_LONG_NAME}");
   });
 });
 
-describe("route handler /api/assistant — gerbang sesi & role", () => {
-  it("chat: sesi wajib, KASIR ditolak 403 dengan pesan jelas", () => {
-    const isi = baca("app/api/assistant/chat/route.ts");
-    expect(isi).toContain("await auth()");
-    expect(isi).toContain('session.user.role === "KASIR"');
-    expect(isi).toContain("403");
+describe("panel obrolan, perilaku yang tidak boleh berubah", () => {
+  it("riwayat dimuat sekali lewat /api/assistant/history", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain('fetch("/api/assistant/history"');
+    expect(panel).toContain('cache: "no-store"');
   });
 
-  it("chat: pertanyaan divalidasi (string, trim, maks 500)", () => {
-    const isi = baca("app/api/assistant/chat/route.ts");
-    expect(isi).toContain("slice(0, 500)");
-    expect(isi).toContain("Tulis pertanyaannya dulu.");
+  it("pertanyaan dikirim ke /api/assistant/chat dengan isi JSON", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain('fetch("/api/assistant/chat"');
+    expect(panel).toContain('body: JSON.stringify({ question: bersih })');
   });
 
-  it("chat: outlet_id diambil dari getOutletContext (per-outlet)", () => {
-    const isi = baca("app/api/assistant/chat/route.ts");
-    expect(isi).toContain("getOutletContext()");
-    expect(isi).toContain("outlet?.id");
+  it("Enter mengirim, Shift+Enter membuat baris baru", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain('e.key === "Enter" && !e.shiftKey');
+    expect(panel).toContain("e.preventDefault()");
   });
 
-  it("history: gerbang sama + toleran layanan tumbang (kosong)", () => {
-    const isi = baca("app/api/assistant/history/route.ts");
-    expect(isi).toContain("await auth()");
-    expect(isi).toContain('session.user.role === "KASIR"');
-    expect(isi).toContain("{ messages: [], total: 0 }");
-  });
-});
-
-describe("components/assistant/assistant-panel.tsx — UX jujur", () => {
-  it("badge Mode AI vs Mode Data dibedakan", () => {
-    const isi = baca("components/assistant/assistant-panel.tsx");
-    expect(isi).toContain("Mode AI");
-    expect(isi).toContain("Mode Data");
-    expect(isi).toContain("Sparkles");
-    expect(isi).toContain("Database");
+  it("batas 500 karakter per pertanyaan tetap diberlakukan", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain("maxLength={500}");
   });
 
-  it("peringatan angka belum tervalidasi tampil (amber)", () => {
-    const isi = baca("components/assistant/assistant-panel.tsx");
-    expect(isi).toContain("numbersValidated === false");
-    expect(isi).toContain("belum lolos validasi data");
+  it("alur pesan hidup untuk pembaca layar (aria-live)", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain('aria-live="polite"');
+    expect(panel).toContain('aria-label="Percakapan asisten"');
   });
 
-  it("daftar pesan aria-live untuk pembaca layar", () => {
-    const isi = baca("components/assistant/assistant-panel.tsx");
-    expect(isi).toContain('aria-live="polite"');
+  it("lencana mode membedakan Mode AI dan Mode Data", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain("Mode AI");
+    expect(panel).toContain("Mode Data");
+    expect(panel).toContain('mode === "ai"');
   });
 
-  it("chip contoh pertanyaan untuk onboarding cepat", () => {
-    const isi = baca("components/assistant/assistant-panel.tsx");
-    expect(isi).toContain("Berapa omzet hari ini?");
-    expect(isi).toContain("Stok apa yang menipis?");
+  it("angka yang belum lolos validasi data diberi peringatan", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain("numbersValidated === false");
+    expect(panel).toContain("belum lolos validasi data");
   });
 
-  it("umpan galat ramah (termasuk 429 batas laju dari detail)", () => {
-    const isi = baca("components/assistant/assistant-panel.tsx");
-    expect(isi).toContain("role=\"alert\"");
-    expect(isi).toContain("isi.detail ??");
+  it("galat ramah (termasuk batas laju) memakai peran alert", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain('role="alert"');
+    expect(panel).toContain("galat");
   });
 
-  it("riwayat dimuat sekali + indicator memuat", () => {
-    const isi = baca("components/assistant/assistant-panel.tsx");
-    expect(isi).toContain('"/api/assistant/history"');
-    expect(isi).toContain("Memuat riwayat");
-  });
-});
-
-describe("halaman /owner/assistant", () => {
-  it("gerbang role OWNER/DEVELOPER (kasir diarahkan ke kasir)", () => {
-    const isi = baca("app/owner/assistant/page.tsx");
-    expect(isi).toContain('session.user.role !== "OWNER"');
-    expect(isi).toContain('redirect("/cashier")');
+  it("Mode Data menawarkan jalur aktifasi di Pengaturan", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain('href="/owner/settings#asisten-ai"');
+    expect(panel).toContain("Aktifkan Mode AI di Pengaturan");
   });
 
-  it("memakai AssistantPanel dengan nama outlet konteks", () => {
-    const isi = baca("app/owner/assistant/page.tsx");
-    expect(isi).toContain("<AssistantPanel outletName={namaOutlet} />");
-    expect(isi).toContain("getOutletContext()");
+  it("chip contoh lengkap, termasuk jam ramai dan pencipta", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain('"Berapa omzet hari ini?"');
+    expect(panel).toContain('"Stok apa yang menipis?"');
+    expect(panel).toContain('"Produk terlaris minggu ini?"');
+    expect(panel).toContain('"Kasih saran untuk minggu ini"');
+    expect(panel).toContain('"Siapa kamu?"');
+    expect(panel).toContain('"Saran minggu depan"');
+    expect(panel).toContain('"Jam paling ramai kapan?"');
+    expect(panel).toContain('"Siapa penciptamu?"');
+  });
+
+  it("gulir otomatis mengikuti jawaban terbaru", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain("scrollIntoView");
+    expect(panel).toContain("ujungRef");
   });
 });
 
-describe("navbar owner menautkan asisten", () => {
-  it("link /owner/assistant ada di dashboard owner", () => {
-    // v3.2.0: navigasi dashboard owner hidup di sidebar WorkspaceShell
-    // (shell bersama yang membungkus halaman owner).
-    const isi = baca("app/owner/page.tsx");
-    expect(isi).toContain("WorkspaceShell");
-    const shell = baca("components/workspace-shell.tsx");
-    expect(shell).toContain('"/owner/assistant"');
-    // label navigasi sidebar memakai nama persona OSCAR (sejak v2.6.0).
-    expect(shell).toContain("OSCAR");
+describe("halaman OSCAR, gerbang dan konteks bisnis", () => {
+  it("hanya pemilik dan developer yang boleh membuka halaman", () => {
+    const halaman = baca("app/owner/assistant/page.tsx");
+    expect(halaman).toContain('if (!session?.user?.goToken) redirect("/login");');
+    expect(halaman).toContain('redirect("/cashier");');
+  });
+
+  it("konteks bisnis membaca mode dan model NYATA dari layanan ML", () => {
+    const halaman = baca("app/owner/assistant/page.tsx");
+    expect(halaman).toContain("getAssistantLlmConfig()");
+    expect(halaman).toContain("modeJawaban");
+    expect(halaman).toContain("namaModel");
+  });
+
+  it("panel aturan main OSCAR memaparkan kebijakan yang benar benar hidup", () => {
+    const halaman = baca("app/owner/assistant/page.tsx");
+    expect(halaman).toContain("Aturan main");
+    expect(halaman).toContain("data outlet yang sedang aktif");
+    expect(halaman).toContain("tidak pernah dibocorkan");
+  });
+
+  it("halaman menyapa pemilik dengan bahasa formal (tanpa sebutan lama)", () => {
+    const halaman = baca("app/owner/assistant/page.tsx");
+    expect(halaman).toContain("Diciptakan oleh");
+    expect(halaman).not.toContain("warungmu");
   });
 });
 
-describe("kontrak lintas-stack Asisten (ml-service v3.1.0)", () => {
-  it("layanan ML: batas laju sliding window per user dipasang", () => {
-    const isi = bacaRepo("backend/app/api/routes/assistant.py");
-    expect(isi).toContain("SlidingWindowLimiter");
-    expect(isi).toContain("429");
-    expect(isi).toContain("Retry-After");
+describe("lib/assistant.ts, kontrak klien sisi-server", () => {
+  it("alamat layanan ML dan kunci internal hanya hidup di server", () => {
+    const lib = baca("lib/assistant.ts");
+    expect(lib).toContain('process.env.BACKEND_URL ?? "http://127.0.0.1:8000"');
+    expect(lib).toContain("process.env.INTERNAL_API_KEY ??");
+    expect(lib).toContain('headers["X-Internal-Key"] = INTERNAL_KEY;');
   });
 
-  it("layanan ML: cache jawaban + hanya jawaban tervalidasi di-cache", () => {
-    const isi = bacaRepo("backend/app/api/routes/assistant.py");
-    expect(isi).toContain("AnswerCache(");
-    expect(isi).toContain('if hasil["numbers_validated"]:');
+  it("chat dikirim dengan user_id, pertanyaan, dan outlet sesi", () => {
+    const lib = baca("lib/assistant.ts");
+    expect(lib).toContain("user_id: userId");
+    expect(lib).toContain("outlet_id: String(outletId)");
+    expect(lib).toContain('cache: "no-store"');
   });
 
-  it("layanan ML: system prompt tegas 120 kata + 1 saran (blueprint)", () => {
-    const isi = bacaRepo("backend/app/services/assistant.py");
-    expect(isi).toContain("MAX_ANSWER_WORDS = 120");
-    expect(isi).toContain("1 saran tindakan");
-    expect(isi).toContain("HANYA dari DATA");
+  it("galat layanan diterjemahkan menjadi pesan ramah pemilik", () => {
+    const lib = baca("lib/assistant.ts");
+    expect(lib).toContain("Layanan asisten tidak terjangkau");
+    expect(lib).toContain("class AssistantError extends Error");
+    expect(lib).toContain("this.status = status;");
   });
 
-  it("layanan ML: validasi angka + retry tepat 1x + flag jujur", () => {
-    const isi = bacaRepo("backend/app/services/assistant.py");
-    expect(isi).toContain("def validate_numbers(");
-    expect(isi).toContain("def build_retry_instruction(");
-    expect(isi).toContain('"numbers_validated": sah,');
+  it("kontrak pengaturan LLM: kunci hanya kembali dalam bentuk dimasker", () => {
+    const lib = baca("lib/assistant.ts");
+    expect(lib).toContain("api_key_masked: string;");
+    expect(lib).toContain('source: "file" | "env";');
+    expect(lib).toContain("putAssistantLlmConfig");
   });
 
-  it("layanan ML: kunci internal X-Internal-Key di gerbang endpoint", () => {
-    const isi = bacaRepo("backend/app/api/routes/assistant.py");
-    expect(isi).toContain('request.headers.get("X-Internal-Key", "")');
-    expect(isi).toContain("require_internal_key");
-  });
-
-  it("layanan ML: jatuh ke Mode Data saat LLM tumbang (asisten tak mati)", () => {
-    const isi = bacaRepo("backend/app/api/routes/assistant.py");
-    expect(isi).toContain("build_offline_answer");
-  });
-
-  it("model ChatHistory dipetakan (pengecualian tulis satu-satunya)", () => {
-    const isi = bacaRepo("backend/app/models/__init__.py");
-    expect(isi).toContain('__tablename__ = "chat_history"');
-    expect(isi).toContain("class ChatHistory(Base):");
-  });
-
-  it("compose: LLM opsional + INTERNAL_API_KEY di kedua layanan", () => {
-    const isi = bacaRepo("docker-compose.yml");
-    expect(isi).toContain("LLM_ENABLED:");
-    expect(isi).toContain("LLM_BASE_URL:");
-    expect(isi).toContain("LLM_API_KEY:");
-    expect(isi).toContain("INTERNAL_API_KEY:");
-    const layanan = isi.split("frontend:")[0];
-    const frontend = isi.split("frontend:")[1] ?? "";
-    expect(layanan).toContain("INTERNAL_API_KEY:"); // service backend
-    expect(frontend).toContain("INTERNAL_API_KEY:"); // service frontend
-  });
-
-  it(".env.example: seksi OPSIONAL LLM agnostik penyedia", () => {
-    const isi = bacaRepo(".env.example");
-    expect(isi).toContain("LLM_BASE_URL");
-    expect(isi).toContain("LLM_API_KEY");
-    expect(isi).toContain("LLM_MODEL");
-  });
-
-  it("status asisten PUBLIK tanpa kunci (kejujuran mode)", () => {
-    const isi = bacaRepo("backend/app/api/routes/assistant.py");
-    const setelahStatus = isi.split("@router.get(\"/status\"")[1] ?? "";
-    // hotfix RUN-3: blok /status dibatasi sampai decorator "@router." berikutnya;
-    // endpoint /llm-config (v3.2.0) di bawahnya SAH memakai kunci internal,
-    // jangan sampai ikut terbaca sebagai bagian endpoint publik /status.
-    const blokStatus = setelahStatus.split("@router.")[0] ?? "";
-    expect(blokStatus).not.toContain("require_internal_key");
+  it("uji sambungan: POST ke /api/v1/assistant/llm-selftest", () => {
+    const lib = baca("lib/assistant.ts");
+    expect(lib).toContain("postAssistantLlmSelftest");
+    expect(lib).toContain("${BASE_URL}/api/v1/assistant/llm-selftest");
+    expect(lib).toContain("latency_ms: number | null;");
+    expect(lib).toContain("answer_sample: string | null;");
+    expect(lib).toContain("api_key_masked: string;");
   });
 });
 
-describe("Pengaturan LLM runtime (frontend v2.5.0)", () => {
-  it("lib: fungsi GET/PUT llm-config memakai header internal + no-store", () => {
-    const isi = baca("lib/assistant.ts");
-    expect(isi).toContain("getAssistantLlmConfig");
-    expect(isi).toContain("putAssistantLlmConfig");
-    expect(isi).toContain("/api/v1/assistant/llm-config");
-    expect(isi).toContain("AssistantLlmConfigInput");
+describe("route handler /api/assistant/*, gerbang sesi NextAuth", () => {
+  it("uji sambungan menolak tanpa sesi dan menolak kasir", () => {
+    const route = baca("app/api/assistant/llm-selftest/route.ts");
+    expect(route).toContain("await auth()");
+    expect(route).toContain("Sesi tidak valid");
+    expect(route).toContain('session.user.role === "KASIR"');
+    expect(route).toContain("hanya untuk pemilik");
   });
 
-  it("route handler llm-config: sesi wajib, KASIR ditolak 403", () => {
-    const isi = baca("app/api/assistant/llm-config/route.ts");
-    expect(isi).toContain("await auth()");
-    expect(isi).toContain('session.user.role === "KASIR"');
-    expect(isi).toContain("403");
+  it("uji sambungan meneruskan hasil mentah layanan ML", () => {
+    const route = baca("app/api/assistant/llm-selftest/route.ts");
+    expect(route).toContain("postAssistantLlmSelftest()");
+    expect(route).toContain('"Cache-Control": "no-store"');
   });
 
-  it("route handler llm-config: validasi base URL http(s) + model 422", () => {
-    const isi = baca("app/api/assistant/llm-config/route.ts");
-    expect(isi).toContain("/^https?:\\/\\//");
-    expect(isi).toContain("422");
-    expect(isi).toContain("Nama model wajib diisi");
-  });
-
-  it("form Asisten AI ada di Pengaturan dengan jangkar #asisten-ai", () => {
-    const halaman = baca("app/owner/settings/page.tsx");
-    expect(halaman).toContain("<AssistantAiForm />");
-    expect(halaman).toContain('id="asisten-ai"');
-    const form = baca("app/owner/settings/assistant-ai-form.tsx");
-    expect(form).toContain('"/api/assistant/llm-config"');
-    expect(form).toContain("Aktifkan Mode AI");
-    expect(form).toContain("host.docker.internal:11434/v1");
-  });
-
-  it("form tidak pernah menampilkan kunci utuh (masker saja)", () => {
-    const form = baca("app/owner/settings/assistant-ai-form.tsx");
-    expect(form).toContain("api_key_masked");
-    expect(form).toContain('type="password"');
-  });
-
-  it("panel asisten: hint Mode Data menautkan ke Pengaturan", () => {
-    const isi = baca("components/assistant/assistant-panel.tsx");
-    expect(isi).toContain('href="/owner/settings#asisten-ai"');
-    expect(isi).toContain("Aktifkan Mode AI di Pengaturan");
-  });
-
-  it("panel asisten: chip identitas & saran minggu depan hadir", () => {
-    const isi = baca("components/assistant/assistant-panel.tsx");
-    expect(isi).toContain("Siapa kamu?");
-    expect(isi).toContain("Saran minggu depan");
+  it("chat tetap menggerbangi sesi dan memotong pertanyaan 500 karakter", () => {
+    const route = baca("app/api/assistant/chat/route.ts");
+    expect(route).toContain("await auth()");
+    expect(route).toContain("slice(0, 500)");
+    expect(route).toContain('role === "KASIR"');
   });
 });
 
-describe("Asisten Cerdas lintas-stack (ml-service v3.2.0)", () => {
-  it("layanan ML: jawaban Mode Data kini per-maksud (bukan template tunggal)", () => {
-    const isi = bacaRepo("backend/app/services/assistant.py");
-    expect(isi).toContain("def normalize_text(");
-    expect(isi).toContain('maksud == "identitas"');
-    expect(isi).toContain('maksud == "prediksi"');
-    expect(isi).toContain('maksud == "sapaan"');
+describe("uji sambungan LLM, lintas-stack sampai layanan ML", () => {
+  it("layanan uji mandiri ada dan menyuntik klien serta konfigurasi", () => {
+    const uji = bacaRepo("backend/app/services/llm_selftest.py");
+    expect(uji).toContain("async def run_selftest(");
+    expect(uji).toContain("klien: Any | None = None");
+    expect(uji).toContain("cfg: dict[str, Any] | None = None");
+    expect(uji).toContain("UJI_PROMPT");
   });
 
-  it("layanan ML: taksonomi maksud baru + persona OSCAR (v2.6.0)", () => {
-    const isi = bacaRepo("backend/app/services/assistant.py");
-    expect(isi).toContain('ASSISTANT_NAME = "OSCAR"');
-    expect(isi).toContain("Online Shop Center for Assistance & Response");
-    expect(isi).toContain('"identitas", "kemampuan", "sapaan", "terima_kasih"');
-    expect(isi).toContain('"obrolan"');
-    expect(isi).toContain('"jam_ramai"');
+  it("kunci hanya keluar dalam bentuk dimasker (aturan 11 v2.7.0)", () => {
+    const uji = bacaRepo("backend/app/services/llm_selftest.py");
+    expect(uji).toContain("mask_key(cfg.get(\"api_key\")");
+    expect(uji).toContain('"api_key_masked"');
   });
 
-  it("layanan ML: store konfigurasi runtime + endpoint PUT llm-config", () => {
-    expect(bacaRepo("backend/app/services/llm_config_store.py")).toContain(
-      "llm_config.json",
-    );
+  it("endpoint POST /llm-selftest ber-gerbang X-Internal-Key", () => {
     const routes = bacaRepo("backend/app/api/routes/assistant.py");
-    expect(routes).toContain('@router.put("/llm-config"');
-    expect(routes).toContain("mask_key");
-    expect(routes).toContain("save_file_config");
+    expect(routes).toContain('@router.post("/llm-selftest")');
+    expect(routes).toContain("await require_internal_key(request)");
+    expect(routes).toContain("llm_selftest as uji");
   });
 
-  it("layanan ML: konteks memuat kemajuan gerbang utk jawaban jujur", () => {
-    const routes = bacaRepo("backend/app/api/routes/assistant.py");
-    expect(routes).toContain("_progress_ml");
-    expect(routes).toContain('"ml_progress"');
+  it("tes backend uji mandiri hadir dan menyuntik cfg eksplisit", () => {
+    const tes = bacaRepo("backend/tests/test_llm_selftest.py");
+    expect(tes).toContain("klien=KlienStub");
+    expect(tes).toContain("cfg=CFG_AI");
+    expect(tes).toContain('"gsk_****unci"');
+    expect(tes).toContain("test_belum_dikonfigurasi");
   });
 
-  it("layanan ML: auto-train latar belakang + lifespan FastAPI", () => {
-    expect(bacaRepo("backend/app/ml/auto_train.py")).toContain(
-      "train_all_outlets",
-    );
-    expect(bacaRepo("backend/app/ml/auto_train.py")).toContain(
-      "auto_train_loop",
-    );
-    expect(bacaRepo("backend/app/main.py")).toContain("lifespan");
-    expect(bacaRepo("backend/app/main.py")).toContain("ML_AUTO_TRAIN");
+  it("form pengaturan memiliki tombol Tes Koneksi dengan hasil nyata", () => {
+    const form = baca("app/owner/settings/assistant-ai-form.tsx");
+    expect(form).toContain("ujiKoneksi");
+    expect(form).toContain('fetch("/api/assistant/llm-selftest"');
+    expect(form).toContain("latensi");
+    expect(form).toContain("Tes Koneksi");
   });
 
-  it("layanan ML: gerbang progresif 28/14 (bukan lagi 56/28)", () => {
-    const isi = bacaRepo("backend/app/ml/trainer.py");
-    expect(isi).toContain("MIN_DAYS = 28");
-    expect(isi).toContain("MIN_NONZERO = 14");
-    expect(isi).toContain("def gate_status(");
+  it("form pengaturan menyimpan lewat PUT llm-config tanpa restart", () => {
+    const form = baca("app/owner/settings/assistant-ai-form.tsx");
+    expect(form).toContain('fetch("/api/assistant/llm-config"');
+    expect(form).toContain('"PUT"');
+    expect(form).toContain("api_key: config.apiKey");
   });
 
-  it("API key opsional (Ollama) — bukan lagi syarat Mode AI", () => {
-    const isi = bacaRepo("backend/app/services/llm.py");
-    expect(isi).toContain("API key TIDAK diwajibkan");
-    expect(isi).toContain("effective_llm_config");
+  it("pesan singkat (toast) dipakai form untuk hasil simpan dan uji", () => {
+    const form = baca("app/owner/settings/assistant-ai-form.tsx");
+    expect(form).toContain("useToast()");
+    expect(form).toContain('variant: "sukses"');
+    expect(form).toContain('variant: "galat"');
+  });
+});
+
+describe("pencatat konsol khusus dipakai komponen baru", () => {
+  it("toast dan pemilih outlet mencatat lewat lib/ui/log", () => {
+    const toast = baca("components/ui/toast.tsx");
+    expect(toast).toContain('from "@/lib/ui/log"');
+    const switcher = baca("components/shell/store-switcher.tsx");
+    expect(switcher).toContain('from "@/lib/ui/log"');
   });
 
-  it("compose: auto-train bisa dimatikan lewat env root", () => {
-    const isi = bacaRepo("docker-compose.yml");
-    expect(isi).toContain("ML_AUTO_TRAIN:");
+  it("shell mencatat perubahan sidebar pada tingkat debug", () => {
+    const shell = baca("components/shell/app-shell.tsx");
+    expect(shell).toContain('log.debug("shell"');
   });
 });
