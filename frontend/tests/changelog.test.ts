@@ -1,7 +1,8 @@
-// Test riwayat perubahan UMKM OS v1.1.0 (lib/changelog.ts), murni.
+// Test riwayat perubahan UMKM OS (terbaru 1.1.1) (lib/changelog.ts), murni.
 //
 // Yang dikunci: entri tersusun dari versi terbaru ke terlama, setiap
 // entri punya versi/tanggal/judul/butir utuh, versi tidak dobel,
+// entri 1.1.1 memuat perbaikan obrolan OSCAR + healthcheck tenang,
 // entri 1.1.0 memuat perubahan besar yang benar benar terpasang
 // (murni AI, Ctrl+B, Changelog, kartu Tanya OSCAR dihapus), entri
 // 1.0.0 tetap tercatat sebagai sejarah, dan tanggal ISO diterjemahkan
@@ -35,6 +36,25 @@ describe("CHANGELOG, sumber data tombol Changelog topbar", () => {
   it("versi tidak boleh dobel antar entri", () => {
     const versi = CHANGELOG.map((e) => e.versi);
     expect(new Set(versi).size).toBe(versi.length);
+  });
+});
+
+describe("entri v1.1.1 memuat perbaikan yang benar benar terpasang", () => {
+  it("butir 1.1.1 menyebut normalisasi peran huruf kecil dan probe /health 60 detik", () => {
+    const entri = cariEntri("1.1.1");
+    expect(entri).not.toBeNull();
+    const gabung = entri!.butir.join(" ");
+    expect(gabung).toContain("huruf kecil");
+    expect(gabung).toContain("60 detik");
+    expect(gabung).toContain("/health");
+    expect(gabung).toContain("dua lapis");
+  });
+
+  it("versi terbaru kini 1.1.1, di atas entri 1.1.0 yang tetap utuh", () => {
+    expect(versiTerbaru()).toBe("1.1.1");
+    expect(CHANGELOG[0].versi).toBe("1.1.1");
+    expect(CHANGELOG[1].versi).toBe("1.1.0");
+    expect(cariEntri("1.1.0")).not.toBeNull();
   });
 });
 

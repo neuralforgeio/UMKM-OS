@@ -1,5 +1,5 @@
-// Riwayat perubahan UMKM OS v1.1.0, murni data tanpa React supaya bisa
-// diuji vitest dan dipakai tombol Changelog di topbar.
+// Riwayat perubahan UMKM OS (terbaru 1.1.1), murni data tanpa React
+// supaya bisa diuji vitest dan dipakai tombol Changelog di topbar.
 //
 // Satu sumber kebenaran untuk daftar versi yang tampil ke pengguna.
 // Versi produk bernomor publik sejak 1.0.0 (rilis internal sebelumnya
@@ -14,6 +14,17 @@ export type EntriChangelog = {
 };
 
 export const CHANGELOG: EntriChangelog[] = [
+  {
+    versi: "1.1.1",
+    tanggal: "2026-11-01",
+    judul: "Perbaikan obrolan OSCAR + pemeriksaan server tenang",
+    butir: [
+      "Perbaikan bug obrolan OSCAR gagal sejak pesan kedua (HTTP 502 LLM menolak HTTP 400): riwayat percakapan tersimpan dengan peran huruf besar (USER/ASSISTANT) sementara penyedia Groq hanya menerima huruf kecil - kini dinormalkan dua lapis (pembangun pesan dan klien) dan dijaga 5 test baru.",
+      "Laptop tidak lagi sibuk memeriksa server: probe /health dari tiap 10 detik menjadi tiap 60 detik, dan probe itu sendiri tidak lagi menulis baris log (dulu 3 baris per probe: konsol docker, file .log, dan .csv).",
+      "Boot tetap cepat: selama 30 detik pertama probe berjalan tiap 2-3 detik (start_interval), setelah itu jarang - service saling menunggu tidak lebih lama dari sebelumnya.",
+      "Skrip pemasangan kini membuktikan perbaikannya langsung: uji pesan peran huruf besar (ditolak penyedia) vs pesan ternormalisasi (diterima) dicetak di konsol saat pemasangan.",
+    ],
+  },
   {
     versi: "1.1.0",
     tanggal: "2026-11-01",

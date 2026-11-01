@@ -33,7 +33,11 @@ class Settings(BaseSettings):
     # Service identity
     # ------------------------------------------------------------------
     APP_NAME: str = "UMKM OS Backend"
-    # Semantic Versioning — 3.5.0 = MURNI AI: Mode Data dimatikan di
+    # Semantic Versioning — 3.5.1 = HOTFIX obrolan kedua selalu gagal:
+    # peran riwayat chat_history (huruf besar USER/ASSISTANT, konvensi
+    # migrasi Go) kini dinormalkan huruf kecil di dua lapis (build_
+    # messages + normalisasi_pesan klien) supaya diterima endpoint
+    # OpenAI-compatible Groq. (3.5.0 = MURNI AI: Mode Data dimatikan di
     # jalur chat (503/502 jujur tanpa jawaban template), pesan galat
     # penyedia diterjemahkan ke bahasa pemilik, kunci Groq baru di env
     # + llm_config.json. (3.4.0 = OSCAR Developer AI: identitas
@@ -44,7 +48,7 @@ class Settings(BaseSettings):
     # Asisten Cerdas: NLU per-maksud; 3.1.1 = hotfix created_at
     # chat_history; 3.1.0 = Asisten AI RAG; 3.0.0 = engine ganda
     # Prophet; 2.0.0 sengaja dilewati menepati janji router v1.)
-    VERSION: str = "3.5.0"
+    VERSION: str = "3.5.1"
 
     # Running mode: development | production | test
     ENVIRONMENT: Literal["development", "production", "test"] = "development"

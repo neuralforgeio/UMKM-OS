@@ -120,3 +120,70 @@ def test_klien_llm_menolak_jawaban_kosong() -> None:
         encoding="utf-8")
     assert "jawaban kosong" in klien
     assert "pesan_galat_http" in klien
+
+
+# ----------------------------------------------------------------------
+# v1.1.1: peran pesan HURUF KECIL di batas penyedia (bug obrolan kedua)
+# Gejala nyata di web pemilik: pesan pertama sebuah sesi terjawab, pesan
+# berikutnya selalu 502 "LLM mengembalikan HTTP 400 ... discriminator
+# property 'role' has invalid value" - riwayat database berperan huruf
+# besar (USER/ASSISTANT) diteruskan apa adanya ke Groq.
+# ----------------------------------------------------------------------
+def test_build_messages_menormalkan_peran_huruf_besar() -> None:
+    from app.services.assistant import build_messages
+
+    pesan = build_messages(
+        _konteks(),
+        [
+            {"role": "USER", "content": "halo"},
+            {"role": "ASSISTANT", "content": "hai"},
+        ],
+        "lanjut",
+    )
+    assert [m["role"] for m in pesan] == [
+        "system", "user", "assistant", "user",
+    ]
+
+
+def test_normalisasi_pesan_lapisan_transport() -> None:
+    """Klien menormalkan barisan pesan dari pemanggil mana pun: peran
+    diturunkan ke huruf kecil, pesan bercacat dibuang."""
+    from app.services.llm import normalisasi_pesan
+
+    hasil = normalisasi_pesan(
+        [
+            {"role": "system", "content": "aturan"},
+            {"role": "USER", "content": "halo"},
+            {"role": "Assistant", "content": "hai"},
+            {"role": "model", "content": "peran era SDK lain"},
+            {"role": "user"},  # tanpa isi -> dibuang
+            "bukan-dict",  # cacat -> dibuang
+            None,
+        ]
+    )
+    assert hasil == [
+        {"role": "system", "content": "aturan"},
+        {"role": "user", "content": "halo"},
+        {"role": "assistant", "content": "hai"},
+    ]
+
+
+def test_normalisasi_pesan_kosong_atau_semua_cacat() -> None:
+    from app.services.llm import normalisasi_pesan
+
+    assert normalisasi_pesan([]) == []
+    assert normalisasi_pesan(None) == []
+    assert normalisasi_pesan([{"role": "alien", "content": "x"}]) == []
+
+
+def test_penjaga_sumber_normalisasi_dua_lapis() -> None:
+    """Normalisasi harus ada di KEDUA lapisan: pembangun pesan (riwayat
+    huruf besar -> huruf kecil) dan klien transport (belt-and-braces)."""
+    layanan = (
+        ROOT_BACKEND / "app" / "services" / "assistant.py"
+    ).read_text(encoding="utf-8")
+    klien = (ROOT_BACKEND / "app" / "services" / "llm.py").read_text(
+        encoding="utf-8")
+    assert "peran" in layanan and ".lower()" in layanan
+    assert "def normalisasi_pesan" in klien
+    assert "normalisasi_pesan(messages)" in klien

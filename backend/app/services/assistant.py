@@ -690,12 +690,24 @@ def build_messages(
     history: list[dict[str, str]],
     question: str,
 ) -> list[dict[str, str]]:
-    """[system, *riwayat(<=5), user] — bentuk pesan OpenAI-compatible."""
-    riwayat = [
-        {"role": m["role"], "content": m["content"]}
-        for m in (history or [])[-HISTORY_TURNS:]
-        if m.get("role") in ("USER", "user", "ASSISTANT", "assistant")
-    ]
+    """[system, *riwayat(<=5), user] — bentuk pesan OpenAI-compatible.
+
+    v1.1.1: kolom chat_history menyimpan peran HURUF BESAR ("USER" /
+    "ASSISTANT" — konvensi CHECK constraint migrasi Go #12), sedangkan
+    endpoint OpenAI-compatible (Groq) hanya menerima literal HURUF
+    KECIL "user"/"assistant". Versi lalu meneruskan peran huruf besar
+    apa adanya, sehingga begitu sebuah sesi punya riwayat, pesan
+    berikutnya SELALU ditolak HTTP 400 "discriminator property 'role'
+    has invalid value" (pesan pertama masih lolos karena riwayatnya
+    kosong). Peran riwayat kini diturunkan ke huruf kecil di batas
+    penyedia ini; peran asing ("model", "system" suntikan, dst.)
+    dibuang bersama pesannya.
+    """
+    riwayat: list[dict[str, str]] = []
+    for m in (history or [])[-HISTORY_TURNS:]:
+        peran = str(m.get("role", "")).strip().lower()
+        if peran in ("user", "assistant"):
+            riwayat.append({"role": peran, "content": m["content"]})
     return (
         [{"role": "system", "content": build_system_prompt(context)}]
         + riwayat

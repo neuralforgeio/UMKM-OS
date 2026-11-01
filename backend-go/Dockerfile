@@ -63,7 +63,13 @@ EXPOSE 8080
 # Migrasi schema + seed akun berjalan SEBELUM ListenAndServe, jadi
 # "healthy" berarti: server hidup DAN schema siap dipakai service lain
 # (FastAPI menunggu kondisi ini saat boot pertama).
-HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=6 \
+#
+# v1.9.0 "healthcheck tenang" (permintaan pemilik: jangan selalu fetch
+# /health karena memberatkan laptop): interval 10s -> 60s. docker-
+# compose.yml menimpa nilai ini dengan start_interval sehingga BOOT
+# tetap cepat (probe tiap 3 detik selama 30 detik pertama); nilai di
+# sini menjadi jatuh paling tenang untuk pemakaian docker run polos.
+HEALTHCHECK --interval=60s --timeout=5s --start-period=30s --retries=3 \
   CMD curl -sf http://127.0.0.1:8080/health || exit 1
 
 ENTRYPOINT ["umkm-os-backend"]

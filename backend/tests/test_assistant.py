@@ -300,7 +300,11 @@ def test_build_messages_bentuk_dan_riwayat() -> None:
     pesan = build_messages(_konteks(), riwayat, "omzet?")
     assert pesan[0]["role"] == "system"
     assert pesan[-1] == {"role": "user", "content": "omzet?"}
-    assert pesan[1] == {"role": "USER", "content": "halo"}
+    # v1.1.1: peran riwayat HURUF BESAR dari database diturunkan ke huruf
+    # kecil - penyedia OpenAI-compatible (Groq) menolak literal huruf
+    # besar dengan HTTP 400 discriminator property role.
+    assert pesan[1] == {"role": "user", "content": "halo"}
+    assert pesan[2] == {"role": "assistant", "content": "hai"}
 
 
 def test_build_messages_potong_riwayat_maks_5() -> None:

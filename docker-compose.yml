@@ -31,11 +31,18 @@ services:
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
+    # v1.1.1 "healthcheck tenang": BOOT tetap cepat (probe tiap 2 detik
+    # selama 30 detik pertama lewat start_interval) tetapi keadaan stabil
+    # hanya diperiksa tiap 60 detik - tidak lagi setiap 5 detik sepanjang
+    # hari. pg_isready tidak menulis log apa pun, jadi ini murni soal
+    # memberi napas pada laptop.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-umkm} -d ${POSTGRES_DB:-umkmos}"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
+      interval: 60s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+      start_interval: 2s
     restart: unless-stopped
 
   # REST API Go — satu-satunya pemeriksa kredensial + pemilik schema
@@ -72,6 +79,23 @@ services:
     volumes:
       # Log harian .log + .csv bertahan lintas rebuild container.
       - gologs:/app/logs
+    # v1.1.1 "healthcheck tenang" (permintaan pemilik: backend jangan
+    # selalu fetch /health karena memberatkan laptop): blok ini MENIMPA
+    # HEALTHCHECK Dockerfile. Keadaan stabil diperiksa tiap 60 detik
+    # (dulu 10 detik); BOOT tetap cepat karena start_interval menjalankan
+    # probe tiap 3 detik selama 30 detik pertama - service bergantung
+    # (backend FastAPI) tidak menunggu lebih lama dari sebelumnya. Probe
+    # juga tidak lagi menulis baris log (middleware Logger v1.9.0), jadi
+    # volume gologs di Windows tidak dipukul tulisan kecil sepanjang hari.
+    # Catatan: start_interval butuh Docker Engine 25+ (Docker Desktop
+    # zaman compose v5 sudah jauh melewatinya).
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:8080/health"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 3s
     depends_on:
       db:
         condition: service_healthy

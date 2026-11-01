@@ -98,4 +98,27 @@ describe("penjaga era Go murni (v2.1.0)", () => {
     );
     expect(frontendBlock).not.toContain("DATABASE_URL");
   });
+
+  it("healthcheck tenang v1.1.1: interval 60 detik + start_interval saat boot", () => {
+    const compose = readFileSync(join(root, "..", "docker-compose.yml"), "utf8");
+    // Probe keadaan stabil hanya tiap 60 detik (dulu 5-10 detik
+    // sepanjang hari - itulah yang memberatkan laptop pemilik).
+    expect(compose).toContain("interval: 60s");
+    expect(compose).toContain("start_interval:");
+    expect(compose).not.toContain("interval: 5s");
+    expect(compose).not.toContain("interval: 10s");
+    // Boot tetap cepat: probe rapat hanya selama start_period.
+    expect(compose).toContain("start_period: 30s");
+  });
+
+  it("probe /health tidak lagi menulis baris log backend-go (v1.1.1)", () => {
+    const mw = readFileSync(
+      join(root, "..", "backend-go", "internal", "middleware", "middleware.go"),
+      "utf8",
+    );
+    // Middleware Logger melewatkan GET /health tanpa mencatat, supaya
+    // volume gologs tidak dipukul 3 baris per probe sepanjang hari.
+    expect(mw).toContain('r.URL.Path == "/health"');
+    expect(mw).not.toMatch(/HTTPReq[^\n]*health/);
+  });
 });

@@ -13,6 +13,14 @@ Konfigurasi (semua OPSIONAL - kosong = layanan chat menolak jujur 503):
   LLM_API_KEY boleh kosong bila penyedianya tidak meminta kunci
   (Ollama lokal) - kunci kosong bukan penghalang Mode AI.
 
+v3.5.1 (v1.1.1 produk, perbaikan "obrolan kedua selalu 502"):
+  * normalisasi_pesan() menjadi lapisan pertahanan KEDUA di batas
+    transport: penyedia OpenAI-compatible hanya menerima peran huruf
+    kecil (system/user/assistant); riwayat database tersimpan huruf
+    besar (konvensi migrasi Go). Klien kini menurunkan huruf peran,
+    membuang pesan bercacat (peran asing / isi bukan string / kosong),
+    dan menolak jujur bila tidak tersisa satu pun pesan sah.
+
 v3.5.0 (v1.1.0 produk, permintaan pemilik "kenapa AI nya tidak bisa"):
   * pesan galat HTTP DITERJEMAHKAN ke bahasa pemilik lewat
     pesan_galat_http() - kunci ditolak (401), tanpa hak (403), batas
@@ -74,6 +82,34 @@ def pesan_galat_http(status: int, tubuh: str) -> str:
     return f"LLM menolak (HTTP {status})."
 
 
+PERAN_SAH = ("system", "user", "assistant")
+
+
+def normalisasi_pesan(
+    messages: list[dict[str, Any]] | None,
+) -> list[dict[str, str]]:
+    """Normalisasi daftar pesan ke bentuk literal peran OpenAI-compatible.
+
+    Lapisan pertahanan kedua (v1.1.1) di BATAS TRANSPORT: barisan pesan
+    dari mana pun (build_messages, retry koreksi, pemanggil baru di masa
+    depan) diturunkan ke peran huruf kecil yang sah; pesan bercacat -
+    peran asing ("model", "USER" tak ternormalkan, dst.), isi bukan
+    string, atau isi kosong - dibuang bersama pesannya. Tanpa ini,
+    penyedia menolak seluruh permintaan dengan HTTP 400 discriminator
+    property role hanya karena SATU pesan bercacat.
+    """
+    bersih: list[dict[str, str]] = []
+    for m in messages or []:
+        if not isinstance(m, dict):
+            continue
+        peran = str(m.get("role", "")).strip().lower()
+        isi = m.get("content")
+        if peran not in PERAN_SAH or not isinstance(isi, str) or not isi:
+            continue
+        bersih.append({"role": peran, "content": isi})
+    return bersih
+
+
 class HttpLlmClient:
     """Panggilan POST /chat/completions memakai httpx async.
 
@@ -99,9 +135,15 @@ class HttpLlmClient:
         temperature: float = 0.2,
         max_tokens: int = 400,
     ) -> str:
+        pesan_bersih = normalisasi_pesan(messages)
+        if not pesan_bersih:
+            raise LlmError(
+                "Tidak ada satu pun pesan sah untuk dikirim ke LLM "
+                "(semua peran/isi bercacat)."
+            )
         payload: dict[str, Any] = {
             "model": self._model,
-            "messages": messages,
+            "messages": pesan_bersih,
             "temperature": temperature,
             "max_tokens": max_tokens,
         }

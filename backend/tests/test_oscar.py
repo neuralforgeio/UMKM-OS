@@ -222,8 +222,10 @@ def test_messages_membawa_riwayat_dan_persona() -> None:
         {"role": "USER", "content": "kalau yang murah aja?"},
     ]
     msgs = build_messages(_konteks(), riwayat, "produk paling laku")
+    # v1.1.1: peran riwayat huruf besar (konvensi kolom chat_history)
+    # dinormalkan huruf kecil di batas penyedia OpenAI-compatible.
     assert [m["role"] for m in msgs] == [
-        "system", "USER", "ASSISTANT", "USER", "user",
+        "system", "user", "assistant", "user", "user",
     ]
     assert "OSCAR" in msgs[0]["content"]
     assert msgs[-1]["content"] == "produk paling laku"

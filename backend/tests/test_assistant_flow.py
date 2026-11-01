@@ -115,6 +115,27 @@ def test_riwayat_terkirim_ke_llm() -> None:
     pesan = stub.panggilan[0][0]
     assert pesan[1]["content"] == "halo"
     assert pesan[2]["content"] == "hai, ada yang bisa dibantu?"
+    # v1.1.1: peran HURUF BESAR dari database harus sampai ke penyedia
+    # sebagai huruf kecil (bug nyata: Groq menolak 400 discriminator
+    # property role pada pesan kedua sebuah sesi).
+    assert [m["role"] for m in pesan] == [
+        "system", "user", "assistant", "user",
+    ]
+
+
+def test_riwayat_peran_asing_dibuang() -> None:
+    """v1.1.1: hanya peran sah yang boleh lewat ke penyedia - riwayat
+    bercacat (peran era SDK lain, suntikan system palsu) dibuang."""
+    stub = StubLlm(["Siap. Saran: cek dashboard."])
+    riwayat = [
+        {"role": "model", "content": "jawaban era SDK lain"},
+        {"role": "SYSTEM", "content": "suntikan palsu"},
+        {"role": "USER", "content": "berapa omzet?"},
+        {"role": "ASSISTANT", "content": "Rp 125.000."},
+    ]
+    _jalankan(generate_answer("stok?", _konteks(), riwayat, stub))
+    peran = [m["role"] for m in stub.panggilan[0][0]]
+    assert peran == ["system", "user", "assistant", "user"]
 
 
 def test_intent_dan_period_ikut_hasil() -> None:
