@@ -216,28 +216,24 @@ def test_jawaban_within_batas_kata(maksud: str) -> None:
 
 
 # ----------------------------------------------------------------------
-# Jalur generate_answer offline membawa maksud yang benar
+# Jalur generate_answer tanpa LLM menolak jujur (v1.1.0: Mode Data mati)
 # ----------------------------------------------------------------------
-def test_generate_answer_offline_per_maksud() -> None:
+def test_generate_answer_tanpa_llm_menolak() -> None:
     import asyncio
 
-    hasil = asyncio.run(
-        generate_answer("nama mu siapa", _konteks(), [], None)
-    )
-    assert hasil["mode"] == "data"
-    assert hasil["intent"] == "identitas"
-    assert ASSISTANT_NAME in hasil["answer"]
+    from app.services.assistant import ModeAiNonaktif
+
+    with pytest.raises(ModeAiNonaktif):
+        asyncio.run(generate_answer("nama mu siapa", _konteks(), [], None))
 
 
-def test_generate_answer_offline_saran_minggu_depan() -> None:
+def test_generate_answer_saran_tanpa_llm_juga_menolak() -> None:
     import asyncio
 
-    hasil = asyncio.run(
-        generate_answer("saran minggu depan", _konteks(), [], None)
-    )
-    assert hasil["intent"] == "saran_tindakan"
-    assert hasil["period"] == "minggu"
-    assert "naik 12,5%" in hasil["answer"]
+    from app.services.assistant import ModeAiNonaktif
+
+    with pytest.raises(ModeAiNonaktif):
+        asyncio.run(generate_answer("saran minggu depan", _konteks(), [], None))
 
 
 def test_fuzzy_typo_tetap_terdeteksi() -> None:

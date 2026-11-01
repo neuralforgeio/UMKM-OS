@@ -87,6 +87,15 @@ ASSISTANT_NAME = "OSCAR"
 ASSISTANT_FULL_NAME = "Online Shop Center for Assistance & Response"
 
 
+class ModeAiNonaktif(RuntimeError):
+    """LLM tidak tersedia dan Mode Data sudah DIMATIKAN (v1.1.0).
+
+    Dilempar generate_answer bila klien LLM None; jalur chat menolak
+    jujur (HTTP 503) alih-alih memalsukan jawaban template, sesuai
+    permintaan pemilik: asisten memakai AI penyedia (Groq) saja.
+    """
+
+
 # ----------------------------------------------------------------------
 # 0) Normalisasi bahasa informal Indonesia (v3.2.0)
 # ----------------------------------------------------------------------
@@ -1167,20 +1176,21 @@ async def generate_answer(
     Hasil selalu memuat: answer, mode ("ai"|"data"), intent, period,
     numbers_validated, retried. Angka halusinasi yang bertahan setelah
     retry TIDAK dibuang — ditandai (frontend menampilkan peringatan).
-    Mode Data (llm None) kini memakai jawaban per-maksud v3.2.0.
+    v1.1.0: llm None tidak lagi memakai jawaban template: ModeAiNonaktif
+    dilempar supaya pemilik tahu AI belum hidup (jalur chat menolak
+    jujur; fungsi build_offline_answer tetap ada untuk tes/rujukan).
     """
     intent = classify_intent(question)
     period = extract_period(question)
 
     if llm is None:
-        return {
-            "answer": build_offline_answer(context, intent, period),
-            "mode": "data",
-            "intent": intent,
-            "period": period,
-            "numbers_validated": True,
-            "retried": False,
-        }
+        # v1.1.0: Mode Data dimatikan (permintaan pemilik: murni AI).
+        # Tanpa klien LLM pemanggil harus melihat kegagalan yang jelas,
+        # bukan jawaban template yang menyamar sebagai AI.
+        raise ModeAiNonaktif(
+            "Mode AI tidak aktif: OSCAR hanya menjawab lewat AI (Groq). "
+            "Periksa Pengaturan -> Asisten AI lalu coba lagi."
+        )
 
     allowed = collect_allowed_numbers(context)
     messages = build_messages(context, history, question)

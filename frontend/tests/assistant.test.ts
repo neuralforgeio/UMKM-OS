@@ -1,12 +1,13 @@
-// Test penjaga asisten OSCAR (frontend v1.0.0), panel, halaman, kontrak
-// lintas-stack, dan uji sambungan LLM.
+// Test penjaga asisten OSCAR (frontend v1.1.0), panel murni AI,
+// halaman obrolan terpusat, kontrak lintas-stack, dan uji sambungan LLM.
 //
 // Yang dikunci: persona OSCAR (nama, singkatan Online Shop Center for
 // Assistance & Response, pencipta) sama di frontend dan layanan ML;
-// perilaku panel (riwayat, lencana mode, validasi angka, Enter mengirim,
-// batas 500 karakter, tautan pengaturan saat Mode Data); pintu route
-// handler /api/assistant/* yang menolak kasir; dan jalur baru Tes
-// Koneksi (/api/assistant/llm-selftest) sampai layanan ML.
+// perilaku panel (riwayat, Enter mengirim, batas 500 karakter, gulir
+// otomatis, aria-live); MURNI obrolan AI tanpa lencana mode dan tanpa
+// jawaban template (kegagalan tampil jujur dengan tombol kirim ulang);
+// halaman tanpa lampiran nama model; pintu route handler
+// /api/assistant/* yang menolak kasir; dan jalur Tes Koneksi.
 // Standar: Bahasa Indonesia, stdlib Node saja, tanpa DB/jaringan.
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -19,7 +20,8 @@ const ROOT_REPO = join(ROOT_FRONTEND, "..");
 const baca = (rel: string) => readFileSync(join(ROOT_FRONTEND, rel), "utf-8");
 const bacaRepo = (rel: string) => readFileSync(join(ROOT_REPO, rel), "utf-8");
 
-// Konstanta persona layanan ML (backend/app/services/assistant.py), // dikutip di sini sebagai kontrak lintas-stack: bila salah satu sisi
+// Konstanta persona layanan ML (backend/app/services/assistant.py),
+// dikutip di sini sebagai kontrak lintas-stack: bila salah satu sisi
 // berganti nama, test ini menyala lebih dulu.
 const ASSISTANT_NAME = "OSCAR";
 const ASSISTANT_FULL_NAME = "Online Shop Center for Assistance & Response";
@@ -39,7 +41,6 @@ describe("persona OSCAR, frontend dan layanan ML seirama", () => {
     expect(oscar).toContain(`export const OSCAR_NAME = "${ASSISTANT_NAME}";`);
     expect(oscar).toContain(ASSISTANT_FULL_NAME);
     expect(oscar).toContain(`export const OSCAR_CREATOR = "${ASSISTANT_CREATOR}"`);
-    expect(oscar).toContain(ASSISTANT_FULL_NAME);
   });
 
   it("panel: kepala obrolan memperkenalkan OSCAR + nama panjang", () => {
@@ -80,11 +81,11 @@ describe("panel obrolan, perilaku yang tidak boleh berubah", () => {
     expect(panel).toContain('aria-label="Percakapan asisten"');
   });
 
-  it("lencana mode membedakan Mode AI dan Mode Data", () => {
+  it("panel murni obrolan AI: tanpa lencana mode dan tanpa tautan mode", () => {
     const panel = baca("components/assistant/assistant-panel.tsx");
-    expect(panel).toContain("Mode AI");
-    expect(panel).toContain("Mode Data");
-    expect(panel).toContain('mode === "ai"');
+    expect(panel).not.toContain("Mode AI");
+    expect(panel).not.toContain("Mode Data");
+    expect(panel).not.toContain('href="/owner/settings#asisten-ai"');
   });
 
   it("angka yang belum lolos validasi data diberi peringatan", () => {
@@ -93,16 +94,12 @@ describe("panel obrolan, perilaku yang tidak boleh berubah", () => {
     expect(panel).toContain("belum lolos validasi data");
   });
 
-  it("galat ramah (termasuk batas laju) memakai peran alert", () => {
+  it("kegagalan AI tampil jujur sebagai gelembung galat dengan kirim ulang", () => {
     const panel = baca("components/assistant/assistant-panel.tsx");
-    expect(panel).toContain('role="alert"');
+    expect(panel).toContain('role={m.galat ? "alert" : undefined}');
     expect(panel).toContain("galat");
-  });
-
-  it("Mode Data menawarkan jalur aktifasi di Pengaturan", () => {
-    const panel = baca("components/assistant/assistant-panel.tsx");
-    expect(panel).toContain('href="/owner/settings#asisten-ai"');
-    expect(panel).toContain("Aktifkan Mode AI di Pengaturan");
+    expect(panel).toContain("Kirim ulang");
+    expect(panel).toContain("tanyaTerakhir");
   });
 
   it("chip contoh lengkap, termasuk jam ramai dan pencipta", () => {
@@ -122,33 +119,45 @@ describe("panel obrolan, perilaku yang tidak boleh berubah", () => {
     expect(panel).toContain("scrollIntoView");
     expect(panel).toContain("ujungRef");
   });
+
+  it("sapaan pembuka menyebut nama outlet yang aktif", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain("{outletName}");
+  });
 });
 
-describe("halaman OSCAR, gerbang dan konteks bisnis", () => {
+describe("halaman OSCAR, gerbang dan obrolan terpusat tanpa model", () => {
   it("hanya pemilik dan developer yang boleh membuka halaman", () => {
     const halaman = baca("app/owner/assistant/page.tsx");
     expect(halaman).toContain('if (!session?.user?.goToken) redirect("/login");');
     expect(halaman).toContain('redirect("/cashier");');
   });
 
-  it("konteks bisnis membaca mode dan model NYATA dari layanan ML", () => {
+  it("halaman tidak lagi melampirkan model yang dipakai OSCAR", () => {
     const halaman = baca("app/owner/assistant/page.tsx");
-    expect(halaman).toContain("getAssistantLlmConfig()");
-    expect(halaman).toContain("modeJawaban");
-    expect(halaman).toContain("namaModel");
+    expect(halaman).not.toContain("getAssistantLlmConfig");
+    expect(halaman).not.toContain("namaModel");
+    expect(halaman).not.toContain("modeJawaban");
+    expect(halaman).not.toContain("Konteks bisnis");
+    expect(halaman).not.toContain("gpt-oss");
   });
 
-  it("panel aturan main OSCAR memaparkan kebijakan yang benar benar hidup", () => {
+  it("halaman murni obrolan: satu kolom terpusat tanpa panel samping", () => {
     const halaman = baca("app/owner/assistant/page.tsx");
-    expect(halaman).toContain("Aturan main");
-    expect(halaman).toContain("data outlet yang sedang aktif");
-    expect(halaman).toContain("tidak pernah dibocorkan");
+    expect(halaman).toContain("max-w-3xl");
+    expect(halaman).not.toContain("Aturan main");
   });
 
-  it("halaman menyapa pemilik dengan bahasa formal (tanpa sebutan lama)", () => {
-    const halaman = baca("app/owner/assistant/page.tsx");
-    expect(halaman).toContain("Diciptakan oleh");
-    expect(halaman).not.toContain("warungmu");
+  it("aturan privasi tetap hidup di system prompt layanan ML", () => {
+    const otak = bacaRepo("backend/app/services/assistant.py");
+    expect(otak).toContain("Privasi per-owner");
+  });
+
+  it("layanan ML menolak jujur saat AI tidak aktif (Mode Data mati)", () => {
+    const rute = bacaRepo("backend/app/api/routes/assistant.py");
+    expect(rute).not.toContain("build_offline_answer");
+    expect(rute).toContain("status_code=503");
+    expect(rute).toContain("status_code=502");
   });
 });
 

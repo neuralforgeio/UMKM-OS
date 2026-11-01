@@ -21,12 +21,12 @@ Alur chat (semua langkah ada alasan biaya/kejujuran di blueprint):
      KEMAJUAN GERBANG ML (hari ber-pendapatan terkumpul vs syarat) —
      supaya jawaban prediksi/saran bisa menjelaskan "kapan model mulai
      terlatih otomatis" secara jujur (v3.2.0).
-  5. Generasi: LLM bila terkonfigurasi (temperatur 0,2, 400 token,
-     validasi angka + 1 retry koreksi), atau Mode Data per-maksud
-     v3.2.0 (identitas/sapaan/penjualan/stok/produk/prediksi/saran
-     masing-masing dijawab spesifik — bukan satu template kembar).
-     Kegagalan LLM (jaringan/penyedia) JATUH ke Mode Data — asisten
-     tidak pernah tumbang.
+  5. Generasi: MURNI LLM (v1.1.0, permintaan pemilik: pakai Groq,
+     matikan AI buatan sendiri). Temperatur 0,2, 400 token, validasi
+     angka + 1 retry koreksi. Tanpa klien aktif permintaan ditolak
+     jujur (503); kegagalan penyedia diteruskan sebagai 502 dengan
+     pesan yang bisa dibaca pemilik: tidak ada lagi jawaban template
+     yang menyamar sebagai AI.
   6. Persist chat_history (USER lalu ASSISTANT) — tabel ini satu-
      satunya pengecualian tulis layanan ML; DDL tetap milik migrasi
      backend-go #12.
@@ -57,7 +57,7 @@ from app.schemas.assistant import (
 )
 from app.services import assistant as otak
 from app.services.answer_cache import AnswerCache
-from app.services.llm import get_llm_client, llm_configured
+from app.services.llm import LlmError, get_llm_client, llm_configured
 from app.services.llm_config_store import (
     effective_llm_config,
     mask_key,
@@ -468,8 +468,8 @@ async def assistant_chat(
     riwayat = await _muat_riwayat(session, payload.user_id, otak.HISTORY_TURNS)
     konteks = await build_data_context(session, outlet_filter_id, outlet_name)
 
-    # Maksud + periode dihitung SEKALI — dipakai jalur Mode Data maupun
-    # jatuh-darurat bila LLM tumbang di tengah jalan.
+    # Maksud + periode dihitung SEKALI — dipakai respons (intent,
+    # period) dan jawaban cache; jalur Mode Data sudah pensiun (v1.1.0).
     maksud = otak.classify_intent(payload.question)
     periode = otak.extract_period(payload.question)
 
@@ -480,21 +480,30 @@ async def assistant_chat(
         klien = get_llm_client()
         hasil = await _oscar_dev_jawab(payload.question)
     else:
+        # v1.1.0: MURNI AI. Tanpa klien aktif permintaan ditolak jujur
+        # (503); kegagalan penyedia menjadi 502 dengan pesan yang bisa
+        # dibaca pemilik. Jawaban template tanpa AI sudah dimatikan.
         klien = get_llm_client()
+        if klien is None:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "OSCAR belum terhubung ke AI. Buka Pengaturan -> "
+                    "Asisten AI lalu pastikan Mode AI aktif dan kunci "
+                    "penyedia terisi, kemudian coba lagi."
+                ),
+            )
         try:
             hasil = await otak.generate_answer(
                 payload.question, konteks, riwayat, klien
             )
-        except Exception:
-            # LLM tumbang (jaringan/penyedia) => Mode Data, asisten tetap hidup.
-            hasil = {
-                "answer": otak.build_offline_answer(konteks, maksud, periode),
-                "mode": "data",
-                "intent": maksud,
-                "period": periode,
-                "numbers_validated": True,
-                "retried": False,
-            }
+        except otak.ModeAiNonaktif as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except LlmError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"OSCAR tidak bisa menghubungi AI saat ini. {exc}",
+            ) from exc
 
     await _simpan_riwayat(
         session, payload.user_id, outlet_filter_id,

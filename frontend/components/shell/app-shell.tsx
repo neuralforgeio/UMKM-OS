@@ -1,13 +1,19 @@
 "use client";
 
-// Shell aplikasi UMKM OS v1.0.0, satu komponen untuk semua halaman konsol.
+// Shell aplikasi UMKM OS v1.1.0, satu komponen untuk semua halaman konsol.
 //
 // Struktur: sidebar (bisa diringkatkan / minimize, statusnya diingat di
-// penyimpanan lokal) + topbar (remah roti, judul halaman, saklar tema,
-// menu profil) + area konten + kaki halaman. Semua halaman owner, kasir,
-// dan developer memakai shell ini sehingga navigasi, logo warung, dan
-// tema tidak pernah lagi berbeda antar halaman (akar keluhan logo warung
-// yang hilang di beberapa halaman).
+// penyimpanan lokal, kini juga lewat pintasan CTRL+B) + topbar (remah
+// roti, judul halaman, jam WIB ringkas, Changelog) + area konten + kaki
+// halaman. Semua halaman owner, kasir, dan developer memakai shell ini
+// sehingga navigasi, logo warung, dan tema tidak pernah lagi berbeda
+// antar halaman.
+//
+// v1.1.0: topbar tidak lagi menerima pengguna (menu profil pindah ke
+// menu akun di dasar sidebar); pintasan Ctrl+B memindahkan panel
+// navigasi tanpa mouse, kebiasaan aplikasi desktop modern. Browser
+// tidak memakai Ctrl+B di dalam formulir sehingga pintasan aman tetap
+// aktif saat pengguna sedang mengetik.
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -81,6 +87,28 @@ export function AppShell({
     log.debug("shell", nomor ? "sidebar diringkatkan" : "sidebar dibentangkan");
   }
 
+  // Pintasan Ctrl+B (tanpa Alt/Meta) memindahkan panel navigasi; juga
+  // berlaku saat fokus di kolom teks karena Ctrl+B tidak dipakai browser
+  // untuk memformat teks di dalam input maupun textarea.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (
+        e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey &&
+        !e.shiftKey &&
+        (e.key === "b" || e.key === "B")
+      ) {
+        e.preventDefault();
+        ubahRingkas(!collapsed);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [collapsed]);
+
   return (
     <div className="flex min-h-dvh bg-shell">
       <AppSidebar
@@ -109,7 +137,6 @@ export function AppShell({
           title={title}
           subtitle={subtitle}
           onOpenMobileMenu={() => setMobileOpen(true)}
-          user={user}
         />
         <main className="relative z-0 mx-auto w-full max-w-[1680px] flex-1 px-4 pb-6 pt-6 sm:px-6 lg:px-8">
           {children}

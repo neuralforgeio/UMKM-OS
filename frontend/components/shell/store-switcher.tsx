@@ -9,6 +9,10 @@
 // ketika gambar gagal dimuat ia jatuh ke ubin inisial dengan anggun.
 // Karena dipakai sidebar yang sama di semua halaman, logo warung kini
 // selalu tampil sama di mana pun pengguna berada.
+//
+// v1.1.0: jarak bawah diperketat (mb-5 -> mb-3) sebagai bagian dari
+// pengehematan ruang vertikal sidebar supaya seluruh menu navigasi
+// terlihat tanpa menggulir pada layar pendek.
 
 import { useEffect, useState } from "react";
 import { initialsOf } from "@/lib/avatar";
@@ -38,7 +42,7 @@ export function StoreSwitcher({
 
   return (
     <div
-      className={`mx-3 mb-5 flex items-center gap-3 rounded-xl border border-shell-line bg-shell-soft px-3 py-2.5 ${
+      className={`mx-3 mb-3 flex items-center gap-3 rounded-xl border border-shell-line bg-shell-soft px-3 py-2.5 ${
         collapsed ? "lg:justify-center lg:px-0" : ""
       }`}
       title={collapsed ? name : undefined}

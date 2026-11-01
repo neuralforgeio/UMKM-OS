@@ -1,17 +1,25 @@
 "use client";
 
-// Sidebar UMKM OS v1.0.0, komponen terpisah agar mudah dirawat.
+// Sidebar UMKM OS v1.1.0, komponen terpisah agar mudah dirawat.
 //
-// Perilaku:
-//  * Layar lebar: kolom tetap 252px; tombol ringkas di dasar sidebar
-//    memincutnya menjadi 76px berisi ikon saja (label tetap terbaca
-//    lewat tooltip). Status diringkatkan diingat AppShell di penyimpanan
-//    lokal sehingga preferensi pemilik bertahan antar halaman.
-//  * Layar kecil: laci tetap penuh 260px yang meluncur dari kiri dengan
-//    lapisan gelap; tombol tutup selalu terlihat di baris merek.
-//  * Logo warung dirender StoreSwitcher (satu satunya pemilik logo di
-//    seluruh aplikasi) sehingga tidak pernah ada halaman yang kehilangan
-//    ikon warungnya lagi.
+// Perubahan v1.1.0 (keluhan pemilik: "ada kotak besar menutupi bagian
+// Pengelolaan, harus digulir dulu baru kelihatan menunya"):
+//  * Kartu ajakan "Tanya OSCAR" DIHAPUS dari sidebar (halaman OSCAR
+//    tetap bisa dibuka lewat menu OSCAR di bagian Pengelolaan). Bersama
+//    tombol ringkatkan yang dipindah ke baris kepala, ruang vertikal
+//    kartu itu kini dipakai menu navigasi sehingga seluruh menu terlihat
+//    tanpa menggulir pada layar pendek sekalipun.
+//  * Tombol ringkatkan panel kini IKON SAJA di POJOK KANAN ATAS
+//    sidebar (teks "Ringkatkan panel" dihapus); pintasan Ctrl+B juga
+//    bisa (dipasang di AppShell yang memegang statusnya).
+//  * Dasar sidebar memuat menu akun (SidebarUser) yang membuka profil,
+//    pengaturan tampilan, ganti tema, dan keluar.
+//
+// Perilaku lama yang dipertahankan: layar lebar 252px yang bisa
+// dimincut menjadi 76px berisi ikon saja (tooltip tetap terbaca);
+// status diringkatkan diingat AppShell di penyimpanan lokal; layar
+// kecil memakai laci 260px ber-overlay; logo warung dirender
+// StoreSwitcher sebagai satu-satunya pemilik tampilan identitas outlet.
 
 import Link from "next/link";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
@@ -19,7 +27,6 @@ import type { UserMenuUser } from "@/components/user-menu";
 import type { ShellRole } from "@/lib/shell-nav";
 import { StoreSwitcher } from "./store-switcher";
 import { SidebarNavSection } from "./sidebar-nav";
-import { OscarCard } from "./oscar-card";
 import { SidebarUser } from "./sidebar-user";
 import type { AppShellOutlet } from "./app-shell";
 
@@ -77,13 +84,22 @@ export function AppSidebar({
         collapsed ? "lg:w-[76px]" : "lg:w-[252px]"
       } ${mobileOpen ? "w-[260px] translate-x-0" : "w-[260px] -translate-x-full"}`}
     >
-      {/* Baris merek + tombol tutup laci (khusus layar kecil) */}
-      <div className="flex items-center gap-2 px-4 pb-5 pt-5">
+      {/* Baris kepala: merek + tombol ringkatkan IKON di pojok kanan
+          atas (khusus layar lebar) + tombol tutup laci (layar kecil).
+          Saat diringkatkan hanya ikon tombolnya yang tersisa, tetap di
+          pojok kanan, supaya mudah ditemukan tanpa teks. */}
+      <div
+        className={`flex items-center gap-2 px-3 pb-3 pt-4 ${
+          collapsed ? "lg:justify-end" : ""
+        }`}
+      >
         <Link
           href={
             role === "KASIR" ? "/" : role === "DEVELOPER" ? "/dev" : "/owner"
           }
-          className="flex min-w-0 flex-1 items-center gap-3"
+          className={`flex min-w-0 flex-1 items-center gap-3 ${
+            collapsed ? "lg:hidden" : ""
+          }`}
           title="UMKM OS"
         >
           <BrandMarkTile />
@@ -96,6 +112,27 @@ export function AppSidebar({
             </span>
           </span>
         </Link>
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          aria-label={
+            collapsed
+              ? "Bentangkan panel navigasi"
+              : "Ringkatkan panel navigasi"
+          }
+          title={
+            collapsed
+              ? "Bentangkan panel navigasi (Ctrl+B)"
+              : "Ringkatkan panel navigasi (Ctrl+B)"
+          }
+          className="hidden h-8 w-8 shrink-0 place-items-center rounded-lg text-shell-muted transition hover:bg-shell-soft hover:text-shell-ink lg:grid"
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="h-4 w-4" />
+          ) : (
+            <PanelLeftClose className="h-4 w-4" />
+          )}
+        </button>
         <button
           type="button"
           onClick={onCloseMobile}
@@ -113,46 +150,12 @@ export function AppSidebar({
         collapsed={collapsed}
       />
 
+      {/* Area menu: satu-satunya bagian yang menggulir bila layar pendek
+          (sebelumnya kartu OSCAR + tombol dasar memaksa menu menggulir). */}
       <SidebarNavSection role={role} pathname={pathname} collapsed={collapsed} />
 
-      <div className="flex-1" />
-
-      {role === "OWNER" && (
-        <div className={sembunyiText}>
-          <OscarCard />
-        </div>
-      )}
-
-      {/* Tombol ringkaskan / bentangkan (khusus layar lebar) */}
-      <div className="hidden lg:block">
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          aria-label={
-            collapsed
-              ? "Bentangkan panel navigasi"
-              : "Ringkatkan panel navigasi"
-          }
-          title={
-            collapsed
-              ? "Bentangkan panel navigasi"
-              : "Ringkatkan panel navigasi"
-          }
-          className={`flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-[11px] font-semibold text-shell-muted transition hover:bg-shell-soft hover:text-shell-ink ${
-            collapsed ? "justify-center" : ""
-          }`}
-        >
-          {collapsed ? (
-            <PanelLeftOpen className="h-4 w-4 shrink-0" />
-          ) : (
-            <PanelLeftClose className="h-4 w-4 shrink-0" />
-          )}
-          <span className={collapsed ? "hidden" : ""}>
-            {collapsed ? "" : "Ringkatkan panel"}
-          </span>
-        </button>
-      </div>
-
+      {/* Menu akun: profil, pengaturan tampilan, ganti tema, keluar
+          (menggantikan menu profil topbar yang dihapus v1.1.0). */}
       <SidebarUser user={user} collapsed={collapsed} />
     </aside>
   );

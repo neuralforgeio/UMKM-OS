@@ -33,7 +33,10 @@ class Settings(BaseSettings):
     # Service identity
     # ------------------------------------------------------------------
     APP_NAME: str = "UMKM OS Backend"
-    # Semantic Versioning — 3.4.0 = OSCAR Developer AI: identitas
+    # Semantic Versioning — 3.5.0 = MURNI AI: Mode Data dimatikan di
+    # jalur chat (503/502 jujur tanpa jawaban template), pesan galat
+    # penyedia diterjemahkan ke bahasa pemilik, kunci Groq baru di env
+    # + llm_config.json. (3.4.0 = OSCAR Developer AI: identitas
     # pencipta (Dearly Febriano Irwansyah, Surabaya), privasi
     # per-owner (aturan prompt 10), Mode Developer ber-PIN + laporan
     # proaktif lintas toko, model Groq gpt-oss-20b. (3.3.0 = OSCAR:
@@ -41,7 +44,7 @@ class Settings(BaseSettings):
     # Asisten Cerdas: NLU per-maksud; 3.1.1 = hotfix created_at
     # chat_history; 3.1.0 = Asisten AI RAG; 3.0.0 = engine ganda
     # Prophet; 2.0.0 sengaja dilewati menepati janji router v1.)
-    VERSION: str = "3.4.0"
+    VERSION: str = "3.5.0"
 
     # Running mode: development | production | test
     ENVIRONMENT: Literal["development", "production", "test"] = "development"

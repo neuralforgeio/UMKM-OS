@@ -1,7 +1,15 @@
 "use client";
 
-// Panel waktu lokal UMKM OS v1.0.0, tanggal dan jam hidup zona WIB
-// (Asia/Jakarta), diperbarui setiap detik. Dipakai di kepala beranda.
+// Panel waktu lokal UMKM OS v1.1.0, tanggal dan jam hidup zona WIB
+// (Asia/Jakarta), diperbarui setiap detik.
+//
+// Dua wajah:
+//  * panel penuh (default) dipakai di kepala beranda: tanggal + jam
+//    besar dalam kartu berbingkai;
+//  * ringkas (prop ringkas) dipakai topbar shell sejak v1.1.0: cukup
+//    jam + "WIB" ber angka tabular, tanpa bingkai, hanya tampil di
+//    layar lebar supaya topbar ponsel tetap lega (tanggal lengkap
+//    tersimpan di tooltip).
 
 import { useEffect, useState } from "react";
 
@@ -21,7 +29,7 @@ const formatJam = new Intl.DateTimeFormat("id-ID", {
   hourCycle: "h23",
 });
 
-export function LocalClock() {
+export function LocalClock({ ringkas = false }: { ringkas?: boolean }) {
   const [sekarang, setSekarang] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -33,6 +41,23 @@ export function LocalClock() {
       window.clearInterval(pengaturWaktu);
     };
   }, []);
+
+  if (ringkas) {
+    return (
+      <p
+        title={
+          sekarang
+            ? `${formatTanggal.format(sekarang)} WIB`
+            : "Waktu lokal (WIB)"
+        }
+        className="hidden text-[11px] font-bold tabular-nums tracking-tight text-shell-muted lg:block"
+      >
+        {sekarang
+          ? `${formatJam.format(sekarang).replaceAll(".", ":")} WIB`
+          : "--:--:-- WIB"}
+      </p>
+    );
+  }
 
   return (
     <div className="flex min-w-[200px] max-w-full flex-wrap items-center justify-between gap-3 rounded-xl border border-shell-line bg-shell-card px-4 py-3">

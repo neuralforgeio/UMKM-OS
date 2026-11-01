@@ -1,30 +1,28 @@
 "use client";
 
-// Topbar shell UMKM OS v1.0.0, remah roti + JUDUL HALAMAN + subjudul.
+// Topbar shell UMKM OS v1.1.0: remah roti + JUDUL HALAMAN + subjudul.
 //
-// Permintaan pemilik: judul halaman di navbar harus memuat nama panjang
-// OSCAR, bukan sebutan lama "OSCAR kopilot bisnis". Maka topbar selalu
-// menampilkan: baris remah roti kecil (nama bagian), judul halaman
-// tebal, dan subjudul (misal nama panjang OSCAR di halaman asisten).
-// Sisi kanan memuat saklar tema (nyata, langsung mengganti tema) dan
-// menu profil pengguna.
+// Perubahan besar v1.1.0 (permintaan pemilik, berlaku untuk semua peran):
+// menu profil pengguna dan saklar tema DIHAPUS dari topbar. Sebagai
+// gantinya, sisi kanan kini memuat dua hal yang lebih sering dipakai
+// saat bekerja: jam WIB hidup (ringkas) dan tombol Changelog (riwayat
+// perubahan produk). Profil, ganti tema, dan keluar berpindah ke menu
+// akun di dasar sidebar. Pengecualian: beranda "/" tetap memakai navbar
+// lamanya lengkap dengan profil (tidak memakai komponen ini).
 
 import { Menu } from "lucide-react";
-import type { UserMenuUser } from "@/components/user-menu";
-import { UserMenu } from "@/components/user-menu";
-import { ThemeToggleButton } from "./theme-toggle-button";
+import { LocalClock } from "@/components/ui/local-clock";
+import { Changelog } from "./changelog";
 
 export function Topbar({
   crumb,
   title,
   subtitle,
-  user,
   onOpenMobileMenu,
 }: {
   crumb: string;
   title: string;
   subtitle?: string;
-  user: UserMenuUser;
   onOpenMobileMenu: () => void;
 }) {
   return (
@@ -65,9 +63,11 @@ export function Topbar({
           )}
         </div>
 
+        {/* Jam WIB ringkas + Changelog menggantikan menu profil (v1.1.0);
+            profil/tema/keluar ada di menu akun dasar sidebar. */}
         <div className="flex shrink-0 items-center gap-2">
-          <ThemeToggleButton />
-          <UserMenu user={user} />
+          <LocalClock ringkas />
+          <Changelog />
         </div>
       </div>
     </header>

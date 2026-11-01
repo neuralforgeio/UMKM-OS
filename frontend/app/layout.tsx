@@ -1,27 +1,44 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { auth } from "@/lib/auth";
 import { themeKeyForUser } from "@/lib/theme-storage";
 import "./globals.css";
 
-const geistSans = Geist({
+// Tipografi SELF-HOST sejak v1.1.0 fix2: ketiga keluarga font kini
+// dibundel di app/fonts dan dimuat lewat next/font/local, bukan
+// diunduh dari Google Fonts saat build. Akar kegagalan Gerbang D
+// run-1: docker build berhasil mengambil CSS dari fonts.googleapis.com
+// tetapi gagal mengunduh berkas woff2 dari fonts.gstatic.com
+// (jaringan container tidak menjangkau domain tersebut), sehingga
+// Turbopack gagal dengan error modul font internal. Dengan font
+// lokal, build produksi tidak lagi memerlukan jaringan eksternal.
+// Berkas diambil dari server Google Fonts resmi (subset latin,
+// bobot penuh variable) sehingga tampilan tidak berubah.
+const geistSans = localFont({
+  src: "./fonts/Geist-Variable.woff2",
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  weight: "100 900",
+  display: "swap",
+  adjustFontFallback: "Arial",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
+  src: "./fonts/GeistMono-Variable.woff2",
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: "100 900",
+  display: "swap",
 });
 
 // Tipografi utama design language v1.3.0 (halaman login, pengaturan,
 // konsol akun) — Geist tetap dimuat untuk angka/mono di halaman lain.
-const jakarta = Plus_Jakarta_Sans({
+const jakarta = localFont({
+  src: "./fonts/PlusJakartaSans-Variable.woff2",
   variable: "--font-jakarta",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: "200 800",
+  display: "swap",
+  adjustFontFallback: "Arial",
 });
 
 export const metadata: Metadata = {

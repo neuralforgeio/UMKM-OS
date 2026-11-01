@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import asyncio
 
-from app.services.assistant import generate_answer
+import pytest
+
+from app.services.assistant import ModeAiNonaktif, generate_answer
 
 
 def _konteks() -> dict:
@@ -96,11 +98,11 @@ def test_halusinasi_dua_kali_ditandai_jujur() -> None:
     assert "777.000" in hasil["answer"]
 
 
-def test_tanpa_llm_mode_data() -> None:
-    hasil = _jalankan(generate_answer("omzet hari ini?", _konteks(), [], None))
-    assert hasil["mode"] == "data"
-    assert hasil["numbers_validated"] is True
-    assert "Rp 125.000" in hasil["answer"]
+def test_tanpa_llm_menolak_mode_data_sudah_mati() -> None:
+    """v1.1.0: tanpa LLM generate_answer MENOLAK (ModeAiNonaktif) -
+    tidak ada lagi jawaban template yang diam-diam menyamar sebagai AI."""
+    with pytest.raises(ModeAiNonaktif):
+        _jalankan(generate_answer("omzet hari ini?", _konteks(), [], None))
 
 
 def test_riwayat_terkirim_ke_llm() -> None:

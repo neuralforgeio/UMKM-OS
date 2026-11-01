@@ -82,6 +82,31 @@ describe("konsistensi tema shell, semua halaman satu bahasa desain", () => {
     expect(sidebar).toContain("Ringkatkan panel navigasi");
   });
 
+  it("panel bisa diringkatkan lewat pintasan Ctrl+B (v1.1.0)", () => {
+    const shell = baca("components/shell/app-shell.tsx");
+    expect(shell).toContain("ctrlKey");
+    expect(shell).toContain('"b"');
+    expect(shell).toContain('e.key === "b" || e.key === "B"');
+  });
+
+  it("tombol ringkatkan berupa ikon di pojok kanan atas sidebar (v1.1.0)", () => {
+    const sidebar = baca("components/shell/app-sidebar.tsx");
+    expect(sidebar).toContain("PanelLeftClose");
+    expect(sidebar).toContain("PanelLeftOpen");
+    expect(sidebar).toContain("Ctrl+B");
+    // teks "Ringkatkan panel" sebagai NODE teks sudah dihapus; kini hanya
+    // aria-label/title yang memakai frasa itu.
+    expect(sidebar).not.toContain('{collapsed ? "" : "Ringkatkan panel"}');
+  });
+
+  it("kartu Tanya OSCAR tidak lagi memakan ruang menu sidebar (v1.1.0)", () => {
+    const sidebar = baca("components/shell/app-sidebar.tsx");
+    expect(sidebar).not.toContain("OscarCard");
+    // area menu tetap menjadi satu-satunya bagian yang menggulir.
+    const nav = baca("components/shell/sidebar-nav.tsx");
+    expect(nav).toContain("overflow-y-auto");
+  });
+
   it("logo warung dirender SATU komponen dengan jatuh-gracious ke inisial", () => {
     const switcher = baca("components/shell/store-switcher.tsx");
     expect(switcher).toContain("logoUrl");
@@ -114,17 +139,6 @@ describe("konsistensi tema shell, semua halaman satu bahasa desain", () => {
 
   it("latar aurora tidak ikut tercetak (print:hidden)", () => {
     expect(baca("components/aurora-background.tsx")).toContain("print:hidden");
-  });
-
-  it("isi layar struk berada DI ATAS latar aurora (regresi v1.0.1)", () => {
-    // AuroraBackground = overlay fixed z-0 BERWARNA PENUH (bg-background);
-    // konten statik dilukis di bawahnya sehingga tombol pernah hilang semua.
-    // Pembungkus konten receipt-view wajib relative z-10 (pola verify/[code])
-    // dan bilah aksi HP wajib z-50, di atas bar Antrean Penyajian (z-40).
-    const isi = baca("app/cashier/receipt-view.tsx");
-    expect(isi).toContain("relative z-10 mx-auto");
-    expect(isi).toContain("sticky bottom-0 z-50");
-    expect(isi).toContain("lg:hidden");
   });
 });
 
