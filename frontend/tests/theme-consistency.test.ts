@@ -115,6 +115,17 @@ describe("konsistensi tema shell, semua halaman satu bahasa desain", () => {
   it("latar aurora tidak ikut tercetak (print:hidden)", () => {
     expect(baca("components/aurora-background.tsx")).toContain("print:hidden");
   });
+
+  it("isi layar struk berada DI ATAS latar aurora (regresi v1.0.1)", () => {
+    // AuroraBackground = overlay fixed z-0 BERWARNA PENUH (bg-background);
+    // konten statik dilukis di bawahnya sehingga tombol pernah hilang semua.
+    // Pembungkus konten receipt-view wajib relative z-10 (pola verify/[code])
+    // dan bilah aksi HP wajib z-50, di atas bar Antrean Penyajian (z-40).
+    const isi = baca("app/cashier/receipt-view.tsx");
+    expect(isi).toContain("relative z-10 mx-auto");
+    expect(isi).toContain("sticky bottom-0 z-50");
+    expect(isi).toContain("lg:hidden");
+  });
 });
 
 describe("kit UI buatan sendiri v1.0.0", () => {

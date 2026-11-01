@@ -14,6 +14,16 @@
 //     tema, 58mm saat dicetak, hanya #struk-paper yang keluar di kertas
 //     (aturan cetak v1.9.0 dijaga tests/theme-consistency.test.ts).
 //
+// v1.0.1 — PERBAIKAN TOMBOL HILANG: AuroraBackground adalah overlay
+//   fixed z-0 BERWARNA PENUH (bg-background). Menurut urutan pewarnaan
+//   CSS, elemen berposisi z-0 dilukis DI ATAS konten statik — seluruh
+//   isi halaman ini dulunya tidak berposisi, jadi kepala sukses, kolom
+//   ringkasan, dan semua tombol tertimbun di bawah latar; hanya kertas
+//   struk (lg:sticky) yang lolos terlihat. Kini pembungkus konten memakai
+//   relative z-10 (pola yang sama dengan app/verify/[code]/page.tsx) dan
+//   bilah aksi HP dinaikkan ke z-50 supaya tidak ditimbun bar Antrean
+//   Penyajian (fixed bottom z-40) yang dirender halaman kasir.
+//
 // LOGIKA TIDAK BERUBAH: cetak via window.print(), struk digital via
 // wa.me (tanpa nomor tersimpan), kode klaim, dan penandaan "sudah
 // diserahkan" tetap satu ketukan ke POST /transactions/{id}/serve.
@@ -168,7 +178,7 @@ export function ReceiptView({
     // di atas kertas putih polos.
     <div className="relative min-h-dvh bg-slate-100 dark:bg-slate-950 print:bg-white">
       <AuroraBackground />
-      <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:py-8 lg:px-8 print:block print:p-0">
+      <div className="relative z-10 mx-auto w-full max-w-5xl px-4 py-6 sm:py-8 lg:px-8 print:block print:p-0">
         {/* Kepala sukses — overline + SATU judul + deskripsi (pola PDF). */}
         <div className="flex items-center gap-4 print:hidden">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 sm:h-14 sm:w-14 dark:bg-emerald-500/15">
@@ -539,7 +549,7 @@ export function ReceiptView({
 
       {/* Bilah aksi melekat (HP) — Cetak selalu terjangkau jempol.
           Desktop memakai deretan tombol penuh di kolom kiri. */}
-      <div className="sticky bottom-0 z-30 mt-6 border-t border-slate-200 bg-white px-4 py-3 lg:hidden print:hidden dark:border-slate-800 dark:bg-slate-900">
+      <div className="sticky bottom-0 z-50 mt-6 border-t border-slate-200 bg-white px-4 py-3 lg:hidden print:hidden dark:border-slate-800 dark:bg-slate-900">
         <div className="mx-auto flex w-full max-w-5xl items-center gap-2">
           <button
             type="button"
