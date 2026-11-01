@@ -1,8 +1,10 @@
-// Test riwayat perubahan UMKM OS (terbaru 1.1.1) (lib/changelog.ts), murni.
+// Test riwayat perubahan UMKM OS (terbaru 1.2.0) (lib/changelog.ts), murni.
 //
 // Yang dikunci: entri tersusun dari versi terbaru ke terlama, setiap
 // entri punya versi/tanggal/judul/butir utuh, versi tidak dobel,
-// entri 1.1.1 memuat perbaikan obrolan OSCAR + healthcheck tenang,
+// entri 1.2.0 memuat kebebasan OSCAR menjawab (prompt dwi-mode,
+// validasi angka khusus bisnis, data terbaru per pertanyaan), entri
+// 1.1.1 memuat perbaikan obrolan OSCAR + healthcheck tenang,
 // entri 1.1.0 memuat perubahan besar yang benar benar terpasang
 // (murni AI, Ctrl+B, Changelog, kartu Tanya OSCAR dihapus), entri
 // 1.0.0 tetap tercatat sebagai sejarah, dan tanggal ISO diterjemahkan
@@ -39,6 +41,28 @@ describe("CHANGELOG, sumber data tombol Changelog topbar", () => {
   });
 });
 
+describe("entri v1.2.0 memuat kebebasan OSCAR yang benar benar terpasang", () => {
+  it("butir 1.2.0 menyebut prompt dwi-mode, validasi khusus bisnis, dan data terbaru", () => {
+    const entri = cariEntri("1.2.0");
+    expect(entri).not.toBeNull();
+    const gabung = entri!.butir.join(" ");
+    expect(gabung).toContain("prompt dwi-mode");
+    expect(gabung).toContain("pertanyaan APA PUN");
+    expect(gabung).toContain("validasi angka");
+    expect(gabung).toContain("bisnis warung");
+    expect(gabung).toContain("data terbaru");
+    expect(gabung).toContain("400 menjadi 700");
+  });
+
+  it("versi terbaru kini 1.2.0, di atas entri 1.1.1 dan 1.1.0 yang tetap utuh", () => {
+    expect(versiTerbaru()).toBe("1.2.0");
+    expect(CHANGELOG[0].versi).toBe("1.2.0");
+    expect(CHANGELOG[1].versi).toBe("1.1.1");
+    expect(CHANGELOG[2].versi).toBe("1.1.0");
+    expect(cariEntri("1.1.0")).not.toBeNull();
+  });
+});
+
 describe("entri v1.1.1 memuat perbaikan yang benar benar terpasang", () => {
   it("butir 1.1.1 menyebut normalisasi peran huruf kecil dan probe /health 60 detik", () => {
     const entri = cariEntri("1.1.1");
@@ -48,13 +72,6 @@ describe("entri v1.1.1 memuat perbaikan yang benar benar terpasang", () => {
     expect(gabung).toContain("60 detik");
     expect(gabung).toContain("/health");
     expect(gabung).toContain("dua lapis");
-  });
-
-  it("versi terbaru kini 1.1.1, di atas entri 1.1.0 yang tetap utuh", () => {
-    expect(versiTerbaru()).toBe("1.1.1");
-    expect(CHANGELOG[0].versi).toBe("1.1.1");
-    expect(CHANGELOG[1].versi).toBe("1.1.0");
-    expect(cariEntri("1.1.0")).not.toBeNull();
   });
 });
 

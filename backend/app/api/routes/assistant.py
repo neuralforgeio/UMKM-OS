@@ -22,11 +22,13 @@ Alur chat (semua langkah ada alasan biaya/kejujuran di blueprint):
      supaya jawaban prediksi/saran bisa menjelaskan "kapan model mulai
      terlatih otomatis" secara jujur (v3.2.0).
   5. Generasi: MURNI LLM (v1.1.0, permintaan pemilik: pakai Groq,
-     matikan AI buatan sendiri). Temperatur 0,2, 400 token, validasi
-     angka + 1 retry koreksi. Tanpa klien aktif permintaan ditolak
-     jujur (503); kegagalan penyedia diteruskan sebagai 502 dengan
-     pesan yang bisa dibaca pemilik: tidak ada lagi jawaban template
-     yang menyamar sebagai AI.
+     matikan AI buatan sendiri). Temperatur 0,2, 700 token (v3.6.0:
+     jawaban pertanyaan bebas butuh ruang), validasi angka HANYA
+     untuk pertanyaan bisnis warung (v3.6.0 "AI Bebas") + 1 retry
+     koreksi. Tanpa klien aktif permintaan ditolak jujur (503);
+     kegagalan penyedia diteruskan sebagai 502 dengan pesan yang bisa
+     dibaca pemilik: tidak ada lagi jawaban template yang menyamar
+     sebagai AI.
   6. Persist chat_history (USER lalu ASSISTANT) — tabel ini satu-
      satunya pengecualian tulis layanan ML; DDL tetap milik migrasi
      backend-go #12.

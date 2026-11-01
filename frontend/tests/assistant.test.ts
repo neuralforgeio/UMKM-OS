@@ -102,14 +102,14 @@ describe("panel obrolan, perilaku yang tidak boleh berubah", () => {
     expect(panel).toContain("tanyaTerakhir");
   });
 
-  it("chip contoh lengkap, termasuk jam ramai dan pencipta", () => {
+  it("chip contoh lengkap, termasuk jam ramai, pencipta, dan hitungan bebas", () => {
     const panel = baca("components/assistant/assistant-panel.tsx");
     expect(panel).toContain('"Berapa omzet hari ini?"');
     expect(panel).toContain('"Stok apa yang menipis?"');
     expect(panel).toContain('"Produk terlaris minggu ini?"');
     expect(panel).toContain('"Kasih saran untuk minggu ini"');
+    expect(panel).toContain('"Hitung diskon 20% dari Rp 50.000"');
     expect(panel).toContain('"Siapa kamu?"');
-    expect(panel).toContain('"Saran minggu depan"');
     expect(panel).toContain('"Jam paling ramai kapan?"');
     expect(panel).toContain('"Siapa penciptamu?"');
   });
@@ -123,6 +123,20 @@ describe("panel obrolan, perilaku yang tidak boleh berubah", () => {
   it("sapaan pembuka menyebut nama outlet yang aktif", () => {
     const panel = baca("components/assistant/assistant-panel.tsx");
     expect(panel).toContain("{outletName}");
+  });
+
+  it("v1.2.0 AI Bebas: sapaan pembuka mengumumkan bisa tanya apa saja", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain("Tanya apa saja");
+    expect(panel).toContain("selalu saya");
+    // teks lama yang memenjarakan jawaban pada data saja sudah tidak boleh ada
+    expect(panel).not.toContain("hanya dari data outlet ini");
+  });
+
+  it("v1.2.0 AI Bebas: pencatat bawah menyebut kebebasan + data terbaru", () => {
+    const panel = baca("components/assistant/assistant-panel.tsx");
+    expect(panel).toContain("OSCAR menjawab pertanyaan apa saja");
+    expect(panel).toContain("data terbaru");
   });
 });
 

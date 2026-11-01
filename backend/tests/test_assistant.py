@@ -1,8 +1,10 @@
-"""Unit test otak asisten + batas laju + cache (ml-service v3.2.0).
+"""Unit test otak asisten + batas laju + cache (ml-service v3.6.0).
 
 Semua murni: tanpa DB, tanpa jaringan, tanpa LLM asli. Angka format
 Indonesia dipatok eksplisit supaya parser tidak diam-diam berubah.
-Jawaban Mode Data per-maksud diuji lebih lanjut di test_assistant_nlu.py.
+Jawaban Mode Data per-maksud diuji lebih lanjut di test_assistant_nlu.py;
+perilaku "AI Bebas" v3.6.0 (maksud umum + validasi terbatas maksud
+bisnis) dikunci di test_ai_bebas.py.
 """
 
 from __future__ import annotations
@@ -75,7 +77,14 @@ def _konteks() -> dict:
         ("ramalan minggu depan gimana?", "prediksi"),
         # saran tetap menang atas penanda masa depan.
         ("saran minggu depan", "saran_tindakan"),
-        ("gimana ya?", "saran_tindakan"),
+        # v3.6.0 "AI Bebas": pertanyaan di luar bisnis warung -> umum,
+        # bukan dipaksa jadi saran data (keluhan pemilik "AI nya masih
+        # bodoh untuk hal mudah seperti satu tambah satu").
+        ("gimana ya?", "umum"),
+        ("berapa satu tambah satu", "umum"),
+        ("5 tambah 5", "umum"),
+        ("apa ibu kota Indonesia?", "umum"),
+        ("hitung diskon 20 persen dari 50000", "umum"),
     ],
 )
 def test_classify_intent(tanya: str, maksud: str) -> None:
@@ -279,13 +288,20 @@ def test_collect_allowed_numbers_buang_boolean() -> None:
 # ----------------------------------------------------------------------
 def test_system_prompt_aturan_blueprint() -> None:
     prompt = build_system_prompt(_konteks())
-    assert "HANYA dari DATA" in prompt
+    # v3.6.0 "AI Bebas": prompt DWI-MODE — pertanyaan bebas dijawab
+    # pengetahuan umum, pertanyaan bisnis wajib berbasis DATA.
+    assert "PENGETAHUAN UMUM" in prompt
+    assert "DILARANG menolak" in prompt
+    assert "DILARANG mengarang" in prompt
     assert f"Maksimal {MAX_ANSWER_WORDS} kata" in prompt
     assert "1 saran tindakan" in prompt
     assert "Warung Sari" in prompt
     assert "Rp 125.000 (5 transaksi)" in prompt
     assert "Kopi Susu" in prompt
     assert "Gula Pasir" in prompt
+    # aturan lama yang membuat model menolak "1 + 1" sudah tidak boleh
+    # ada lagi (akar keluhan "AI nya masih bodoh").
+    assert "Jawab HANYA dari DATA" not in prompt
 
 
 def test_system_prompt_tren_format_indonesia() -> None:

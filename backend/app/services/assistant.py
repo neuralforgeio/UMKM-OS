@@ -1,4 +1,4 @@
-"""Otak murni Asisten AI UMKM (ml-service v3.2.0) — blueprint BAB 6.5.
+"""Otak murni Asisten AI UMKM (ml-service v3.6.0) — blueprint BAB 6.5.
 
 Modul ini 100% murni (tanpa DB, tanpa FastAPI, tanpa jaringan) supaya
 bisa diuji penuh dengan stub ber-oracle. Ia menjalankan pseudocode 5
@@ -6,13 +6,31 @@ blueprint:
 
   1. classify_intent   — identitas | kemampuan | sapaan | terima_kasih |
                          penjualan | stok | produk | prediksi |
-                         saran_tindakan
+                         saran_tindakan | umum
   2. extract_period    — hari | minggu | bulan
-  3. build_messages    — system prompt tegas + RIWAYAT maks 5 pesan
-  4. validate_numbers  — angka jawaban harus bisa dijelaskan DATA
-                         (eksak | toleransi 2% | pembulatan GRID 2,5%);
-                         gagal -> 1 kali retry koreksi
-  5. build_offline_answer — Mode Data: jawaban dari template per-maksud
+  3. build_messages    — system prompt dwi-mode + RIWAYAT maks 5 pesan
+  4. validate_numbers  — HANYA untuk maksud bisnis warung: angka jawaban
+                         harus bisa dijelaskan DATA (eksak | toleransi 2% |
+                         pembulatan GRID 2,5%); gagal -> 1 kali retry
+  5. build_offline_answer — Mode Data (pensiun v1.1.0; tinggal untuk tes)
+
+v3.6.0 "AI Bebas" (v1.2.0 produk, jawab keluhan pemilik "AI nya masih
+bodoh: kan ini model AI bebas, bukan AI buatan kita, harusnya bisa
+menjawab berbagai hal"):
+  - system prompt DWI-MODE: pertanyaan bebas (hitungan, pengetahuan
+    umum, basa-basi) dijawab pengetahuan umum model — DILARANG menolak
+    dengan alasan "tidak ada di data"; pertanyaan BISNIS warung tetap
+    wajib berbasis DATA (DILARANG mengarang angka warung);
+  - maksud baru "umum" sebagai klasifikasi DEFAULT — pertanyaan yang
+    tidak menyentuh bisnis warung tidak lagi dipaksa jadi saran data;
+  - validate_numbers kini HANYA dijalankan untuk INTENT_BERDATA
+    (penjualan/stok/produk/prediksi/saran/jam_ramai) — angka jawaban
+    umum ("5 tambah 5 = 10, naik 100%") bukan klaim data warung,
+    tidak lagi ditandai gagal validasi;
+  - tanggal hari ini disuntikkan ke prompt ("Hari ini Senin, ...") dan
+    DATA selalu diambil segar per pertanyaan oleh routes — pemilik
+    melihat OSCAR "membaca data terbaru" setiap saat;
+  - MAX_TOKENS 400 -> 700: jawaban umum butuh ruang lebih panjang.
 
 v3.2.0 "Asisten Cerdas" (jawab keluhan "jawabannya itu-itu saja"):
   - normalize_text meratakan bahasa informal Indonesia (slang, singkatan,
@@ -57,18 +75,32 @@ from typing import Any, Iterable, Protocol
 
 # Batas blueprint: jawaban ringkas, murah, dan jelas untuk pemilik warung.
 MAX_ANSWER_WORDS = 120
+# v3.6.0: jawaban PERTANYAAN BEBAS boleh lebih panjang (pengetahuan umum
+# butuh ruang) — batas jawaban BISNIS tetap MAX_ANSWER_WORDS.
+MAX_ANSWER_WORDS_UMUM = 250
 # Riwayat yang dikirim ke LLM: cukup untuk konteks, hemat token.
 HISTORY_TURNS = 5
 # Parameter generasi blueprint BAB 6.5 (deterministik, bukan kreatif).
+# v3.6.0: 400 -> 700 — jawaban umum yang lebih panjang tidak terpotong
+# (klien menaikkan sendiri ke >= 1500 untuk model reasoning gpt-oss).
 TEMPERATURE = 0.2
-MAX_TOKENS = 400
+MAX_TOKENS = 700
 
 INTENTS = (
     "identitas", "kemampuan", "sapaan", "terima_kasih", "obrolan",
     "jam_ramai", "pencipta", "dev_laporan", "penjualan", "stok",
-    "produk", "prediksi", "saran_tindakan",
+    "produk", "prediksi", "saran_tindakan", "umum",
 )
 PERIODS = ("hari", "minggu", "bulan")
+
+# v3.6.0 "AI Bebas": validasi angka jawaban HANYA berlaku untuk maksud
+# BISNIS WARUNG — angka pada jawaban pertanyaan bebas ("5 tambah 5 = 10,
+# dua kali lipat = 100%") adalah pengetahuan/hitungan, bukan klaim data
+# warung, sehingga tidak boleh dicap "tidak lolos validasi data".
+INTENT_BERDATA = frozenset({
+    "penjualan", "stok", "produk", "prediksi", "saran_tindakan",
+    "jam_ramai",
+})
 
 # Pembulatan yang dianggap JUJU: Rp 1.250.000 untuk data 1.252.340 masih
 # sah karena manusia warung bilang "sekitar satu dua lima". GRID berisi
@@ -205,14 +237,21 @@ _KW_KEMAMPUAN = (
     "buat apa", "fungsinya apa", "apa fungsi", "daftar perintah",
     "perintah apa", "contoh pertanyaan",
 )
+# v3.6.0: sapaan singkat "hi"/"p" kini ber-spasi pengaman (" hi ",
+# " p ") — dulu "hi" polos menelan kata "HITUNG" dan "p" polos
+# menelan SEMUA frasa ber-huruf-p ("berapa", "apa"), sehingga
+# pertanyaan bebas salah dianggap sapaan.
 _KW_SAPAAN = (
-    "halo", "hallo", "hai", "hei", "hello", "hi", "pagi", "siang",
+    "halo", "hallo", "hai", "hei", "hello", " hi ", "pagi", "siang",
     "sore", "malam", "assalamualaikum", "salam", "permisi", "oi",
-    "halo oscar", "p", "woi",
+    "halo oscar", " p ", "woi",
 )
+# v3.6.0: "top" ber-spasi pengaman — dulu "top" polos menelan kata
+# "LAPTOP" ("berapa harga laptop" terhitung ucapan terima kasih).
 _KW_TERIMA_KASIH = (
-    "terima kasih", "thanks", "thank you", "sip", "siip", "mantap", "top",
-    "good job", "bagus deh", "oke deh", "ok deh", "nice", "keren",
+    "terima kasih", "thanks", "thank you", "sip", "siip", "mantap",
+    " top ", "good job", "bagus deh", "oke deh", "ok deh", "nice",
+    "keren",
 )
 # v2.6.0: obrolan ringan pemilik ("owalah", "gitu ya", "wkwk") — reaksi
 # hidup, bukan template saran. Diperiksa SETELAH terima_kasih supaya
@@ -301,11 +340,13 @@ def _hit(text: str, keywords: Iterable[str]) -> bool:
 def classify_intent(question: str) -> str:
     """Maksud pertanyaan — lihat INTENTS.
 
-    Default = saran_tindakan: pertanyaan bebas ("gimana ya?") paling
-    dijawab dengan ringkasan + saran, bukan ditolak. Pertanyaan data
-    menang atas basa-basi ("halo, omzet berapa?" -> penjualan), dan
-    penanda masa depan memindah pertanyaan penjualan ke prediksi
-    ("berapa omzet besok" -> prediksi).
+    Default = umum (v3.6.0 "AI Bebas"): pertanyaan yang tidak menyentuh
+    bisnis warung ("berapa satu tambah satu", "5 tambah 5", "apa ibu
+    kota Indonesia") dijawab model dengan pengetahuan umumnya, bukan
+    dipaksa menjadi saran data. Pertanyaan data tetap menang atas
+    basa-basi ("halo, omzet berapa?" -> penjualan), dan penanda masa
+    depan memindah pertanyaan penjualan ke prediksi ("berapa omzet
+    besok" -> prediksi).
     """
     # v2.7.0: pencipta & Mode Developer diperiksa PALING AWAL.
     if _cek_pencipta(question):
@@ -335,7 +376,7 @@ def classify_intent(question: str) -> str:
         return "sapaan"
     if _hit(t, _KW_TERIMA_KASIH):
         return "terima_kasih"
-    return "saran_tindakan"
+    return "umum"
 
 
 def extract_period(question: str) -> str:
@@ -547,6 +588,36 @@ def collect_allowed_numbers(context: dict[str, Any]) -> list[float]:
 # ----------------------------------------------------------------------
 # 4) Prompt & pesan LLM
 # ----------------------------------------------------------------------
+# v3.6.0: nama hari/bulan Indonesia dipetakan manual (deterministik,
+# tidak bergantung locale sistem yang tidak pasti di container).
+_NAMA_HARI = (
+    "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu",
+)
+_NAMA_BULAN = (
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November",
+    "Desember",
+)
+
+
+def tanggal_hari_ini(hari=None) -> str:
+    """Tanggal gaya Indonesia untuk prompt: "Minggu, 1 November 2026".
+
+    `hari` boleh datetime.date eksplisit supaya bisa diuji deterministik;
+    None berarti tanggal sistem saat ini (DATA selalu diambil segar oleh
+    routes per pertanyaan, tanggal ini membuat model tahu "hari ini"
+    kapan — inilah cara OSCAR "membaca data terbaru" setiap saat tanpa
+    perlu dilatih ulang).
+    """
+    from datetime import date as _date
+
+    d = hari if hari is not None else _date.today()
+    return (
+        f"{_NAMA_HARI[d.weekday()]}, {d.day} {_NAMA_BULAN[d.month - 1]} "
+        f"{d.year}"
+    )
+
+
 def _baris_penjualan(context: dict[str, Any]) -> list[str]:
     p = context.get("penjualan", {})
 
@@ -567,11 +638,16 @@ def _baris_penjualan(context: dict[str, Any]) -> list[str]:
 
 
 def build_system_prompt(context: dict[str, Any]) -> str:
-    """System prompt tegas blueprint BAB 6.5 + blok DATA terformat.
+    """System prompt DWI-MODE "AI Bebas" (v3.6.0) + blok DATA terformat.
 
-    v3.2.0: persona bernama + aturan identitas — pertanyaan "nama mu
-    siapa / siapa kamu" dijawab perkenalan singkat lalu tawaran bantuan,
-    bukan ringkasan data.
+    Keluhan pemilik: "kan ini model AI bebas, bukan AI buatan kita,
+    harusnya dia bisa menjawab berbagai hal". Prompt lama memaksa
+    "Jawab HANYA dari DATA" sehingga model menolak pertanyaan mudah
+    seperti "berapa satu tambah satu". Prompt baru membedakan dua
+    jenis pertanyaan: (A) bebas -> pengetahuan umum model, dilarang
+    menolak dengan alasan data; (B) bisnis warung -> wajib berbasis
+    DATA, dilarang mengarang angka warung. Tanggal hari ini disuntik
+    supaya model tahu DATA selalu segar.
     """
     p = context.get("perubahan_mingguan_pct")
     tren = "tidak tersedia"
@@ -643,36 +719,50 @@ def build_system_prompt(context: dict[str, Any]) -> str:
 
     return (
         f"Kamu adalah {ASSISTANT_NAME} ({ASSISTANT_FULL_NAME}), asisten "
-        f"bisnis warung UMKM Indonesia. Jawab pemilik warung "
-        f"{context.get('outlet', '-')} dengan bahasa Indonesia sehari-hari "
-        "yang hangat tapi ringkas.\n"
+        f"AI pintar dalam aplikasi UMKM OS milik warung "
+        f"{context.get('outlet', '-')}. Kamu didukung model AI besar di "
+        "cloud (Groq) sehingga punya PENGETAHUAN UMUM luas — dan setiap "
+        "pertanyaan kamu juga diberi DATA BISNIS TERKINI warung ini.\n"
+        "DUA JENIS PERTANYAAN — kenali lalu jawab dengan benar:\n"
+        "A. PERTANYAAN BEBAS (hitungan, matematika, sains, bahasa, ide, "
+        "resep, basa-basi, curhat, apa saja): jawab dengan pengetahuan "
+        "umum dan nalarimu secara normal, membantu, dan percaya diri. "
+        "DILARANG menolak dengan alasan \"tidak ada di data\" — data "
+        "warung hanyalah bonus konteks, bukan penjara jawabanmu.\n"
+        "B. PERTANYAAN BISNIS WARUNG (omzet, penjualan, stok, produk, "
+        "ramalan, jam ramai, saran bisnis): wajib berbasis DATA di bawah "
+        "— DILARANG mengarang atau menebak angka warung. Bila DATA tidak "
+        "memuat jawabannya, katakan bagian mana yang belum tersedia.\n"
         "ATURAN WAJIB:\n"
-        "1. Jawab HANYA dari DATA di bawah — DILARANG mengarang atau "
-        "menebak angka.\n"
-        f"2. Maksimal {MAX_ANSWER_WORDS} kata.\n"
-        "3. Akhiri jawaban dengan TEPAT 1 saran tindakan konkret.\n"
-        "4. Bila DATA tidak memuat jawabannya, katakan bagian mana yang "
-        "tidak tersedia.\n"
-        "5. Bila ditanya siapa kamu / nama mu, perkenalkan diri sebagai "
-        f"{ASSISTANT_NAME} ({ASSISTANT_FULL_NAME}), lalu tawarkan bantuan "
-        "soal data.\n"
-        "6. Format uang gaya Indonesia: Rp 1.250.000 (titik ribuan).\n"
-        "7. Gaya campuran: obrolan ringan boleh santai khas warung, tapi "
+        "1. Bahasa Indonesia sehari-hari yang hangat tapi rapi.\n"
+        "2. Jawaban pertanyaan BISNIS: Maksimal "
+        f"{MAX_ANSWER_WORDS} kata dan akhiri dengan TEPAT 1 saran "
+        "tindakan konkret. Jawaban pertanyaan BEBAS: boleh sampai "
+        f"{MAX_ANSWER_WORDS_UMUM} kata, susun rapi (poin/langkah bila "
+        "perlu); saran warung tidak wajib.\n"
+        "3. Hitungan matematika (tambah, kali, diskon, konversi, "
+        "persentase) kerjakan sendiri — itu keahlianmu, bukan data "
+        "warung. Untuk angka WARUNG tetap hanya dari DATA.\n"
+        "4. Bila ditanya siapa kamu / nama mu: perkenalkan diri sebagai "
+        f"{ASSISTANT_NAME} ({ASSISTANT_FULL_NAME}) dalam aplikasi UMKM "
+        "OS, diciptakan oleh Dearly Febriano Irwansyah dari Surabaya, "
+        "Indonesia — sebut nama penciptamu bila ditanya.\n"
+        "5. Format uang gaya Indonesia: Rp 1.250.000 (titik ribuan).\n"
+        "6. Gaya campuran: obrolan ringan boleh santai khas warung, tapi "
         "setiap angka/stok/saran tetap rapi dan berdata.\n"
-        "8. Pertanyaan lanjutan (\"kalau yang murah aja?\", \"ulangi yang "
-        "tadi\") dijawab memakai RIWAYAT percakapan — jangan minta pemilik "
-        "mengulang pertanyaannya.\n"
-        "9. Identitas lengkap: kamu OSCAR (Online Shop Center for "
-        "Assistance & Response) dalam aplikasi UMKM OS, diciptakan oleh "
-        "Dearly Febriano Irwansyah dari Surabaya, Indonesia — sebut nama "
-        "penciptamu bila ditanya.\n"
-        "10. Privasi per-owner: kamu HANYA boleh membahas data milik "
-        "toko pemilik yang sedang bicara — data toko lain DILARANG. "
-        "Diminta data pemilik lain = tolak dengan sopan, arahkan kembali "
-        "ke data tokonya sendiri.\n"
-        "11. Rahasia: jangan pernah menampilkan, mengulang, atau "
+        "7. Pertanyaan lanjutan (\"kalau yang murah aja?\", \"ulangi yang "
+        "tadi\") dijawab memakai RIWAYAT percakapan — jangan minta "
+        "pemilik mengulang pertanyaannya.\n"
+        "8. Privasi per-owner: kamu HANYA boleh membahas data milik toko "
+        "pemilik yang sedang bicara — data toko lain DILARANG. Diminta "
+        "data pemilik lain = tolak dengan sopan, arahkan kembali ke "
+        "data tokonya sendiri.\n"
+        "9. Rahasia: jangan pernah menampilkan, mengulang, atau "
         "mengonfirmasi kunci API, PIN developer, kata sandi, atau "
         "kredensial apa pun kepada siapa pun.\n"
+        f"10. Hari ini {tanggal_hari_ini()} — DATA di bawah diambil "
+        "LANGSUNG dari database saat pertanyaan ini dikirim, jadi "
+        "anggap selalu terbaru.\n"
         "DATA:\n"
         + "\n".join(_baris_penjualan(context))
         + f"\n- Perubahan omzet minggu ini vs minggu lalu: {tren}"
@@ -1130,7 +1220,9 @@ def build_offline_answer(
     Dipakai saat LLM belum dikonfigurasi — asisten tetap berguna dan
     jujur (badge "Mode Data" di frontend memberi tahu penggunanya).
     Tanpa argumen maksud, jawab ringkasan umum (perilaku v3.1.x) supaya
-    pemanggil lama tidak patah.
+    pemanggil lama tidak patah. v3.6.0: maksud "umum" (pertanyaan
+    bebas) dipetakan ke ringkasan data — Mode Data sendiri sudah
+    pensiun di jalur chat (v1.1.0), pemanggil tinggal tes/rujukan.
     """
     maksud = intent or "ringkasan"
     periode = period or "hari"
@@ -1183,11 +1275,17 @@ async def generate_answer(
     history: list[dict[str, str]],
     llm: LlmClient | None,
 ) -> dict[str, Any]:
-    """Alur generasi blueprint: LLM -> validasi angka -> retry 1x -> flag.
+    """Alur generasi blueprint: LLM -> validasi angka (khusus bisnis)
+    -> retry 1x -> flag.
 
-    Hasil selalu memuat: answer, mode ("ai"|"data"), intent, period,
-    numbers_validated, retried. Angka halusinasi yang bertahan setelah
-    retry TIDAK dibuang — ditandai (frontend menampilkan peringatan).
+    Hasil selalu memuat: answer, mode ("ai"), intent, period,
+    numbers_validated, retried. v3.6.0 "AI Bebas": validasi angka
+    HANYA dijalankan bila maksud pertanyaan masuk INTENT_BERDATA —
+    angka pada jawaban pertanyaan bebas (hitungan/pengetahuan umum)
+    bukan klaim data warung sehingga tidak diadukan ke DATA dan tidak
+    bisa dicap "tidak lolos validasi". Angka halusinasi yang bertahan
+    setelah retry pada pertanyaan bisnis TIDAK dibuang — ditandai
+    (frontend menampilkan peringatan).
     v1.1.0: llm None tidak lagi memakai jawaban template: ModeAiNonaktif
     dilempar supaya pemilik tahu AI belum hidup (jalur chat menolak
     jujur; fungsi build_offline_answer tetap ada untuk tes/rujukan).
@@ -1207,17 +1305,20 @@ async def generate_answer(
     allowed = collect_allowed_numbers(context)
     messages = build_messages(context, history, question)
     answer = await llm.complete(messages, TEMPERATURE, MAX_TOKENS)
-    sah, pelanggar = validate_numbers(answer, allowed)
 
+    # v3.6.0: validasi angka hanya untuk pertanyaan BISNIS WARUNG.
+    sah = True
     retried = False
-    if not sah:
-        retried = True
-        koreksi = messages + [
-            {"role": "assistant", "content": answer},
-            {"role": "user", "content": build_retry_instruction(pelanggar)},
-        ]
-        answer = await llm.complete(koreksi, TEMPERATURE, MAX_TOKENS)
-        sah, _ = validate_numbers(answer, allowed)
+    if intent in INTENT_BERDATA:
+        sah, pelanggar = validate_numbers(answer, allowed)
+        if not sah:
+            retried = True
+            koreksi = messages + [
+                {"role": "assistant", "content": answer},
+                {"role": "user", "content": build_retry_instruction(pelanggar)},
+            ]
+            answer = await llm.complete(koreksi, TEMPERATURE, MAX_TOKENS)
+            sah, _ = validate_numbers(answer, allowed)
 
     return {
         "answer": answer,

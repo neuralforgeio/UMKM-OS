@@ -1,4 +1,4 @@
-// Riwayat perubahan UMKM OS (terbaru 1.1.1), murni data tanpa React
+// Riwayat perubahan UMKM OS (terbaru 1.2.0), murni data tanpa React
 // supaya bisa diuji vitest dan dipakai tombol Changelog di topbar.
 //
 // Satu sumber kebenaran untuk daftar versi yang tampil ke pengguna.
@@ -14,6 +14,18 @@ export type EntriChangelog = {
 };
 
 export const CHANGELOG: EntriChangelog[] = [
+  {
+    versi: "1.2.0",
+    tanggal: "2026-11-01",
+    judul: "OSCAR AI Bebas: menjawab apa saja + data warung",
+    butir: [
+      "OSCAR kini menjawab pertanyaan APA PUN (hitungan seperti satu tambah satu, pengetahuan umum, ide, basa-basi) memakai kecerdasan penuh model AI cloud-nya; system prompt lama yang memaksa jawaban hanya dari data warung sudah diganti prompt dwi-mode: pertanyaan bebas dijawab pengetahuan umum, pertanyaan bisnis warung tetap wajib berbasis data.",
+      "Peringatan angka tidak lagi muncul untuk pertanyaan mudah: validasi angka kini hanya berjalan untuk pertanyaan bisnis warung (omzet, stok, produk, ramalan, saran, jam ramai) sehingga jawaban seperti lima tambah lima sama sepuluh tidak lagi dicap gagal validasi data.",
+      "OSCAR selalu membaca data terbaru: tanggal hari ini disuntikkan ke setiap prompt dan data warung diambil langsung dari database pada setiap pertanyaan (bukan salinan basi), jadi jawaban bisnis selalu memakai kondisi terkini toko Anda.",
+      "Perbaikan klasifikasi tersembunyi: kata sapaan singkat (p, hi) dan pujian singkat (top) kini hanya cocok sebagai kata utuh; dulu mereka menelan kata biasa (beraPA, HItung, lapTOP) sehingga pertanyaan bebas salah dikategorikan.",
+      "Anggaran jawaban dinaikkan (maks token 400 menjadi 700) supaya jawaban pengetahuan umum tidak terpotong, dan chip contoh baru Hitung diskon 20% dari Rp 50.000 memamerkan jalur hitungan bebas di panel obrolan.",
+    ],
+  },
   {
     versi: "1.1.1",
     tanggal: "2026-11-01",

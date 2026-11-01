@@ -64,7 +64,7 @@ def test_jawaban_bersah_tanpa_retry() -> None:
     assert hasil["retried"] is False
     assert len(stub.panggilan) == 1
     assert stub.panggilan[0][1] == 0.2  # temperatur blueprint
-    assert stub.panggilan[0][2] == 400  # maks token blueprint
+    assert stub.panggilan[0][2] == 700  # maks token v3.6.0 (400 -> 700)
 
 
 def test_halusinasi_lalu_koreksi_satu_kali() -> None:
@@ -145,3 +145,41 @@ def test_intent_dan_period_ikut_hasil() -> None:
     )
     assert hasil["intent"] == "produk"
     assert hasil["period"] == "minggu"
+
+
+def test_pertanyaan_umum_tanpa_validasi_tanpa_retry() -> None:
+    """v3.6.0 "AI Bebas": jawaban pertanyaan umum boleh memuat angka
+    hitungan/pengetahuan (Rp 999.999, 100%, tahun 1969) — itu BUKAN
+    klaim data warung, jadi tidak diadukan ke DATA, tidak di-retry,
+    dan tidak mungkin dicap "tidak lolos validasi" (akar keluhan
+    pemilik: jawaban "5 tambah 5 = 10" dulu ditandai gagal validasi
+    sehingga tampak bodoh)."""
+    stub = StubLlm(
+        ["5 tambah 5 = 10 — dua kali lipat dari 5 (naik 100%). "
+         "Kalau rupiah: Rp 999.999 tetap tidak berubah hitungannya; "
+         "tahun 1969 juga bukan angka warung."]
+    )
+    hasil = _jalankan(
+        generate_answer("5 tambah 5?", _konteks(), [], stub)
+    )
+    assert hasil["intent"] == "umum"
+    assert hasil["numbers_validated"] is True
+    assert hasil["retried"] is False
+    assert len(stub.panggilan) == 1  # tidak ada panggilan koreksi
+
+
+def test_pertanyaan_bisnis_tetap_divalidasi_dan_diretry() -> None:
+    """Penjaga arah berlawanan: pertanyaan PENJUALAN tetap ketat —
+    angka warung karangan di-retry satu kali lalu ditandai bila masih
+    bandel (perlindungan anti-halusinasi tidak dikorbankan oleh mode
+    AI Bebas)."""
+    stub = StubLlm(
+        [
+            "Omzet Rp 500.000 sekali jalan.",
+            "Omzet hari ini Rp 125.000. Saran: pasangkan Teh Panas.",
+        ]
+    )
+    hasil = _jalankan(generate_answer("omzet?", _konteks(), [], stub))
+    assert hasil["numbers_validated"] is True
+    assert hasil["retried"] is True
+    assert len(stub.panggilan) == 2

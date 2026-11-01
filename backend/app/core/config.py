@@ -33,7 +33,14 @@ class Settings(BaseSettings):
     # Service identity
     # ------------------------------------------------------------------
     APP_NAME: str = "UMKM OS Backend"
-    # Semantic Versioning — 3.5.1 = HOTFIX obrolan kedua selalu gagal:
+    # Semantic Versioning — 3.6.0 = "AI Bebas": system prompt dwi-mode
+    # (pertanyaan bebas dijawab pengetahuan umum model — DILARANG menolak
+    # dengan alasan data; pertanyaan bisnis warung tetap wajib berbasis
+    # DATA), maksud "umum" sebagai default klasifikasi, validasi angka
+    # hanya untuk INTENT_BERDATA, sapaan singkat ber-spasi pengaman
+    # ("p"/"hi"/"top" polos dulu menelan kata ber-huruf-sama), tanggal
+    # hari ini disuntik ke prompt (DATA selalu segar per pertanyaan),
+    # MAX_TOKENS 400 -> 700. (3.5.1 = HOTFIX obrolan kedua selalu gagal:
     # peran riwayat chat_history (huruf besar USER/ASSISTANT, konvensi
     # migrasi Go) kini dinormalkan huruf kecil di dua lapis (build_
     # messages + normalisasi_pesan klien) supaya diterima endpoint
@@ -48,7 +55,7 @@ class Settings(BaseSettings):
     # Asisten Cerdas: NLU per-maksud; 3.1.1 = hotfix created_at
     # chat_history; 3.1.0 = Asisten AI RAG; 3.0.0 = engine ganda
     # Prophet; 2.0.0 sengaja dilewati menepati janji router v1.)
-    VERSION: str = "3.5.1"
+    VERSION: str = "3.6.0"
 
     # Running mode: development | production | test
     ENVIRONMENT: Literal["development", "production", "test"] = "development"

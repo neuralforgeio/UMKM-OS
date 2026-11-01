@@ -1,6 +1,18 @@
 "use client";
 
-// Panel obrolan OSCAR UMKM OS v1.1.0: MURNI obrolan AI (Groq).
+// Panel obrolan OSCAR UMKM OS v1.2.0: AI BEBAS + data warung.
+//
+// Perubahan v1.2.0 (permintaan pemilik: "kan ini model AI bebas, bukan
+// AI buatan kita, harusnya dia bisa menjawab berbagai hal"):
+//  * OSCAR kini menjawab pertanyaan APA PUN — hitungan, pengetahuan
+//    umum, basa-basi — memakai pengetahuan model cloud (Groq), dengan
+//    data warung sebagai tambahan konteks. Teks sapaan pembuka dan
+//    pencatat bawah diperbarui supaya kemampuan baru itu terlihat;
+//  * chip contoh baru "Hitung diskon 20% dari Rp 50.000" memamerkan
+//    jalur pertanyaan bebas (menggantikan chip saran yang kembar);
+//  * peringatan "belum lolos validasi data" TETAP ada tetapi kini
+//    hanya muncul untuk jawaban pertanyaan bisnis warung (layanan ML
+//    memvalidasi angka hanya untuk maksud bisnis sejak v1.2.0).
 //
 // Perubahan besar v1.1.0 (permintaan pemilik: "AI nya menggunakan groq
 // console saja, matikan AI buatan sendiri, jangan lampirkan model yang
@@ -48,8 +60,8 @@ const CONTOH_TANYA = [
   "Stok apa yang menipis?",
   "Produk terlaris minggu ini?",
   "Kasih saran untuk minggu ini",
+  "Hitung diskon 20% dari Rp 50.000",
   "Siapa kamu?",
-  "Saran minggu depan",
   "Jam paling ramai kapan?",
   "Siapa penciptamu?",
 ];
@@ -224,8 +236,9 @@ export function AssistantPanel({ outletName }: { outletName: string }) {
                 {`Halo! Saya ${OSCAR_NAME}, asisten ${outletName}.`}
               </p>
               <p className="text-xs leading-relaxed text-shell-muted">
-                Tanyakan apa saja soal penjualan, stok, atau produk;
-                saya menjawab hanya dari data outlet ini.
+                Tanya apa saja — hitungan, ide, atau hal umum. Untuk urusan
+                warung, saya menjawab dari data {outletName} yang selalu saya
+                baca ulang terbaru setiap kali ditanya.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
@@ -354,7 +367,8 @@ export function AssistantPanel({ outletName }: { outletName: string }) {
         </div>
         <p className="mt-2 text-center text-[10px] leading-relaxed text-shell-muted">
           Maksimal 500 karakter per pertanyaan, dengan batas laju per jam.
-          OSCAR bisa keliru; cocokkan angka penting dengan dashboard.
+          OSCAR menjawab pertanyaan apa saja; angka warung selalu dari data terbaru
+          Anda — cocokkan angka penting dengan dashboard.
         </p>
       </form>
     </div>
