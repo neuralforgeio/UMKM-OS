@@ -352,8 +352,12 @@ export function AssistantAiForm() {
           className={inputClass}
         />
         <p className="mt-1 text-xs leading-relaxed text-shell-muted">
-          Contoh: openai/gpt-oss-20b (Groq), llama-3.3-70b-versatile (Groq),
-          gpt-4o-mini (OpenAI), llama3.1 (Ollama).
+          Contoh: openai/gpt-oss-20b atau openai/gpt-oss-120b (Groq),
+          qwen/qwen3.8-27b (Groq), gpt-4o-mini (OpenAI), llama3.1
+          (Ollama). Bila model ditolak penyedia (HTTP 403/404), backend
+          otomatis mencoba model cadangan dari LLM_FALLBACK_MODELS -
+          aktifkan model di console.groq.com/settings/limits bila
+          diblokir izin organisasi.
         </p>
         {/* Era Go murni: model dikunci developer — pemilik hanya bisa
             membaca; perubahan ditolak backend dengan pesan yang jelas. */}

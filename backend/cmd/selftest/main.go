@@ -190,12 +190,16 @@ func ujiDatabase() int {
 }
 
 // ujiGroq mencetak penanda yang diparse skrip delivery (konvensi v1.2.0).
+// RUN-5: MODEL= dan FALLBACK= ikut dicetak supaya log delivery jelas
+// memakai model mana; galat kini membawa kode HTTP + balasan penyedia
+// apa adanya (jendela diagnosis 403 Groq).
 func ujiGroq() {
         store := ai.NewConfigStore(config.AIDataDir(), ai.EnvSource{
-                Enabled: config.LLMEnabled(),
-                BaseURL: config.LLMBaseURL(),
-                APIKey:  config.LLMAPIKey(),
-                Model:   config.LLMModel(),
+                Enabled:        config.LLMEnabled(),
+                BaseURL:        config.LLMBaseURL(),
+                APIKey:         config.LLMAPIKey(),
+                Model:          config.LLMModel(),
+                FallbackModels: config.LLMFallbackModels(),
         })
         cfg := store.Efektif()
         if !cfg.Terkonfigurasi() {
@@ -204,6 +208,10 @@ func ujiGroq() {
                 return
         }
         fmt.Println("HASIL=SUDAH")
+        fmt.Printf("MODEL=%s\n", cfg.Model)
+        if len(cfg.FallbackModels) > 0 {
+                fmt.Printf("FALLBACK=%s\n", strings.Join(cfg.FallbackModels, ","))
+        }
 
         // PROBE: GET /models dengan Bearer — validasi kunci langsung di Groq.
         probe := probeStatus(cfg)
@@ -259,18 +267,29 @@ func ujiChat(ctx context.Context, klien ai.Client, riwayat []ai.Pesan, nama stri
                 if len(teks) > 300 {
                         teks = teks[:300]
                 }
-                if strings.Contains(teks, "HTTP 401") {
-                        fmt.Printf("%s=401\n", nama)
-                } else if strings.Contains(teks, "tidak terjangkau") {
-                        fmt.Printf("%s=GAGAL\n", nama)
-                        fmt.Printf("%sRAW=%s\n", nama, teks)
-                } else {
-                        fmt.Printf("%s=ERR\n", nama)
-                        fmt.Printf("%sRAW=%s\n", nama, teks)
+                // RUN-5: kode HTTP dibawa keluar lewat penanda angka supaya
+                // gate [4b] skrip delivery menampilkan penyebab PERSIS dari
+                // penyedia (403 izin model, 404 model tak dikenal, 401 kunci,
+                // 429 laju) — bukan sekadar ERR misterius.
+                status := 0
+                if le, ok := err.(*ai.LlmError); ok {
+                        status = le.Status()
                 }
+                switch {
+                case status >= 400:
+                        fmt.Printf("%s=%d\n", nama, status)
+                case strings.Contains(teks, "tidak terjangkau"):
+                        fmt.Printf("%s=GAGAL\n", nama)
+                default:
+                        fmt.Printf("%s=ERR\n", nama)
+                }
+                fmt.Printf("%sRAW=%s\n", nama, teks)
                 return
         }
         fmt.Printf("%s=200\n", nama)
+        // model yang BENAR-BENAR menjawab — bila berbeda dari MODEL= di
+        // atas, rantai cadangan run-5-lah yang menyelamatkan jawaban ini.
+        fmt.Printf("%sMODEL=%s\n", nama, klien.Model())
         teks := strings.Join(strings.Fields(jawaban), " ")
         if len(teks) > 140 {
                 teks = teks[:140]

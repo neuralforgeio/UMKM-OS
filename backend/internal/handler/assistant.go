@@ -56,10 +56,11 @@ var (
 // boot (setelah db.Connect supaya retrieval lintas toko siap).
 func PasangAssistant() {
         aiStore = ai.NewConfigStore(config.AIDataDir(), ai.EnvSource{
-                Enabled: config.LLMEnabled(),
-                BaseURL: config.LLMBaseURL(),
-                APIKey:  config.LLMAPIKey(),
-                Model:   config.LLMModel(),
+                Enabled:        config.LLMEnabled(),
+                BaseURL:        config.LLMBaseURL(),
+                APIKey:         config.LLMAPIKey(),
+                Model:          config.LLMModel(),
+                FallbackModels: config.LLMFallbackModels(),
         })
         aiCache = ai.NewAnswerCache(config.AssistantCacheSeconds(), 256)
         aiLimiter = ai.NewSlidingWindowLimiter(config.AssistantRateLimitPerHour(), 3600)
@@ -740,7 +741,7 @@ func PutLlmConfig(w http.ResponseWriter, r *http.Request) {
                 }
                 if model == "" {
                         tulisDetail(w, http.StatusUnprocessableEntity,
-                                "Nama model wajib diisi (contoh: llama-3.3-70b-versatile).")
+                                "Nama model wajib diisi (contoh: openai/gpt-oss-20b).")
                         return
                 }
         }

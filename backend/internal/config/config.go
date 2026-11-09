@@ -3,6 +3,7 @@ package config
 import (
         "os"
         "strconv"
+        "strings"
 
         "github.com/joho/godotenv"
 )
@@ -80,6 +81,41 @@ func LLMBaseURL() string {
 }
 func LLMAPIKey() string   { return Get("LLM_API_KEY", "") }
 func LLMModel() string    { return Get("LLM_MODEL", "openai/gpt-oss-20b") }
+
+// LLMFallbackModels: rantai model cadangan (dipakai berurutan) bila model
+// utama ditolak penyedia dengan HTTP 403/404 - model diblokir izin
+// organisasi/project Groq (Model Permissions, console.groq.com/settings/
+// limits) atau sudah dimatikan penyedia. OSCAR tetap menjawab memakai
+// cadangan alih-alih tumbang. Dipisah koma; kosongkan untuk tanpa
+// cadangan. Default = model produksi Groq yang masih hidup per
+// console.groq.com/docs/models (llama era lama kini enterprise-only).
+func LLMFallbackModels() []string {
+        return pecahDaftar(Get("LLM_FALLBACK_MODELS",
+                "openai/gpt-oss-120b,qwen/qwen3.8-27b"))
+}
+
+// pecahDaftar memecah daftar dipisah koma: spasi dibuang, entri kosong
+// dan kembar dilompati, urutan dipertahankan.
+func pecahDaftar(isi string) []string {
+        hasil := make([]string, 0, 4)
+        for _, bagian := range strings.Split(isi, ",") {
+                v := strings.TrimSpace(bagian)
+                if v == "" || sudahAda(hasil, v) {
+                        continue
+                }
+                hasil = append(hasil, v)
+        }
+        return hasil
+}
+
+func sudahAda(daftar []string, v string) bool {
+        for _, x := range daftar {
+                if x == v {
+                        return true
+                }
+        }
+        return false
+}
 
 // AssistantRateLimitPerHour: batas laju sliding-window per pemilik
 // (default 12/jam — blueprint BAB 9.3).
