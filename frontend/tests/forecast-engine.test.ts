@@ -93,70 +93,59 @@ describe("components/forecast/forecast-section.tsx — badge engine di dashboard
   });
 });
 
-describe("kontrak lintas-stack ML v3.0.0 tetap utuh", () => {
-  it("backend VERSIONS.csv memuat rilis 3.0.0 (2.0.0 sengaja dilewati)", () => {
+describe("kontrak lintas-stack era Go murni tetap utuh", () => {
+  it("backend VERSIONS.csv memuat rilis 2.0.0 era Go murni + hotfix 2.0.1", () => {
     const isi = bacaRepo("backend/VERSIONS.csv");
-    expect(isi).toContain("3.0.0,2026-10-26,FITUR");
-    expect(isi).not.toMatch(/^2\.0\.0,/m);
+    expect(isi).toContain("2.0.0,2026-11-07,FITUR");
+    expect(isi).toContain("2.0.1,2026-11-07,HOTFIX");
   });
 
-  it("requirements.txt backend memasang prophet", () => {
-    const isi = bacaRepo("backend/requirements.txt");
-    expect(isi).toMatch(/^prophet\r?$/m);
+  it("backend murni Go: go.mod ada, requirements.txt tidak", () => {
+    expect(existsSync(join(ROOT_REPO, "backend", "go.mod"))).toBe(true);
+    expect(existsSync(join(ROOT_REPO, "backend", "requirements.txt"))).toBe(false);
+    const isi = bacaRepo("backend/go.mod");
+    expect(isi).toContain("github.com/go-chi/chi/v5");
+    expect(isi).toContain("github.com/jackc/pgx/v5");
   });
 
-  it("router memfilter transaksi lewat kolom outlet_id milik Go", () => {
-    const isi = bacaRepo("backend/app/api/routes/forecast.py");
-    expect(isi).toContain("Transaction.outlet_id == int(outlet_filter_id)");
-    expect(isi).toContain("ensure_model");
-    expect(isi).toContain("/models");
+  it("handler ramalan Go memfilter transaksi lewat outlet_id milik migrasi Go", () => {
+    const isi = bacaRepo("backend/internal/handler/forecast.go");
+    expect(isi).toContain('k.outlet("p.outlet_id", outletID)');
+    expect(isi).toContain('"engine":        "statistical"');
+    expect(isi).toContain("RamalPendapatan");
+    expect(isi).toContain("deretHarian(r.Context(), outletID, days)");
   });
 
-  it("model SQLAlchemy memetakan transactions.outlet_id & products.outlet_id", () => {
-    const isi = bacaRepo("backend/app/models/__init__.py");
-    const transaksi = isi.split("class TransactionItem")[0];
-    const produk = isi.split("class Product(Base)")[1].split("class Transaction")[0];
-    expect(transaksi).toContain("outlet_id = Column(BigInteger, nullable=True)");
-    expect(produk).toContain("outlet_id = Column(BigInteger, nullable=True)");
+  it("migrasi Go tetap memetakan transactions.outlet_id & products.outlet_id", () => {
+    const isi = bacaRepo("backend/internal/db/db.go");
+    expect(isi).toContain("ALTER TABLE products ADD COLUMN IF NOT EXISTS outlet_id");
+    expect(isi).toContain("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS outlet_id");
   });
 
-  it("docker-compose: volume mlmodels + saklar PROPHET_ENABLED + thread BLAS", () => {
+  it("docker-compose era Go murni: volume aidata + AI_DATA_DIR, tanpa Prophet", () => {
     const isi = bacaRepo("docker-compose.yml");
-    expect(isi).toContain("- mlmodels:/app/mlmodels");
-    expect(isi).toContain("PROPHET_ENABLED: ${PROPHET_ENABLED:-true}");
-    expect(isi).toContain("OMP_NUM_THREADS: \"2\"");
-    expect(isi).toMatch(/^  mlmodels:\r?$/m);
+    expect(isi).toContain("- aidata:/app/aidata");
+    expect(isi).toContain("AI_DATA_DIR: /app/aidata");
+    expect(isi).not.toContain("PROPHET_ENABLED");
+    expect(isi).toMatch(/^  aidata:\r?$/m);
   });
 
-  it("trainer: gerbang progresif 28/14, split dijepit, margin 2pp, antrean serial", () => {
-    const isi = bacaRepo("backend/app/ml/trainer.py");
-    // v3.2.0: gerbang diturunkan 56/28 -> 28/14 (model terlatih lebih
-    // awal, auto-train latar belakang menyegarkannya tiap ada data baru).
-    expect(isi).toContain("MIN_DAYS = 28");
-    expect(isi).toContain("MIN_NONZERO = 14");
-    expect(isi).toContain("TEST_MIN = 7");
-    expect(isi).toContain("TEST_MAX = 45");
-    expect(isi).toContain("WIN_MARGIN_PP = 2.0");
-    expect(isi).toContain("asyncio.Semaphore(1)");
-    expect(isi).toContain("asyncio.to_thread");
-    expect(isi).toContain("def gate_status(");
+  it("gerbang progresif data 28/14 tetap hidup di handler asisten Go", () => {
+    const isi = bacaRepo("backend/internal/handler/assistant.go");
+    expect(isi).toContain("gerbangMinHari     = 28");
+    expect(isi).toContain("gerbangMinBeromzet = 14");
   });
 
   it("MAPE hanya menilai hari non-zero (hari sepi bukan dosa ramalan)", () => {
-    const isi = bacaRepo("backend/app/services/mape.py");
-    expect(isi).toContain("if a == 0:");
+    const isi = bacaRepo("backend/internal/ai/forecast.go");
+    expect(isi).toContain("u.Omzet <= 0");
     expect(isi).toContain("continue");
   });
 
-  it(".gitignore menutup folder artefak model lokal", () => {
+  it(".gitignore menutup folder data AI lokal", () => {
     const isi = bacaRepo(".gitignore");
-    expect(isi).toMatch(/^backend\/mlmodels\/\r?$/m);
-  });
-
-  it("endpoint status model untuk konsol developer tersedia", () => {
-    const isi = bacaRepo("backend/app/api/routes/forecast.py");
-    expect(isi).toContain('@router.get("/models"');
-    expect(isi).toContain("ModelsStatusResponse");
+    expect(isi).toMatch(/^backend\/aidata\/\r?$/m);
+    expect(isi).not.toMatch(/^backend\/mlmodels\/\r?$/m);
   });
 });
 

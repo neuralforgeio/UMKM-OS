@@ -1,9 +1,11 @@
-// Server-side client for the FastAPI ML service (read-only, S5).
+// Klien ramalan sisi-server (era Go murni, frontend 1.3.0).
 //
-// The base URL is a SERVER-ONLY env var (no NEXT_PUBLIC_ prefix): the
-// browser never calls FastAPI directly — this module runs inside
-// server components only, which also makes CORS irrelevant here.
-// The default points at the local dev server started with `python run.py`.
+// BACKEND_URL adalah env SERVER-ONLY (tanpa awalan NEXT_PUBLIC_):
+// browser tidak pernah memanggil backend langsung — modul ini hanya
+// berjalan di server components. Endpoint /api/v1/forecast/* kini
+// dilayani backend GO dengan kontrak JSON yang sama dengan era
+// ml-service Python (engine selalu "statistical", quality MAPE jujur
+// dari backtest atau null bila data belum cukup).
 //
 // Every failure path returns null instead of throwing, so the
 // dashboard keeps rendering when the ML service is down (ForecastSection
@@ -16,7 +18,7 @@
 // dan `quality` (hasil duel backtest MAPE) — badge di ForecastSection
 // menampilkan keduanya sebagai bukti mesin mana yang sedang menang.
 
-const BASE_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:8000";
+const BASE_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:8080";
 
 // Forecast responses are cached for 15 minutes: the numbers barely
 // move, and the backend is shielded from per-request load.

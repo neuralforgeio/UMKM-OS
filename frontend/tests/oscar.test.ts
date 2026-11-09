@@ -1,9 +1,10 @@
-// Test penjaga OSCAR (frontend v2.6.0) — persona & otak baru lintas-stack.
+// Test penjaga OSCAR (frontend 1.3.0, era Go murni) — persona & otak
+// lintas-stack, kini membaca sumber Go di backend/internal/ai.
 //
-// Yang dikunci: persona OSCAR menggantikan Dea di layanan ML (nama +
-// nama lengkap), maksud baru obrolan & jam_ramai beserta keyword-nya,
-// konteks jam ramai + estimasi hari habis di routes, validasi angka
-// jam_ramai, chip contoh baru di panel, dan kehadiran tes backend OSCAR.
+// Yang dikunci: persona OSCAR (nama + nama lengkap) di backend Go,
+// maksud obrolan & jam_ramai beserta keyword-nya, konteks jam ramai +
+// estimasi hari habis di handler, validasi angka jam_ramai, chip
+// contoh di panel, dan kehadiran unittest Go untuk OSCAR.
 // Standar: Bahasa Indonesia, stdlib Node saja, tanpa DB/jaringan.
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -16,10 +17,10 @@ const ROOT_REPO = join(ROOT_FRONTEND, "..");
 const baca = (rel: string) => readFileSync(join(ROOT_FRONTEND, rel), "utf-8");
 const bacaRepo = (rel: string) => readFileSync(join(ROOT_REPO, rel), "utf-8");
 
-describe("OSCAR v2.6.0 — persona & otak baru (lintas-stack)", () => {
-  it("layanan ML: persona OSCAR menggantikan Dea", () => {
-    const isi = bacaRepo("backend/app/services/assistant.py");
-    expect(isi).toContain('ASSISTANT_NAME = "OSCAR"');
+describe("OSCAR era Go murni — persona & otak (lintas-stack)", () => {
+  it("backend Go: persona OSCAR tetap menggantikan Dea", () => {
+    const isi = bacaRepo("backend/internal/ai/normalize.go");
+    expect(isi).toContain('AssistantName      = "OSCAR"');
     expect(isi).toContain(
       "Online Shop Center for Assistance & Response",
     );
@@ -28,34 +29,33 @@ describe("OSCAR v2.6.0 — persona & otak baru (lintas-stack)", () => {
     expect(isi).not.toContain("halo dea");
   });
 
-  it("layanan ML: maksud baru obrolan + jam_ramai", () => {
-    const isi = bacaRepo("backend/app/services/assistant.py");
-    expect(isi).toContain("_KW_OBROLAN");
-    expect(isi).toContain("_KW_JAM_RAMAI");
-    expect(isi).toContain("OBROLAN_VARIAN");
-    expect(isi).toContain("return \"obrolan\"");
-    expect(isi).toContain("return \"jam_ramai\"");
+  it("backend Go: maksud obrolan + jam_ramai tetap hidup", () => {
+    const isi = bacaRepo("backend/internal/ai/normalize.go");
+    expect(isi).toContain("kwObrolan");
+    expect(isi).toContain("kwJamRamai");
+    expect(isi).toContain('return "obrolan"');
+    expect(isi).toContain('return "jam_ramai"');
   });
 
-  it("layanan ML: system prompt gaya campuran + riwayat lanjutan", () => {
-    const isi = bacaRepo("backend/app/services/assistant.py");
+  it("backend Go: system prompt gaya campuran + riwayat lanjutan", () => {
+    const isi = bacaRepo("backend/internal/ai/prompt.go");
     expect(isi).toContain("Gaya campuran");
     expect(isi).toContain("RIWAYAT percakapan");
     expect(isi).toContain("Estimasi stok habis");
     expect(isi).toContain("Jam paling ramai 7 hari");
   });
 
-  it("routes: jam ramai + kecepatan laku + hari habis dari SQL", () => {
-    const routes = bacaRepo("backend/app/api/routes/assistant.py");
-    expect(routes).toContain("async def _jam_ramai");
-    expect(routes).toContain('"jam_ramai": await _jam_ramai');
-    expect(routes).toContain('"kecepatan_hari": kecepatan,');
-    expect(routes).toContain('"hari_habis": hari_habis,');
+  it("handler Go: jam ramai + kecepatan laku + hari habis dari SQL", () => {
+    const routes = bacaRepo("backend/internal/handler/assistant.go");
+    expect(routes).toContain("func jamRamai");
+    expect(routes).toContain("JamRamai:            jamRamai(ctx, outletID, 3)");
+    expect(routes).toContain("s.KecepatanHari = kecepatan");
+    expect(routes).toContain("s.HariHabis = &hh");
   });
 
   it("validasi angka: jam_ramai ikut diizinkan", () => {
-    const isi = bacaRepo("backend/app/services/assistant.py");
-    expect(isi).toContain('_susuri(context.get("jam_ramai", []))');
+    const isi = bacaRepo("backend/internal/ai/context.go");
+    expect(isi).toContain("for _, j := range ctx.JamRamai");
   });
 
   it("panel: chip contoh 'Jam paling ramai kapan?' hadir", () => {
@@ -63,22 +63,26 @@ describe("OSCAR v2.6.0 — persona & otak baru (lintas-stack)", () => {
     expect(panel).toContain('"Jam paling ramai kapan?"');
   });
 
-  it("tes backend OSCAR hadir", () => {
-    expect(() => bacaRepo("backend/tests/test_oscar.py")).not.toThrow();
-    const t = bacaRepo("backend/tests/test_oscar.py");
-    expect(t).toContain("OSCAR");
+  it("unittest Go untuk OSCAR hadir", () => {
+    expect(() => bacaRepo("backend/internal/ai/normalize_test.go")).not.toThrow();
+    const t = bacaRepo("backend/internal/ai/normalize_test.go");
+    expect(t).toContain("ClassifyIntent");
     expect(t).toContain("obrolan");
     expect(t).toContain("jam_ramai");
+    // persona OSCAR dijaga di file sumber (normalize.go), bukan di tes:
+    const sumber = bacaRepo("backend/internal/ai/normalize.go");
+    expect(sumber).toContain('AssistantName      = "OSCAR"');
   });
 
-  it("NLU lama diperluas: obrolan + jam_ramai ikut validasi angka", () => {
-    const nlu = bacaRepo("backend/tests/test_assistant_nlu.py");
-    expect(nlu).toContain('"obrolan", "jam_ramai",');
+  it("NLU lama diperluas: obrolan + jam_ramai tetap teruji di Go", () => {
+    const nlu = bacaRepo("backend/internal/ai/normalize_test.go");
+    expect(nlu).toContain('"wkwk lucu":                  "obrolan"');
+    expect(nlu).toContain('"jam paling ramai kapan":     "jam_ramai"');
   });
 
   it("persona test lama diperbarui ke OSCAR", () => {
     const tes = baca("tests/assistant.test.ts");
-    expect(tes).toContain('ASSISTANT_NAME = "OSCAR"');
-    expect(tes).not.toContain('ASSISTANT_NAME = "Dea"');
+    expect(tes).toContain('const ASSISTANT_NAME = "OSCAR"');
+    expect(tes).not.toContain('const ASSISTANT_NAME = "Dea"');
   });
 });

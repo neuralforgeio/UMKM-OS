@@ -1,4 +1,4 @@
-// Riwayat perubahan UMKM OS (terbaru 1.2.0), murni data tanpa React
+// Riwayat perubahan UMKM OS (terbaru 1.3.1), murni data tanpa React
 // supaya bisa diuji vitest dan dipakai tombol Changelog di topbar.
 //
 // Satu sumber kebenaran untuk daftar versi yang tampil ke pengguna.
@@ -14,6 +14,30 @@ export type EntriChangelog = {
 };
 
 export const CHANGELOG: EntriChangelog[] = [
+  {
+    versi: "1.3.1",
+    tanggal: "2026-11-07",
+    judul: "Perbaikan pra-rilis: halaman Transaksi tangguh dan jujur",
+    butir: [
+      "Halaman Transaksi pemilik tidak lagi menampilkan halaman hitam misterius saat backend sedang bermasalah (React error #441): kegagalan kini diterjemahkan menjadi panel diagnosis berbahasa Indonesia yang menyebut penyebab nyata dan langkah pemulihannya — backend belum berjalan (dengan perintah docker compose yang perlu dijalankan), sesi login sudah berakhir (cukup keluar lalu masuk lagi), atau image backend lama masih berjalan (cara memperbaruinya).",
+      "Kartu laba 7 hari dan 30 hari tidak lagi menampilkan angka NaN: bentuk data laporan laba dari backend kini diseragamkan dan dikunci lewat test, setelah sempat tidak cocok antara bentuk yang dikirim backend dan yang dibaca halaman sejak era layanan AI yang lama.",
+      "Jaring pengaman error boundary baru untuk seluruh halaman pemilik: galat tak terduga lainnya menampilkan pesan ramah beserta kode galat singkat untuk laporan dan tombol Coba Lagi — bukan lagi kode error mentah yang harus diterjemahkan lewat DevTools.",
+      "15 test baru mengunci perilaku halaman ini (penerjemahan tiap jenis kegagalan backend dan pemetaan data laba) supaya perbaikannya tidak mundur diam-diam.",
+    ],
+  },
+  {
+    versi: "1.3.0",
+    tanggal: "2026-11-07",
+    judul: "Era Go murni: satu backend untuk semuanya",
+    butir: [
+      "Layanan Python (FastAPI + Prophet) dihapus total: folder backend-go di-rename menjadi backend dan kini menjadi SATU-SATUNYA backend. Satu bahasa, satu image, satu perintah docker compose up — tidak ada lagi pip install atau dua API yang harus saling menunggu.",
+      "OSCAR pindah rumah ke backend Go tanpa berubah perilaku: prompt dwi-mode AI Bebas, validasi angka khusus bisnis warung, riwayat obrolan, batas laju 12 pertanyaan per jam, cache jawaban 10 menit, dan tombol Tes Koneksi semuanya dijalankan kode Go (98 unittest murni baru menjaga perilakunya).",
+      "OSCAR Developer AI ikut pindah: laporan lintas toko ber-PIN dan pelaporan proaktif 15 menit (stok kritis gabungan, omzet turun, toko diam) kini disusun langsung oleh Go — data toko lain tetap tidak pernah dikirim ke penyedia AI.",
+      "Model AI bisa dikunci developer: saat terkunci, pengaturan model di Pengaturan - Asisten AI beku untuk pemilik dan hanya developer yang bisa membukanya, sehingga model warung tidak berubah tanpa sengaja.",
+      "Jejak audit kini mencatat IP asli setiap aksi (dan kota asalnya untuk IP publik, bisa dimatikan lewat GEO_LOOKUP_ENABLED) plus SKU produk menjadi unik per outlet — dua cabang boleh sama-sama punya nomor PRD-0001.",
+      "Ramalan pendapatan memakai mesin statistik Go (rata-rata bergerak + faktor hari) dengan angka MAPE jujur dari backtest; uji pemasangan kini menyertakan uji database sungguhan di dalam container (migrasi, SKU per outlet, riwayat chat, audit ber-IP) sebelum apa pun di-commit.",
+    ],
+  },
   {
     versi: "1.2.0",
     tanggal: "2026-11-01",

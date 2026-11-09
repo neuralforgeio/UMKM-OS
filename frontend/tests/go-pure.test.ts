@@ -1,11 +1,11 @@
-// Test penjaga "Era Go Murni" (frontend v2.1.0).
+// Test penjaga "Era Go Murni" (frontend 1.3.0).
 //
-// Setelah penghapusan total Prisma, TIDAK ADA file aplikasi yang boleh
-// mengimpor klien Prisma lagi — satu-satunya sumber data adalah
-// backend-go lewat lib/api.ts (goFetch/goPublic). Test ini memindai
-// kode sumber setiap kali vitest jalan: kalau seseorang (atau AI di
-// masa depan) tidak sengaja menambahkan `@/lib/prisma`, test gagal
-// dengan pesan yang menjelaskan dunia-dua-meja yang baru saja ditutup.
+// Era v2.1.0 menutup dunia Prisma; era 1.3.0 menutup dunia PYTHON:
+// tidak ada lagi layanan FastAPI/requirements.txt/backend-go — folder
+// backend-go sudah di-rename menjadi backend dan seluruh fitur AI
+// (OSCAR, Developer AI, ramalan) hidup di dalamnya. Test ini memindai
+// kode sumber + compose setiap kali vitest jalan supaya dunia-dua-meja
+// yang sudah ditutup tidak bisa diam-diam dibuka kembali.
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -99,6 +99,28 @@ describe("penjaga era Go murni (v2.1.0)", () => {
     expect(frontendBlock).not.toContain("DATABASE_URL");
   });
 
+  it("backend kini Go murni: tidak ada Python, tidak ada backend-go", () => {
+    // Satu-satunya backend adalah folder `backend` ber-Go.mod.
+    expect(existsSync(join(root, "..", "backend", "go.mod"))).toBe(true);
+    expect(existsSync(join(root, "..", "backend", "main.go"))).toBe(true);
+    // Jejak Python harus benar-benar hilang dari repo.
+    expect(existsSync(join(root, "..", "backend", "requirements.txt"))).toBe(false);
+    expect(existsSync(join(root, "..", "backend", "app"))).toBe(false);
+    expect(existsSync(join(root, "..", "backend", "run.py"))).toBe(false);
+    expect(existsSync(join(root, "..", "backend", "pytest.ini"))).toBe(false);
+    // Nama folder lama tidak boleh kembali.
+    expect(existsSync(join(root, "..", "backend-go"))).toBe(false);
+
+    const compose = readFileSync(join(root, "..", "docker-compose.yml"), "utf8");
+    // Service backend dibangun dari ./backend (bukan ./backend-go).
+    expect(compose).toContain("build: ./backend");
+    expect(compose).not.toContain("backend-go");
+    // Tidak ada lagi layanan FastAPI/Prophet/mlmodels.
+    expect(compose).not.toContain("FastAPI");
+    expect(compose).not.toContain("mlmodels");
+    expect(compose).not.toContain("PROPHET_ENABLED");
+  });
+
   it("healthcheck tenang v1.1.1: interval 60 detik + start_interval saat boot", () => {
     const compose = readFileSync(join(root, "..", "docker-compose.yml"), "utf8");
     // Probe keadaan stabil hanya tiap 60 detik (dulu 5-10 detik
@@ -111,9 +133,9 @@ describe("penjaga era Go murni (v2.1.0)", () => {
     expect(compose).toContain("start_period: 30s");
   });
 
-  it("probe /health tidak lagi menulis baris log backend-go (v1.1.1)", () => {
+  it("probe /health tidak lagi menulis baris log backend (v1.1.1)", () => {
     const mw = readFileSync(
-      join(root, "..", "backend-go", "internal", "middleware", "middleware.go"),
+      join(root, "..", "backend", "internal", "middleware", "middleware.go"),
       "utf8",
     );
     // Middleware Logger melewatkan GET /health tanpa mencatat, supaya

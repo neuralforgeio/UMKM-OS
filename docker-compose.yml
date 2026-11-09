@@ -1,19 +1,26 @@
 # =====================================================================
 # UMKM OS — full stack dalam SATU perintah:  docker compose up --build
 #
-#   db         : PostgreSQL 18           -> host 5433 (tidak bentrok PG lokal 5432)
-#   backend-go : REST API Go             -> host 8080 (login, kasir POS,
-#                produk/stok, transaksi, laporan dashboard, audit, log —
-#                PEMILIK TUNGGAL schema: migrasi berjalan saat boot)
-#   backend    : FastAPI ML service      -> host 8000 (ramalan & saran restok)
-#   frontend   : Next.js                 -> host 3000 (UI)
+# ERA GO MURNI (backend 2.0.0): layanan Python era lama
+# (REST API + Prophet) sudah DIHAPUS. Folder Go lama di-rename
+# menjadi `backend` dan kini menjadi SATU-SATUNYA backend:
+#
+#   db       : PostgreSQL 18           -> host 5433 (tidak bentrok PG lokal 5432)
+#   backend  : REST API Go             -> host 8080 (login, kasir POS,
+#              produk/stok per outlet (SKU unik per outlet), transaksi,
+#              laporan dashboard, audit ber-IP + geo, OSCAR asisten AI
+#              dwi-mode (Groq), OSCAR Developer AI ber-PIN + pelaporan
+#              proaktif, ramalan statistik — migrasi berjalan saat boot,
+#              unittest dijalankan DI DALAM docker build)
+#   frontend : Next.js                 -> host 3000 (UI)
 #
 # Seluruh nilai sensitif datang dari root .env (salin dari .env.example)
 # — tidak ada satu pun kredensial yang ditulis di file ini.
 #
-# v2.1.0: service "migrate" (prisma migrate + seed era demo) sudah
-# PENSIUN — tidak ada lagi tabel PascalCase yang di-reseed tiap compose
-# up; backend-go memigrasi dan men-drop tabel-tabel beku itu otomatis.
+# Volume `aidata` menggantikan volume model era Python: rumah bagi
+# llm_config.json (pengaturan OSCAR dari UI, menimpa env tanpa
+# restart), dev_config.json (PIN developer), dan dev_reports.json
+# (laporan proaktif).
 # =====================================================================
 
 services:
@@ -45,48 +52,72 @@ services:
       start_interval: 2s
     restart: unless-stopped
 
-  # REST API Go — satu-satunya pemeriksa kredensial + pemilik schema
-  # kasir/laporan. Migrasi schema & seed akun berjalan saat boot, jadi
-  # setelah service healthy seluruh tabel siap dipakai service lain.
-  backend-go:
-    build: ./backend-go
+  # REST API Go — SATU-SATUNYA backend (era Go murni): pemeriksa
+  # kredensial + pemilik schema kasir/laporan/audit + rumah baru OSCAR
+  # (asisten AI, AI Developer, ramalan statistik). Migrasi schema &
+  # seed akun berjalan saat boot; `go vet` + seluruh unittest dijalankan
+  # DI DALAM docker build — image hanya terpasang bila tes lolos, jadi
+  # setelah service healthy seluruh tabel siap dan perilaku teruji.
+  backend:
+    build: ./backend
     environment:
       TZ: Asia/Jakarta
       PORT: "8080"
       # CORS mengikuti port frontend di sisi HOST (browser selalu datang
       # dari localhost). Panggilan server-ke-server dalam jaringan
-      # docker memakai http://backend-go:8080 dan tidak lewat CORS.
+      # docker memakai http://backend:8080 dan tidak lewat CORS.
       CLIENT_URL: http://localhost:${FRONTEND_PORT:-3000}
       DATABASE_URL: "postgres://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-umkmos}?sslmode=disable"
       # Satu secret root untuk dua penanda: cookie sesi NextAuth (AUTH_
-      # SECRET) dan token JWT backend-go — rotasi cukup satu tempat di
+      # SECRET) dan token JWT backend — rotasi cukup satu tempat di
       # root .env. Kalau kelak ingin terpisah, tambahkan baris
       # JWT_SECRET=... di root .env lalu ganti nilai ini jadi ${JWT_SECRET}.
       JWT_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       JWT_EXPIRES_H: "24"
       # Akun owner awal (opsional): tanpa OWNER_PASSWORD, Go mencetak
-      # password acak 16 karakter SEKALI di `docker compose logs
-      # backend-go` saat database pertama kali dibuat.
+      # password acak 16 karakter SEKALI di `docker compose logs backend`
+      # saat database pertama kali dibuat.
       OWNER_EMAIL: ${OWNER_EMAIL:-owner@umkm.local}
       OWNER_PASSWORD: ${OWNER_PASSWORD:-}
       # SINKRON kredensial developer: DEV_SEED_* dari root .env yang sama
-      # dipakai backend-go untuk akun developer-nya (login konsol dev).
+      # dipakai backend untuk akun developer-nya (login konsol dev).
       DEVELOPER_EMAIL: ${DEV_SEED_EMAIL:-}
       DEVELOPER_PASSWORD: ${DEV_SEED_PASSWORD:-}
       LOG_DIR: logs
+      # ===== ERA GO MURNI: OSCAR + AI Developer (eks layanan Python) =====
+      # Konfigurasi LLM (env adalah fallback; llm_config.json di volume
+      # aidata MENIMPA env tanpa restart — diatur dari UI Pengaturan).
+      LLM_ENABLED: ${LLM_ENABLED:-true}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.groq.com/openai/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-openai/gpt-oss-20b}
+      # Batas laju asisten per pemilik (default 12/jam) + TTL cache
+      # jawaban (default 600 detik) + batas laporan developer (6/jam).
+      ASSISTANT_RATE_LIMIT_PER_HOUR: ${ASSISTANT_RATE_LIMIT_PER_HOUR:-12}
+      ASSISTANT_CACHE_SECONDS: ${ASSISTANT_CACHE_SECONDS:-600}
+      DEV_AI_RATE_LIMIT_PER_HOUR: ${DEV_AI_RATE_LIMIT_PER_HOUR:-6}
+      # Geo lookup kota asal IP di jejak audit (bisa dimatikan untuk
+      # nol trafik keluar).
+      GEO_LOOKUP_ENABLED: ${GEO_LOOKUP_ENABLED:-true}
+      # Gerbang antar-layanan BAB 5.4: default = AUTH_SECRET root
+      # (satu tempat rotasi); frontend memakai nilai yang sama.
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-${AUTH_SECRET}}
+      # Volume data AI: llm_config.json + dev_config.json + dev_reports.json.
+      AI_DATA_DIR: /app/aidata
     ports:
       - "8080:8080"
     volumes:
       # Log harian .log + .csv bertahan lintas rebuild container.
       - gologs:/app/logs
+      # Konfigurasi OSCAR + laporan developer bertahan lintas rebuild.
+      - aidata:/app/aidata
     # v1.1.1 "healthcheck tenang" (permintaan pemilik: backend jangan
     # selalu fetch /health karena memberatkan laptop): blok ini MENIMPA
     # HEALTHCHECK Dockerfile. Keadaan stabil diperiksa tiap 60 detik
     # (dulu 10 detik); BOOT tetap cepat karena start_interval menjalankan
-    # probe tiap 3 detik selama 30 detik pertama - service bergantung
-    # (backend FastAPI) tidak menunggu lebih lama dari sebelumnya. Probe
-    # juga tidak lagi menulis baris log (middleware Logger v1.9.0), jadi
-    # volume gologs di Windows tidak dipukul tulisan kecil sepanjang hari.
+    # probe tiap 3 detik selama 30 detik pertama. Probe juga tidak lagi
+    # menulis baris log (middleware Logger), jadi volume gologs di
+    # Windows tidak dipukul tulisan kecil sepanjang hari.
     # Catatan: start_interval butuh Docker Engine 25+ (Docker Desktop
     # zaman compose v5 sudah jauh melewatinya).
     healthcheck:
@@ -100,68 +131,17 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
-    # Only active with "docker compose watch": saving any backend-go file
+    # Only active with "docker compose watch": saving any backend file
     # rebuilds and restarts this service automatically. Inert during
     # normal compose up, so the demo flow is untouched.
     develop:
       watch:
         - action: rebuild
-          path: ./backend-go
+          path: ./backend
           ignore:
             - logs
             - .env
-
-  # FastAPI ML service — peramalan pendapatan & saran restock
-  # (membaca schema Go secara read-only).
-  backend:
-    build: ./backend
-    environment:
-      TZ: Asia/Jakarta
-      DEBUG: "false"
-      DATABASE_URL: "postgresql+psycopg_async://${POSTGRES_USER:-umkm}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-umkmos}"
-      # ML v3.0.0 — saklar jalur Prophet (false = murni statistical),
-      # batas thread BLAS agar mesin 8GB tidak tersedak saat training,
-      # dan direktori artefak model per outlet (volume bernama).
-      PROPHET_ENABLED: ${PROPHET_ENABLED:-true}
-      OMP_NUM_THREADS: "2"
-      ML_MODEL_DIR: /app/mlmodels
-      # v3.2.0 — auto-train model ramalan di latar belakang: model tiap
-      # outlet dilatih ulang menyeluruh berkala (default tiap 6 jam) dan
-      # mulai terlatih begitu gerbang 28 hari / 14 ber-pendapatan lolos.
-      ML_AUTO_TRAIN: ${ML_AUTO_TRAIN:-true}
-      # Asisten AI v3.1.0 — LLM OPSIONAL (kosong = Mode Data template).
-      # Endpoint standar OpenAI-compatible => agnostik penyedia.
-      LLM_ENABLED: ${LLM_ENABLED:-true}
-      LLM_BASE_URL: ${LLM_BASE_URL:-}
-      LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MODEL: ${LLM_MODEL:-}
-      ASSISTANT_RATE_LIMIT_PER_HOUR: ${ASSISTANT_RATE_LIMIT_PER_HOUR:-12}
-      ASSISTANT_CACHE_SECONDS: ${ASSISTANT_CACHE_SECONDS:-600}
-      # Gerbang antar-layanan BAB 5.4: default = AUTH_SECRET root
-      # (satu tempat rotasi); frontend memakai nilai yang sama.
-      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-${AUTH_SECRET}}
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
-    volumes:
-      # Artefak joblib model ramalan per outlet — bertahan lintas
-      # rebuild container.
-      - mlmodels:/app/mlmodels
-    depends_on:
-      db:
-        condition: service_healthy
-      # Tabel transactions/products dibuat backend-go saat boot; menunggu
-      # healthy sekali ini membuat boot pertama bersih tanpa query gagal.
-      backend-go:
-        condition: service_healthy
-    restart: unless-stopped
-    develop:
-      watch:
-        - action: rebuild
-          path: ./backend
-          ignore:
-            - .venv
-            - __pycache__
-            - .pytest_cache
+            - aidata
 
   frontend:
     build: ./frontend
@@ -172,20 +152,21 @@ services:
       # NAMA service (bukan localhost). Token Go tidak pernah sampai ke
       # browser — semua panggilan dilakukan server-side. Frontend TIDAK
       # punya kredensial database sejak v2.1.0 (era Go murni).
-      API_URL: http://backend-go:8080
-      BACKEND_URL: http://backend:8000
+      # ERA GO MURNI: BACKEND_URL kini menunjuk backend GO (:8080) —
+      # pintu /api/v1/assistant/* dan /api/v1/forecast/* dilayani
+      # langsung oleh backend Go dengan kontrak JSON yang sama.
+      API_URL: http://backend:8080
+      BACKEND_URL: http://backend:8080
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       AUTH_TRUST_HOST: "true"
-      # Gerbang antar-layanan Asisten AI (harus SAMA dengan service
-      # backend di atas — default mewarisi AUTH_SECRET root).
+      # Gerbang antar-layanan OSCAR (harus SAMA dengan service backend
+      # di atas — default mewarisi AUTH_SECRET root).
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-${AUTH_SECRET}}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
-      backend-go:
-        condition: service_healthy
       backend:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
     develop:
       watch:
@@ -200,4 +181,4 @@ services:
 volumes:
   pgdata:
   gologs:
-  mlmodels:
+  aidata:

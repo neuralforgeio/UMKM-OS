@@ -1,4 +1,4 @@
-// Test riwayat perubahan UMKM OS (terbaru 1.2.0) (lib/changelog.ts), murni.
+// Test riwayat perubahan UMKM OS (terbaru 1.3.0) (lib/changelog.ts), murni.
 //
 // Yang dikunci: entri tersusun dari versi terbaru ke terlama, setiap
 // entri punya versi/tanggal/judul/butir utuh, versi tidak dobel,
@@ -41,6 +41,44 @@ describe("CHANGELOG, sumber data tombol Changelog topbar", () => {
   });
 });
 
+describe("entri v1.3.0 memuat era Go murni yang benar benar terpasang", () => {
+  it("butir 1.3.0 menyebut satu backend Go, OSCAR pindah, dan penghapusan Python", () => {
+    const entri = cariEntri("1.3.0");
+    expect(entri).not.toBeNull();
+    const gabung = entri!.butir.join(" ");
+    expect(gabung).toContain("SATU-SATUNYA backend");
+    expect(gabung).toContain("dihapus total");
+    expect(gabung).toContain("prompt dwi-mode");
+    expect(gabung).toContain("Developer AI");
+    expect(gabung).toContain("dikunci developer");
+    expect(gabung).toContain("IP");
+    expect(gabung).toContain("unik per outlet");
+  });
+
+  it("versi terbaru kini 1.3.1, entri 1.3.0, 1.2.0, 1.1.1 tetap utuh di bawahnya", () => {
+    expect(versiTerbaru()).toBe("1.3.1");
+    expect(CHANGELOG[0].versi).toBe("1.3.1");
+    expect(CHANGELOG[1].versi).toBe("1.3.0");
+    expect(CHANGELOG[2].versi).toBe("1.2.0");
+    expect(CHANGELOG[3].versi).toBe("1.1.1");
+    expect(cariEntri("1.2.0")).not.toBeNull();
+  });
+});
+
+describe("entri v1.3.1 memuat perbaikan pra-rilis halaman Transaksi", () => {
+  it("butir 1.3.1 menyebut panel diagnosis pengganti #441, NaN laba, error boundary, dan test", () => {
+    const entri = cariEntri("1.3.1");
+    expect(entri).not.toBeNull();
+    const gabung = entri!.butir.join(" ");
+    expect(gabung).toContain("React error #441");
+    expect(gabung).toContain("panel diagnosis");
+    expect(gabung).toContain("NaN");
+    expect(gabung).toContain("error boundary");
+    expect(gabung).toContain("Coba Lagi");
+    expect(gabung).toContain("15 test");
+  });
+});
+
 describe("entri v1.2.0 memuat kebebasan OSCAR yang benar benar terpasang", () => {
   it("butir 1.2.0 menyebut prompt dwi-mode, validasi khusus bisnis, dan data terbaru", () => {
     const entri = cariEntri("1.2.0");
@@ -54,11 +92,13 @@ describe("entri v1.2.0 memuat kebebasan OSCAR yang benar benar terpasang", () =>
     expect(gabung).toContain("400 menjadi 700");
   });
 
-  it("versi terbaru kini 1.2.0, di atas entri 1.1.1 dan 1.1.0 yang tetap utuh", () => {
-    expect(versiTerbaru()).toBe("1.2.0");
-    expect(CHANGELOG[0].versi).toBe("1.2.0");
-    expect(CHANGELOG[1].versi).toBe("1.1.1");
-    expect(CHANGELOG[2].versi).toBe("1.1.0");
+  it("versi terbaru kini 1.3.1 (pra-rilis); susunan 1.3.0/1.2.0/1.1.1 tetap tercatat", () => {
+    expect(versiTerbaru()).toBe("1.3.1");
+    expect(CHANGELOG[0].versi).toBe("1.3.1");
+    expect(CHANGELOG[1].versi).toBe("1.3.0");
+    expect(CHANGELOG[2].versi).toBe("1.2.0");
+    expect(CHANGELOG[3].versi).toBe("1.1.1");
+    expect(CHANGELOG[4].versi).toBe("1.1.0");
     expect(cariEntri("1.1.0")).not.toBeNull();
   });
 });

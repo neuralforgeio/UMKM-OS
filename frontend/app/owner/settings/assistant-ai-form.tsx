@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import {
   Check,
   Loader2,
+  Lock,
   PlugZap,
   Save,
   Sparkles,
@@ -58,6 +59,7 @@ export function AssistantAiForm() {
   const [modeAwal, setModeAwal] = useState<"ai" | "data">("data");
   const [modelAwal, setModelAwal] = useState<string | null>(null);
   const [sumber, setSumber] = useState<"file" | "env">("env");
+  const [modelLocked, setModelLocked] = useState(false);
   const [memuat, setMemuat] = useState(true);
   const [menyimpan, setMenyimpan] = useState(false);
   const [menguji, setMenguji] = useState(false);
@@ -80,6 +82,7 @@ export function AssistantAiForm() {
           source?: "file" | "env";
           mode?: "ai" | "data";
           llm_model?: string | null;
+          model_locked?: boolean;
         };
         if (!hidup) return;
         setConfig({
@@ -92,6 +95,7 @@ export function AssistantAiForm() {
         setModeAwal(isi.mode ?? "data");
         setModelAwal(isi.llm_model ?? null);
         setSumber(isi.source ?? "env");
+        setModelLocked(isi.model_locked ?? false);
       } catch {
         // pengaturan tak terbaca, form tetap bisa mengisi ulang
       } finally {
@@ -344,12 +348,22 @@ export function AssistantAiForm() {
           }
           maxLength={100}
           placeholder="openai/gpt-oss-20b"
+          disabled={modelLocked}
           className={inputClass}
         />
         <p className="mt-1 text-xs leading-relaxed text-shell-muted">
           Contoh: openai/gpt-oss-20b (Groq), llama-3.3-70b-versatile (Groq),
           gpt-4o-mini (OpenAI), llama3.1 (Ollama).
         </p>
+        {/* Era Go murni: model dikunci developer — pemilik hanya bisa
+            membaca; perubahan ditolak backend dengan pesan yang jelas. */}
+        {modelLocked && (
+          <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <Lock className="h-3.5 w-3.5 shrink-0" />
+            Model dikunci developer — hubungi developer Anda untuk
+            mengubah pilihan model.
+          </p>
+        )}
       </div>
 
       {hasil && (

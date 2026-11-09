@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { TriangleAlert } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { goFetch } from "@/lib/api";
 import { getOutletContext } from "@/lib/outlet-context";
@@ -6,7 +7,14 @@ import { userMenuUser } from "@/lib/session-user";
 import { AppShell } from "@/components/shell/app-shell";
 import { outletLogoUrl } from "@/lib/outlet-branding";
 import { TransactionsClient } from "./transactions-client";
-import type { ProfitSummary, TransactionRow } from "./types";
+import type { TransactionRow } from "./types";
+import {
+  describeLoadFailure,
+  mapGoProfit,
+  mapGoTransactionRow,
+  type GoProfitEnvelope,
+  type GoTransactionRow,
+} from "./backend-adapter";
 
 export const instant = false;
 
@@ -15,64 +23,45 @@ export const instant = false;
 // day the page grows real pagination.
 const LIST_LIMIT = 200;
 
-// Bentuk baris GET /transactions (backend-go TransactionSummary).
-type GoTransactionRow = {
-  id: number;
-  receipt_no: string;
-  created_at: string;
-  payment_method: string;
-  status: string;
-  subtotal: number;
-  discount: number;
-  total: number;
-  item_count: number;
-  cashier_name: string;
-  claim_code: string | null;
-  handover_status: string | null;
-};
-
-// Bentuk baris produk GET /reports/profit (backend-go ProfitProductRow).
-type GoProfitProductRow = {
-  product_id: number;
-  name: string;
-  unit: string;
-  sold_quantity: number;
-  revenue_rupiah: number;
-  cost_rupiah: number;
-  profit_rupiah: number;
-  margin_pct: number | null;
-};
-
-type GoProfitSummary = {
-  period_days: number;
-  transaction_count: number;
-  omzet_rupiah: number;
-  cost_rupiah: number;
-  profit_rupiah: number;
-  margin_pct: number | null;
-  rows: GoProfitProductRow[];
-};
-
-// Pemetaan murni snake_case Go -> bentuk camelCase komponen klien, // komponenTransactionsClient dan types.ts tidak berubah sama sekali.
-function mapProfit(s: GoProfitSummary): ProfitSummary {
-  return {
-    periodDays: s.period_days,
-    transactionCount: s.transaction_count,
-    omzetRupiah: s.omzet_rupiah,
-    costRupiah: s.cost_rupiah,
-    profitRupiah: s.profit_rupiah,
-    marginPct: s.margin_pct,
-    rows: s.rows.map((row) => ({
-      productId: String(row.product_id),
-      name: row.name,
-      unit: row.unit,
-      soldQuantity: row.sold_quantity,
-      revenueRupiah: row.revenue_rupiah,
-      costRupiah: row.cost_rupiah,
-      profitRupiah: row.profit_rupiah,
-      marginPct: row.margin_pct,
-    })),
-  };
+// Panel diagnosis menggantikan throw(): kegagalan backend di build
+// produksi Next.js 16 dulu berubah jadi "React error #441" dengan digest
+// yang tidak mengatakan apa-apa (lihat laporan pemilik, halaman hitam
+// "This page couldn't load"). Kini penyebab nyata + langkah pemulihan
+// selalu tampil di dalam AppShell — halaman tetap dirender penuh.
+function BackendLoadPanel({
+  title,
+  detail,
+}: {
+  title: string;
+  detail: string;
+}) {
+  return (
+    <div
+      className="rounded-2xl glass-card p-8"
+      role="alert"
+      aria-live="polite"
+    >
+      <div className="flex items-start gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
+          <TriangleAlert className="h-6 w-6" aria-hidden="true" />
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            {title}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            {detail}
+          </p>
+          <a
+            href="/owner/transactions"
+            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-slate-900 dark:bg-slate-100 px-4 py-2.5 text-sm font-semibold text-white dark:text-slate-900 transition-colors hover:bg-slate-700 dark:hover:bg-slate-300"
+          >
+            Muat Ulang Halaman
+          </a>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default async function OwnerTransactionsPage() {
@@ -82,42 +71,59 @@ export default async function OwnerTransactionsPage() {
   const token = session.user.goToken;
   if (!token) redirect("/login");
 
-  // Outlet konteks ditentukan Go (ikatan akun / cookie maintenance dev), // satu pintu yang sama dengan kasir & dashboard, tanpa fallback tabel
-  // beku era Prisma.
+  // Outlet konteks ditentukan Go (ikatan akun / cookie maintenance dev),
+  // satu pintu yang sama dengan kasir & dashboard, tanpa fallback tabel
+  // beku era Prisma. Backend mati = panel diagnosis, bukan halaman error.
   const outlet = await getOutletContext();
   if (!outlet) redirect("/owner");
 
   // Riwayat + ringkasan laba 7/30 hari dalam dua panggilan paralel.
   // Omzet hanya menghitung struk COMPLETED, refund mengembalikan uang,
   // jadi tidak pernah masuk angka laba (dihitung Go, sama dengan era
-  // Prisma). Backend mati = halaman gagal dengan pesan yang jelas, // tidak ada angka palsu untuk keputusan bisnis.
+  // Prisma). Kegagalan backend diterjemahkan describeLoadFailure menjadi
+  // judul + langkah pemulihan yang tampil di halaman — tidak ada angka
+  // palsu untuk keputusan bisnis, dan tidak ada React error #441.
   const [listRes, profitRes] = await Promise.all([
     goFetch<GoTransactionRow[]>(token, `/transactions?limit=${LIST_LIMIT}`),
-    goFetch<{ week: GoProfitSummary; month: GoProfitSummary }>(
-      token,
-      "/reports/profit"),
+    goFetch<GoProfitEnvelope>(token, "/reports/profit"),
   ]);
-  if (!listRes.ok) throw new Error(listRes.message);
-  if (!profitRes.ok) throw new Error(profitRes.message);
-  if (!Array.isArray(listRes.data) || !profitRes.data?.week || !profitRes.data?.month) {
-    throw new Error(
-      "Backend lama masih berjalan di port 8080 (tanpa scope outlet v1.5.0). Jalankan docker compose up -d --build, lalu muat ulang halaman ini.");
+
+  // Penjadwalan cabang: kondisi di bawah menangkap SEMUA moda gagal
+  // (tidak ok, bentuk data lama) sekaligus menyempitkan tipe untuk cabang
+  // sehat - describeLoadFailure menerjemahkannya jadi pesan yang tampil.
+  if (
+    !listRes.ok ||
+    !profitRes.ok ||
+    !Array.isArray(listRes.data) ||
+    !profitRes.data?.week ||
+    !profitRes.data?.month
+  ) {
+    const failure = describeLoadFailure(listRes, profitRes) ?? {
+      title: "Backend bermasalah",
+      detail:
+        "Bentuk data tidak dikenal. Muat ulang halaman; bila berlanjut " +
+        "jalankan docker compose up -d --build lalu muat ulang lagi.",
+    };
+    return (
+      <AppShell
+        role={session.user.role === "DEVELOPER" ? "DEVELOPER" : "OWNER"}
+        user={userMenuUser(session)}
+        outlet={{
+          name: outlet.name,
+          logoUrl: outletLogoUrl(outlet),
+          address: outlet.address,
+        }}
+        crumb="Menu Utama"
+        title="Transaksi"
+        subtitle={outlet.name}
+      >
+        <BackendLoadPanel title={failure.title} detail={failure.detail} />
+      </AppShell>
+    );
   }
 
-  const listRows: TransactionRow[] = listRes.data.map((row) => ({
-    id: String(row.id),
-    code: row.receipt_no,
-    createdAtIso: row.created_at,
-    paymentMethod: row.payment_method,
-    status: row.status,
-    subtotalRupiah: Math.round(row.subtotal),
-    discountRupiah: Math.round(row.discount),
-    totalRupiah: Math.round(row.total),
-    itemCount: row.item_count,
-    cashierName: row.cashier_name ?? "-",
-    claimCode: row.claim_code,
-    handoverStatus: row.handover_status,
-  }));
+  const listRows: TransactionRow[] = listRes.data.map(mapGoTransactionRow);
+  const profitData = profitRes.data;
 
   return (
     <AppShell
@@ -136,8 +142,8 @@ export default async function OwnerTransactionsPage() {
         outletName={outlet.name}
         userName={session.user.name ?? "Pemilik"}
         rows={listRows}
-        weekSummary={mapProfit(profitRes.data.week)}
-        monthSummary={mapProfit(profitRes.data.month)}
+        weekSummary={mapGoProfit(profitData.week)}
+        monthSummary={mapGoProfit(profitData.month)}
         me={userMenuUser(session)}
       />
     </AppShell>

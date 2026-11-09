@@ -10,9 +10,9 @@ import {
 // pemilik warung, bukan operator kasir.
 //
 // Validasi input terjadi DI SINI (pintu terdepan) DAN sekali lagi di
-// layanan ML — keduanya menolak dengan 422 + pesan Indonesia. Kunci
+// backend Go — keduanya menolak dengan 422 + pesan Indonesia. Kunci
 // penyedia tidak pernah dikirim balik ke browser: GET hanya mengembalikan
-// versi dimasker dari ml-service.
+// versi dimasker dari backend Go.
 
 export async function GET() {
   const session = await auth();
@@ -99,12 +99,17 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const config = await putAssistantLlmConfig({
-      enabled,
-      base_url: baseUrl,
-      api_key: apiKey,
-      model,
-    });
+    const config = await putAssistantLlmConfig(
+      {
+        enabled,
+        base_url: baseUrl,
+        api_key: apiKey,
+        model,
+      },
+      // Era Go murni: peran sesi diteruskan supaya backend bisa menolak
+      // pemilik dengan sopan saat model dikunci developer (403 + pesan).
+      session.user.role ?? "OWNER",
+    );
     return Response.json(config, {
       headers: { "Cache-Control": "no-store" },
     });

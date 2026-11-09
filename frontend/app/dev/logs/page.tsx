@@ -55,6 +55,10 @@ type GoAuditRow = {
   entity: string;
   entity_id: string;
   detail: string;
+  // Era Go murni: IP asli aktor + kota asalnya (geo_kota kosong bila
+  // lookup dimatikan/gagal; null pada baris lama pra-migrasi).
+  ip?: string | null;
+  geo_kota?: string | null;
   created_at: string;
 };
 
@@ -364,6 +368,7 @@ export default async function DevLogsPage({
                     <th className="px-4 py-3 font-semibold">Aksi</th>
                     <th className="px-4 py-3 font-semibold">Entitas</th>
                     <th className="px-4 py-3 font-semibold">Ringkasan</th>
+                    <th className="px-4 py-3 font-semibold">Asal IP</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -418,13 +423,29 @@ export default async function DevLogsPage({
                         <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                           {row.detail}
                         </td>
+                        <td className="px-4 py-3 font-mono text-[11px] text-slate-400 dark:text-slate-500">
+                          {/* Era Go murni: IP + kota asal (bila diketahui).
+                              Baris lama tanpa IP tampil "—". */}
+                          {row.ip ? (
+                            <>
+                              <span>{row.ip}</span>
+                              {row.geo_kota && (
+                                <span className="ml-1 rounded-full bg-slate-400/10 px-2 py-0.5 font-sans text-[10px] not-italic text-slate-500 dark:text-slate-400">
+                                  {row.geo_kota}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span>—</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
                   {rows.length === 0 && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
                       >
                         Tidak ada log yang cocok, longgarkan filter atau

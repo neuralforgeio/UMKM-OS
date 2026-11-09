@@ -1,14 +1,19 @@
-// Klien sisi-server untuk Asisten AI (ml-service v3.2.0, frontend v2.5.0).
+// Klien sisi-server untuk Asisten AI OSCAR (era Go murni, frontend 1.3.0).
 //
 // BACKEND_URL & INTERNAL_API_KEY adalah env SERVER-ONLY (tanpa awalan
-// NEXT_PUBLIC_): browser tidak pernah memanggil FastAPI langsung, // semua permintaan lewat route handler /api/assistant/* yang sudah
+// NEXT_PUBLIC_): browser tidak pernah memanggil backend langsung, // semua permintaan lewat route handler /api/assistant/* yang sudah
 // memeriksa sesi NextAuth. X-Internal-Key (blueprint BAB 5.4) hanya
 // dipakai ANTAR layanan di jaringan internal docker.
+//
+// ERA GO MURNI: BACKEND_URL kini menunjuk backend Go (:8080) — kontrak
+// JSON persis sama dengan era ml-service Python, hanya rumahnya yang
+// pindah. PUT llm-config membawa header X-Acting-Role dari sesi supaya
+// backend bisa menolak pemilik saat model dikunci developer.
 //
 // Berbeda dari lib/forecast.ts yang di-cache 15 menit, chat HARUS
 // segar (jawaban + riwayat bergerak) => cache: "no-store".
 
-const BASE_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:8000";
+const BASE_URL = process.env.BACKEND_URL ?? "http://127.0.0.1:8080";
 const INTERNAL_KEY = process.env.INTERNAL_API_KEY ?? "";
 
 function internalHeaders(): HeadersInit {
@@ -21,7 +26,7 @@ function internalHeaders(): HeadersInit {
   return headers;
 }
 
-// Kontrak ChatResponse ml-service (app/schemas/assistant.py).
+// Kontrak ChatResponse era Go murni (internal/handler/assistant.go).
 export interface AssistantChatResponse {
   answer: string;
   mode: "ai" | "data";
@@ -114,7 +119,7 @@ export async function getAssistantHistory(
 
 // ----------------------------------------------------------------------
 // Pengaturan LLM runtime (frontend v2.5.0), UI Pengaturan -> Asisten AI.
-// Konfigurasi tersimpan di volume ml-service (menimpa env compose) dan
+// Konfigurasi tersimpan di volume aidata (menimpa env compose) dan
 // langsung berlaku tanpa restart container; kunci TIDAK PERNAH dikirim
 // balik ke browser utuh (hanya versi dimasker).
 // ----------------------------------------------------------------------
@@ -127,6 +132,9 @@ export interface AssistantLlmConfig {
   llm_configured: boolean;
   llm_model: string | null;
   mode: "ai" | "data";
+  // Era Go murni: true = pilihan model dikunci developer; PUT dari
+  // pemilik akan ditolak 403 sampai kunci dibuka.
+  model_locked: boolean;
 }
 
 export interface AssistantLlmConfigInput {
@@ -160,12 +168,25 @@ export async function getAssistantLlmConfig(): Promise<AssistantLlmConfig> {
 }
 
 export async function putAssistantLlmConfig(
-  config: AssistantLlmConfigInput): Promise<AssistantLlmConfig> {
+  config: AssistantLlmConfigInput,
+  actingRole: string,
+): Promise<AssistantLlmConfig> {
   let res: Response;
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (INTERNAL_KEY) {
+      headers["X-Internal-Key"] = INTERNAL_KEY;
+    }
+    // Peran pelaku dari sesi (OWNER/DEVELOPER) — dipakai backend untuk
+    // menolak pemilik saat model dikunci developer (era Go murni).
+    if (actingRole) {
+      headers["X-Acting-Role"] = actingRole;
+    }
     res = await fetch(`${BASE_URL}/api/v1/assistant/llm-config`, {
       method: "PUT",
-      headers: internalHeaders(),
+      headers,
       cache: "no-store",
       body: JSON.stringify(config),
     });

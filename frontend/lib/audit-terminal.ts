@@ -28,6 +28,9 @@ export type TerminalAuditRow = {
   entity: string;
   entity_id: string;
   detail: string;
+  // Era Go murni: IP asli aktor (+ kota asal bila diketahui).
+  ip?: string | null;
+  geo_kota?: string | null;
   created_at: string;
 };
 
@@ -157,5 +160,7 @@ export function terminalLine(row: TerminalAuditRow) {
     action: row.action,
     entity: terminalEntity(row.entity, row.entity_id),
     detail: terminalDetail(row.detail),
+    ip: row.ip?.trim() ?? "",
+    geo: row.geo_kota?.trim() ?? "",
   };
 }

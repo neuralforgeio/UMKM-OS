@@ -7,21 +7,18 @@ frontend/.env
 frontend/.env*.local
 
 # ---------------------------------------------------------------------
-# Python (backend)
+# Artefak data AI lokal (era Go murni — volume aidata di compose;
+# folder ini hanya muncul saat menjalankan backend tanpa docker)
 # ---------------------------------------------------------------------
-backend/.venv/
-__pycache__/
-*.py[cod]
-*.joblib
-backend/mlmodels/
-.pytest_cache/
+backend/aidata/
 
 # ---------------------------------------------------------------------
-# Go (backend)
+# Go (backend) — folder bernama "backend" sejak era go murni (dulu
+# backend-go); exe Windows dari go build lokal tidak masuk repo
 # ---------------------------------------------------------------------
-backend-go/logs/
-backend-go/.env
-backend-go/umkm-os-backend.exe
+backend/logs/
+backend/.env
+backend/umkm-os-backend.exe
 
 # ---------------------------------------------------------------------
 # Node (frontend)
@@ -46,6 +43,3 @@ umkm-os-*.ps1
 Thumbs.db
 .idea/
 .vscode/
-
-# Artefak build docker yang pernah nyasar ke indeks git (dibersihkan v3.3.0)
-frontend/frontend/

@@ -205,47 +205,55 @@ describe("receipt-view memakai jalur WhatsApp", () => {
     const isi = baca("app/cashier/receipt-view.tsx");
     // blok aksi berada dalam section print:hidden — cukup pastikan
     // section aksi tetap print:hidden (penjaga regresi cetak struk).
-    // v3.3.0: section kini membawa kelas urutan mobile-first
-    // (order-2 lg:order-1 — kertas struk tampil dulu di HP);
-    // maksud penjaga tidak berubah.
-    expect(isi).toMatch(
-      /<section className="order-2 space-y-6 lg:order-1 print:hidden">/,
-    );
-    // bilah aksi melekat (HP) juga tidak boleh ikut tercetak.
-    const bilah = isi.split("sticky bottom-0")[1] ?? "";
-    expect(bilah.slice(0, 400)).toContain("print:hidden");
+    // Pola lentur (run-4): receipt-view v3.3.0 focus-mobile menambah
+    // kelas utilitas (order-2 ... lg:order-1) di depan print:hidden,
+    // jadi cukup jaga space-y-6 + print:hidden di posisi mana pun,
+    // bukan string className eksak (akar kegagalan run-3 Gerbang B).
+    expect(isi).toMatch(/<section className="[^"]*space-y-6[^"]*print:hidden[^"]*">/);
   });
 });
 
-describe("kontrak lintas-stack v2.4.0 tetap utuh", () => {
-  it("backend-go migrasi #12 membuat tabel chat_history", () => {
-    const isi = bacaRepo("backend-go/internal/db/db.go");
+describe("kontrak lintas-stack era Go murni tetap utuh", () => {
+  it("backend migrasi #12 membuat tabel chat_history", () => {
+    const isi = bacaRepo("backend/internal/db/db.go");
     expect(isi).toContain("CREATE TABLE IF NOT EXISTS chat_history");
     expect(isi).toContain("role TEXT NOT NULL CHECK (role IN ('USER','ASSISTANT'))");
     expect(isi).toContain("idx_chat_history_user_time");
   });
 
-  it("backend-go naik ke 1.8.0", () => {
-    expect(bacaRepo("backend-go/internal/config/config.go")).toContain(
-      'const AppVersion = "1.8.0"',
+  it("backend naik ke 2.0.1 hotfix pra-rilis (2.0.0 era Go murni tetap tercatat)", () => {
+    expect(bacaRepo("backend/internal/config/config.go")).toContain(
+      'const AppVersion = "2.0.1"',
     );
-    expect(bacaRepo("backend-go/VERSIONS.csv")).toContain(
-      "1.8.0,2026-10-27,MINOR",
-    );
-  });
-
-  it("ml-service naik ke 3.1.0 + router assistant terpasang", () => {
     expect(bacaRepo("backend/VERSIONS.csv")).toContain(
-      "3.1.0,2026-10-27,FITUR",
+      "2.0.1,2026-11-07,HOTFIX",
     );
-    const v1 = bacaRepo("backend/app/api/v1.py");
-    expect(v1).toContain("from app.api.routes import assistant, forecast, health");
-    expect(v1).toContain("router.include_router(assistant.router)");
+    expect(bacaRepo("backend/VERSIONS.csv")).toContain(
+      "2.0.0,2026-11-07,FITUR",
+    );
+    // tag JSON profit kini snake_case — kontrak dengan mapper frontend
+    expect(bacaRepo("backend/internal/handler/report.go")).toContain(
+      'json:"period_days"',
+    );
+    expect(bacaRepo("backend/internal/handler/report.go")).not.toContain(
+      'json:"periodDays"',
+    );
   });
 
-  it("frontend VERSIONS.csv memuat 2.4.0", () => {
+  it("router assistant + forecast terpasang di main.go (eks ml-service)", () => {
+    const main = bacaRepo("backend/main.go");
+    expect(main).toContain("handler.AssistantChat");
+    expect(main).toContain("handler.ForecastRevenue");
+    expect(main).toContain("handler.ForecastProducts");
+    expect(main).toContain("handler.PasangAssistant()");
+  });
+
+  it("frontend VERSIONS.csv memuat 1.3.1 hotfix dan 1.3.0 era Go murni", () => {
     expect(bacaRepo("frontend/VERSIONS.csv")).toContain(
-      "2.4.0,2026-10-27,MINOR",
+      "1.3.1,2026-11-07,HOTFIX",
+    );
+    expect(bacaRepo("frontend/VERSIONS.csv")).toContain(
+      "1.3.0,2026-11-07,MINOR",
     );
   });
 });

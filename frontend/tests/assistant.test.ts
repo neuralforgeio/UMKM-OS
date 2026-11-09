@@ -1,13 +1,16 @@
-// Test penjaga asisten OSCAR (frontend v1.1.0), panel murni AI,
-// halaman obrolan terpusat, kontrak lintas-stack, dan uji sambungan LLM.
+// Test penjaga asisten OSCAR (frontend 1.3.0, era Go murni), panel murni
+// AI, halaman obrolan terpusat, kontrak lintas-stack, dan uji sambungan
+// LLM.
 //
 // Yang dikunci: persona OSCAR (nama, singkatan Online Shop Center for
-// Assistance & Response, pencipta) sama di frontend dan layanan ML;
+// Assistance & Response, pencipta) sama di frontend dan backend Go;
 // perilaku panel (riwayat, Enter mengirim, batas 500 karakter, gulir
 // otomatis, aria-live); MURNI obrolan AI tanpa lencana mode dan tanpa
 // jawaban template (kegagalan tampil jujur dengan tombol kirim ulang);
 // halaman tanpa lampiran nama model; pintu route handler
 // /api/assistant/* yang menolak kasir; dan jalur Tes Koneksi.
+// ERA GO MURNI: sumber lintas-stack kini file Go di backend/internal/ai
+// + internal/handler — layanan Python sudah tidak ada.
 // Standar: Bahasa Indonesia, stdlib Node saja, tanpa DB/jaringan.
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
@@ -20,19 +23,19 @@ const ROOT_REPO = join(ROOT_FRONTEND, "..");
 const baca = (rel: string) => readFileSync(join(ROOT_FRONTEND, rel), "utf-8");
 const bacaRepo = (rel: string) => readFileSync(join(ROOT_REPO, rel), "utf-8");
 
-// Konstanta persona layanan ML (backend/app/services/assistant.py),
+// Konstanta persona backend Go (backend/internal/ai/normalize.go),
 // dikutip di sini sebagai kontrak lintas-stack: bila salah satu sisi
 // berganti nama, test ini menyala lebih dulu.
 const ASSISTANT_NAME = "OSCAR";
 const ASSISTANT_FULL_NAME = "Online Shop Center for Assistance & Response";
 const ASSISTANT_CREATOR = "Dearly Febriano Irwansyah";
 
-describe("persona OSCAR, frontend dan layanan ML seirama", () => {
-  it("layanan ML: nama dan singkatan resmi OSCAR", () => {
-    const otak = bacaRepo("backend/app/services/assistant.py");
-    expect(otak).toContain(`ASSISTANT_NAME = "OSCAR"`);
+describe("persona OSCAR, frontend dan backend Go seirama", () => {
+  it("backend Go: nama dan singkatan resmi OSCAR", () => {
+    const otak = bacaRepo("backend/internal/ai/normalize.go");
+    expect(otak).toContain(`AssistantName      = "OSCAR"`);
     expect(otak).toContain(ASSISTANT_FULL_NAME);
-    expect(otak).toContain(`ASSISTANT_CREATOR = "${ASSISTANT_CREATOR}"`);
+    expect(otak).toContain(`AssistantCreator   = "${ASSISTANT_CREATOR}"`);
     expect(otak).not.toContain('"Dea"');
   });
 
@@ -162,23 +165,30 @@ describe("halaman OSCAR, gerbang dan obrolan terpusat tanpa model", () => {
     expect(halaman).not.toContain("Aturan main");
   });
 
-  it("aturan privasi tetap hidup di system prompt layanan ML", () => {
-    const otak = bacaRepo("backend/app/services/assistant.py");
-    expect(otak).toContain("Privasi per-owner");
+  it("aturan privasi tetap hidup di system prompt backend Go", () => {
+    const prompt = bacaRepo("backend/internal/ai/prompt.go");
+    expect(prompt).toContain("Privasi per-owner");
   });
 
-  it("layanan ML menolak jujur saat AI tidak aktif (Mode Data mati)", () => {
-    const rute = bacaRepo("backend/app/api/routes/assistant.py");
-    expect(rute).not.toContain("build_offline_answer");
-    expect(rute).toContain("status_code=503");
-    expect(rute).toContain("status_code=502");
+  it("backend Go menolak jujur saat AI tidak aktif (Mode Data mati)", () => {
+    const rute = bacaRepo("backend/internal/handler/assistant.go");
+    expect(rute).not.toContain("BuildOfflineAnswer");
+    expect(rute).toContain("http.StatusServiceUnavailable");
+    expect(rute).toContain("http.StatusBadGateway");
+  });
+
+  it("era Go murni: pintu assistant + ramalan ber-gerbang X-Internal-Key", () => {
+    const main = bacaRepo("backend/main.go");
+    expect(main).toContain("middleware.RequireInternalKey");
+    expect(main).toContain("handler.AssistantChat");
+    expect(main).toContain("handler.ForecastRevenue");
   });
 });
 
 describe("lib/assistant.ts, kontrak klien sisi-server", () => {
-  it("alamat layanan ML dan kunci internal hanya hidup di server", () => {
+  it("alamat backend Go dan kunci internal hanya hidup di server", () => {
     const lib = baca("lib/assistant.ts");
-    expect(lib).toContain('process.env.BACKEND_URL ?? "http://127.0.0.1:8000"');
+    expect(lib).toContain('process.env.BACKEND_URL ?? "http://127.0.0.1:8080"');
     expect(lib).toContain("process.env.INTERNAL_API_KEY ??");
     expect(lib).toContain('headers["X-Internal-Key"] = INTERNAL_KEY;');
   });
@@ -202,6 +212,9 @@ describe("lib/assistant.ts, kontrak klien sisi-server", () => {
     expect(lib).toContain("api_key_masked: string;");
     expect(lib).toContain('source: "file" | "env";');
     expect(lib).toContain("putAssistantLlmConfig");
+    // Era Go murni: model bisa dikunci developer; peran pelaku diteruskan.
+    expect(lib).toContain("model_locked: boolean;");
+    expect(lib).toContain('headers["X-Acting-Role"] = actingRole;');
   });
 
   it("uji sambungan: POST ke /api/v1/assistant/llm-selftest", () => {
@@ -223,7 +236,7 @@ describe("route handler /api/assistant/*, gerbang sesi NextAuth", () => {
     expect(route).toContain("hanya untuk pemilik");
   });
 
-  it("uji sambungan meneruskan hasil mentah layanan ML", () => {
+  it("uji sambungan meneruskan hasil mentah backend Go", () => {
     const route = baca("app/api/assistant/llm-selftest/route.ts");
     expect(route).toContain("postAssistantLlmSelftest()");
     expect(route).toContain('"Cache-Control": "no-store"');
@@ -237,34 +250,33 @@ describe("route handler /api/assistant/*, gerbang sesi NextAuth", () => {
   });
 });
 
-describe("uji sambungan LLM, lintas-stack sampai layanan ML", () => {
-  it("layanan uji mandiri ada dan menyuntik klien serta konfigurasi", () => {
-    const uji = bacaRepo("backend/app/services/llm_selftest.py");
-    expect(uji).toContain("async def run_selftest(");
-    expect(uji).toContain("klien: Any | None = None");
-    expect(uji).toContain("cfg: dict[str, Any] | None = None");
-    expect(uji).toContain("UJI_PROMPT");
+describe("uji sambungan LLM, lintas-stack sampai backend Go", () => {
+  it("uji mandiri ada dan menyuntik klien (stub unittest Go)", () => {
+    const uji = bacaRepo("backend/internal/ai/selftest.go");
+    expect(uji).toContain("func RunSelftest(");
+    expect(uji).toContain("klien Client");
+    expect(uji).toContain("UjiPrompt");
   });
 
-  it("kunci hanya keluar dalam bentuk dimasker (aturan 11 v2.7.0)", () => {
-    const uji = bacaRepo("backend/app/services/llm_selftest.py");
-    expect(uji).toContain("mask_key(cfg.get(\"api_key\")");
-    expect(uji).toContain('"api_key_masked"');
+  it("kunci hanya keluar dalam bentuk dimasker (aturan 9 prompt Go)", () => {
+    const uji = bacaRepo("backend/internal/ai/selftest.go");
+    expect(uji).toContain("MaskKey(cfg.APIKey)");
+    expect(uji).toContain("APIKeyMasked string");
   });
 
-  it("endpoint POST /llm-selftest ber-gerbang X-Internal-Key", () => {
-    const routes = bacaRepo("backend/app/api/routes/assistant.py");
-    expect(routes).toContain('@router.post("/llm-selftest")');
-    expect(routes).toContain("await require_internal_key(request)");
-    expect(routes).toContain("llm_selftest as uji");
+  it("klien HTTP Go menormalkan peran + menerjemahkan galat penyedia", () => {
+    const klien = bacaRepo("backend/internal/ai/llm.go");
+    expect(klien).toContain("func NormalisasiPesan");
+    expect(klien).toContain("func PesanGalatHTTP");
+    expect(klien).toContain("console.groq.com");
+    expect(klien).toContain("reasoning_effort");
   });
 
-  it("tes backend uji mandiri hadir dan menyuntik cfg eksplisit", () => {
-    const tes = bacaRepo("backend/tests/test_llm_selftest.py");
-    expect(tes).toContain("klien=KlienStub");
-    expect(tes).toContain("cfg=CFG_AI");
-    expect(tes).toContain('"gsk_****unci"');
-    expect(tes).toContain("test_belum_dikonfigurasi");
+  it("unittest Go menyuntik stub klien untuk RunSelftest", () => {
+    const tes = bacaRepo("backend/internal/ai/ai_test.go");
+    expect(tes).toContain("stubKlien");
+    expect(tes).toContain("RunSelftest(context.Background(), s, klien)");
+    expect(tes).toContain("MaskKey");
   });
 
   it("form pengaturan memiliki tombol Tes Koneksi dengan hasil nyata", () => {

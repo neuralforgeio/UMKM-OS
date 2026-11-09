@@ -106,7 +106,7 @@ export function AuditTerminal({
                     </span>
                   )}
                 </p>
-                {/* Baris 2: kode aksi · entitas · ringkasan. */}
+                {/* Baris 2: kode aksi · entitas · ringkasan · asal IP. */}
                 <p className="mt-0.5 pl-2 break-words">
                   <span className="font-semibold text-cyan-300">
                     {l.action}
@@ -116,6 +116,14 @@ export function AuditTerminal({
                   )}
                   <span className="text-slate-600"> — </span>
                   <span className="text-slate-300">{l.detail}</span>
+                  {/* Era Go murni: asal IP aktor (+ kota bila diketahui) —
+                      IP privat tampil "jaringan lokal". */}
+                  {l.ip && (
+                    <span className="ml-2 font-mono text-[10px] text-amber-300/70">
+                      [{l.ip}
+                      {l.geo ? ` · ${l.geo}` : ""}]
+                    </span>
+                  )}
                 </p>
               </div>
             ))}
