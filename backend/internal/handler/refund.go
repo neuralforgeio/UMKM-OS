@@ -42,10 +42,7 @@ func RefundTransaction(w http.ResponseWriter, r *http.Request) {
         if r.Body != nil {
                 _ = Decode(r, &req) // body tanpa alasan diperlakukan kosong
         }
-        reason := strings.TrimSpace(req.Reason)
-        if len(reason) > 120 {
-                reason = reason[:120]
-        }
+        reason := TruncateRunes(strings.TrimSpace(req.Reason), 120)
 
         ctx := r.Context()
 

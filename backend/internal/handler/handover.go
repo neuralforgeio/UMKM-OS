@@ -237,10 +237,7 @@ func MarkServed(w http.ResponseWriter, r *http.Request) {
                 return
         }
         req := decodeHandoverBody(w, r)
-        note := strings.TrimSpace(req.Note)
-        if len(note) > 200 {
-                note = note[:200]
-        }
+        note := TruncateRunes(strings.TrimSpace(req.Note), 200)
 
         ctx := r.Context()
         tx, err := db.Pool.Begin(ctx)
@@ -336,10 +333,7 @@ func ConfirmHandover(w http.ResponseWriter, r *http.Request) {
                 Err(w, http.StatusBadRequest, "Tanda tangan pembeli belum digambar")
                 return
         }
-        buyerName := strings.TrimSpace(req.BuyerName)
-        if len(buyerName) > 40 {
-                buyerName = buyerName[:40]
-        }
+        buyerName := TruncateRunes(strings.TrimSpace(req.BuyerName), 40)
 
         ctx := r.Context()
         tx, err := db.Pool.Begin(ctx)
@@ -418,10 +412,7 @@ func ClaimDelivered(w http.ResponseWriter, r *http.Request) {
                 return
         }
         req := decodeHandoverBody(w, r)
-        note := strings.TrimSpace(req.Note)
-        if len(note) > 200 {
-                note = note[:200]
-        }
+        note := TruncateRunes(strings.TrimSpace(req.Note), 200)
 
         ctx := r.Context()
         tx, err := db.Pool.Begin(ctx)
@@ -627,10 +618,7 @@ func PublicConfirm(w http.ResponseWriter, r *http.Request) {
                 Err(w, http.StatusBadRequest, "Tanda tangan belum digambar")
                 return
         }
-        buyerName := strings.TrimSpace(req.BuyerName)
-        if len(buyerName) > 40 {
-                buyerName = buyerName[:40]
-        }
+        buyerName := TruncateRunes(strings.TrimSpace(req.BuyerName), 40)
 
         ctx := r.Context()
         tx, err := db.Pool.Begin(ctx)
@@ -689,10 +677,7 @@ func PublicConfirm(w http.ResponseWriter, r *http.Request) {
 func PublicDispute(w http.ResponseWriter, r *http.Request) {
         code := strings.ToUpper(strings.TrimSpace(chi.URLParam(r, "code")))
         req := decodeHandoverBody(w, r)
-        reason := strings.TrimSpace(req.Reason)
-        if len(reason) > 200 {
-                reason = reason[:200]
-        }
+        reason := TruncateRunes(strings.TrimSpace(req.Reason), 200)
 
         ctx := r.Context()
         tx, err := db.Pool.Begin(ctx)
