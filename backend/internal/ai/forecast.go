@@ -17,9 +17,9 @@ import (
 
 // HariOmzet: satu hari riwayat pendapatan.
 type HariOmzet struct {
-	Tanggal     time.Time
-	Omzet       float64
-	Transaksi   int64
+	Tanggal   time.Time
+	Omzet     float64
+	Transaksi int64
 }
 
 // TitikRamalan: satu hari hasil ramalan.
@@ -163,12 +163,12 @@ func BacktestMAPE(deret []HariOmzet, hariAcuan time.Time) *float64 {
 
 // HasilRamalanOutlet: muatan GET /forecast/revenue (kontrak frontend).
 type HasilRamalanOutlet struct {
-	OutletID    string          `json:"outlet_id"`
-	OutletName  string          `json:"outlet_name"`
-	HistoryDays int             `json:"history_days"`
-	HorizonDays int             `json:"horizon_days"`
-	Method      string          `json:"method"`
-	Engine      string          `json:"engine"`
+	OutletID    string           `json:"outlet_id"`
+	OutletName  string           `json:"outlet_name"`
+	HistoryDays int              `json:"history_days"`
+	HorizonDays int              `json:"horizon_days"`
+	Method      string           `json:"method"`
+	Engine      string           `json:"engine"`
 	Quality     *KualitasRamalan `json:"quality"`
 }
 

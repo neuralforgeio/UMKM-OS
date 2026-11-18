@@ -55,13 +55,64 @@ describe("entri v1.3.0 memuat era Go murni yang benar benar terpasang", () => {
     expect(gabung).toContain("unik per outlet");
   });
 
-  it("versi terbaru kini 1.3.1, entri 1.3.0, 1.2.0, 1.1.1 tetap utuh di bawahnya", () => {
-    expect(versiTerbaru()).toBe("1.3.1");
-    expect(CHANGELOG[0].versi).toBe("1.3.1");
-    expect(CHANGELOG[1].versi).toBe("1.3.0");
-    expect(CHANGELOG[2].versi).toBe("1.2.0");
-    expect(CHANGELOG[3].versi).toBe("1.1.1");
+  it("versi terbaru kini 1.4.3, entri 1.4.2 s.d. 1.1.1 tetap utuh di bawahnya", () => {
+    expect(versiTerbaru()).toBe("1.4.3");
+    expect(CHANGELOG[0].versi).toBe("1.4.3");
+    expect(CHANGELOG[1].versi).toBe("1.4.2");
+    expect(CHANGELOG[2].versi).toBe("1.4.1");
+    expect(CHANGELOG[3].versi).toBe("1.4.0");
+    expect(CHANGELOG[4].versi).toBe("1.3.1");
+    expect(CHANGELOG[5].versi).toBe("1.3.0");
+    expect(CHANGELOG[6].versi).toBe("1.2.0");
+    expect(CHANGELOG[7].versi).toBe("1.1.1");
     expect(cariEntri("1.2.0")).not.toBeNull();
+  });
+});
+
+describe("entri v1.4.3 memuat penjamin kolom cadangan", () => {
+  it("butir 1.4.3 menyebut kolom warisan di tabel aplikasi, tipe dibaca dari sumber, dan kolom tak diubah", () => {
+    const entri = cariEntri("1.4.3");
+    expect(entri).not.toBeNull();
+    const gabung = entri!.butir.join(" ");
+    expect(gabung).toContain("kolom warisan");
+    expect(gabung).toContain("dibaca langsung dari database sumber");
+    expect(gabung).toContain("tidak dihapus, tidak diubah");
+  });
+});
+
+describe("entri v1.4.2 memuat perbaikan tabel warisan", () => {
+  it("butir 1.4.2 menyebut tabel warisan alat lama, sumber struktur sama, dan reproduksi kondisi nyata", () => {
+    const entri = cariEntri("1.4.2");
+    expect(entri).not.toBeNull();
+    const gabung = entri!.butir.join(" ");
+    expect(gabung).toContain("tabel warisan");
+    expect(gabung).toContain("tidak akan pernah basi");
+    expect(gabung).toContain("kondisi nyata mesin pemilik");
+  });
+});
+
+describe("entri v1.4.1 memuat perbaikan cadangan murni aplikasi", () => {
+  it("butir 1.4.1 menyebut alat eksternal versi tak cocok, murni kode aplikasi, dan urutan tabel", () => {
+    const entri = cariEntri("1.4.1");
+    expect(entri).not.toBeNull();
+    const gabung = entri!.butir.join(" ");
+    expect(gabung).toContain("versi tidak cocok");
+    expect(gabung).toContain("kode aplikasi");
+    expect(gabung).toContain("diterapkan ulang");
+    expect(gabung).toContain("satu-kesatuan");
+  });
+});
+
+describe("entri v1.4.0 memuat cadangan data + salinan database", () => {
+  it("butir 1.4.0 menyebut tombol cadangkan, failover, sinkron balik, dan PROBERAW", () => {
+    const entri = cariEntri("1.4.0");
+    expect(entri).not.toBeNull();
+    const gabung = entri!.butir.join(" ");
+    expect(gabung).toContain("Cadangkan Data Sekarang");
+    expect(gabung).toContain("salinan");
+    expect(gabung).toContain("failover");
+    expect(gabung).toContain("sinkron balik");
+    expect(gabung).toContain("PROBERAW");
   });
 });
 
@@ -92,13 +143,16 @@ describe("entri v1.2.0 memuat kebebasan OSCAR yang benar benar terpasang", () =>
     expect(gabung).toContain("400 menjadi 700");
   });
 
-  it("versi terbaru kini 1.3.1 (pra-rilis); susunan 1.3.0/1.2.0/1.1.1 tetap tercatat", () => {
-    expect(versiTerbaru()).toBe("1.3.1");
-    expect(CHANGELOG[0].versi).toBe("1.3.1");
-    expect(CHANGELOG[1].versi).toBe("1.3.0");
-    expect(CHANGELOG[2].versi).toBe("1.2.0");
-    expect(CHANGELOG[3].versi).toBe("1.1.1");
-    expect(CHANGELOG[4].versi).toBe("1.1.0");
+  it("versi terbaru kini 1.4.3; susunan 1.4.2/1.4.1/1.4.0/1.3.1/1.3.0/1.2.0/1.1.1 tetap tercatat", () => {
+    expect(versiTerbaru()).toBe("1.4.3");
+    expect(CHANGELOG[0].versi).toBe("1.4.3");
+    expect(CHANGELOG[1].versi).toBe("1.4.2");
+    expect(CHANGELOG[2].versi).toBe("1.4.1");
+    expect(CHANGELOG[3].versi).toBe("1.4.0");
+    expect(CHANGELOG[4].versi).toBe("1.3.1");
+    expect(CHANGELOG[5].versi).toBe("1.3.0");
+    expect(CHANGELOG[6].versi).toBe("1.2.0");
+    expect(CHANGELOG[7].versi).toBe("1.1.1");
     expect(cariEntri("1.1.0")).not.toBeNull();
   });
 });

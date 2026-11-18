@@ -215,15 +215,47 @@ describe("receipt-view memakai jalur WhatsApp", () => {
 
 describe("kontrak lintas-stack era Go murni tetap utuh", () => {
   it("backend migrasi #12 membuat tabel chat_history", () => {
-    const isi = bacaRepo("backend/internal/db/db.go");
+    const isi = bacaRepo("backend/internal/schema/schema.go");
     expect(isi).toContain("CREATE TABLE IF NOT EXISTS chat_history");
     expect(isi).toContain("role TEXT NOT NULL CHECK (role IN ('USER','ASSISTANT'))");
     expect(isi).toContain("idx_chat_history_user_time");
   });
 
-  it("backend naik ke 2.0.1 hotfix pra-rilis (2.0.0 era Go murni tetap tercatat)", () => {
+  it("backend naik ke 2.1.0 fitur cadangan + salinan (2.0.3 + 2.0.2 tetap tercatat)", () => {
     expect(bacaRepo("backend/internal/config/config.go")).toContain(
-      'const AppVersion = "2.0.1"',
+      'const AppVersion = "2.1.3"',
+    );
+    expect(bacaRepo("backend/VERSIONS.csv")).toContain(
+      "2.1.3,2026-11-18,HOTFIX",
+    );
+    expect(bacaRepo("backend/VERSIONS.csv")).toContain(
+      "2.1.2,2026-11-17,HOTFIX",
+    );
+    expect(bacaRepo("backend/VERSIONS.csv")).toContain(
+      "2.1.1,2026-11-17,HOTFIX",
+    );
+    expect(bacaRepo("backend/VERSIONS.csv")).toContain(
+      "2.1.0,2026-11-17,FITUR",
+    );
+    expect(bacaRepo("backend/VERSIONS.csv")).toContain(
+      "2.0.3,2026-11-10,HOTFIX",
+    );
+    expect(bacaRepo("backend/VERSIONS.csv")).toContain(
+      "2.0.2,2026-11-10,HOTFIX",
+    );
+    // run-7: mesin salinan database benar-benar ada di kode backend
+    expect(bacaRepo("backend/internal/db/failover.go")).toContain(
+      "sinkronBalikKePusat",
+    );
+    expect(bacaRepo("backend/internal/backup/backup.go")).toContain(
+      "func Dump",
+    );
+    // run-6: SAVEPOINT memulihkan transaksi uji + rantai model cadangan
+    expect(bacaRepo("backend/cmd/selftest/main.go")).toContain(
+      "ROLLBACK TO SAVEPOINT sp_sku_bentrok",
+    );
+    expect(bacaRepo("backend/internal/config/config.go")).toContain(
+      "LLM_FALLBACK_MODELS",
     );
     expect(bacaRepo("backend/VERSIONS.csv")).toContain(
       "2.0.1,2026-11-07,HOTFIX",
@@ -248,12 +280,22 @@ describe("kontrak lintas-stack era Go murni tetap utuh", () => {
     expect(main).toContain("handler.PasangAssistant()");
   });
 
-  it("frontend VERSIONS.csv memuat 1.3.1 hotfix dan 1.3.0 era Go murni", () => {
+  it("frontend VERSIONS.csv memuat 1.4.0 cadangan+salinan, 1.3.1 hotfix, 1.3.0 era Go murni", () => {
+    expect(bacaRepo("frontend/VERSIONS.csv")).toContain(
+      "1.4.0,2026-11-17,MINOR",
+    );
     expect(bacaRepo("frontend/VERSIONS.csv")).toContain(
       "1.3.1,2026-11-07,HOTFIX",
     );
     expect(bacaRepo("frontend/VERSIONS.csv")).toContain(
       "1.3.0,2026-11-07,MINOR",
+    );
+    // run-7: bagian Pengaturan + lib/backup benar-benar ada
+    expect(bacaRepo("frontend/app/owner/settings/page.tsx")).toContain(
+      "BackupForm",
+    );
+    expect(bacaRepo("frontend/lib/backup.ts")).toContain(
+      "formatUkuran",
     );
   });
 });

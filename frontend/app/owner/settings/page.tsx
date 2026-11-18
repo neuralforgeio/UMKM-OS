@@ -6,6 +6,10 @@ import { auth } from "@/lib/auth";
 import { getOutletContext, outletLogoUrl } from "@/lib/outlet-context";
 import { AssistantAiForm } from "./assistant-ai-form";
 import { OutletLogoForm, OutletProfileForm } from "./settings-forms";
+import { BackupForm } from "./backup-forms";
+import { bacaDbStatus } from "./backup-actions";
+import { goFetch } from "@/lib/api";
+import type { BerkasBackup } from "@/lib/backup";
 
 import { AppShell } from "@/components/shell/app-shell";
 
@@ -28,6 +32,20 @@ export default async function SettingsPage() {
   }
 
   const logoUrl = outletLogoUrl(outlet);
+
+  // RUN-7: status salinan database + daftar cadangan dibaca server-side
+  // saat render (bacaDbStatus sudah menjaga sesi OWNER/DEVELOPER).
+  // Kegagalan pembacaan TIDAK mematikan halaman: bagian cadangan
+  // menampilkan mode ringkas (null) — pengaturan lain tetap terpakai.
+  const dbStatus = await bacaDbStatus();
+  let daftarBackup: BerkasBackup[] = [];
+  if (dbStatus && session.user.goToken) {
+    const res = await goFetch<{ jumlah: number; berkas: BerkasBackup[] }>(
+      session.user.goToken,
+      "/admin/backup",
+    );
+    if (res.ok) daftarBackup = res.data.berkas ?? [];
+  }
 
   const INPUT_CLASS =
     "w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-500/20";
@@ -193,6 +211,11 @@ export default async function SettingsPage() {
             </p>
           </div>
         </section>
+
+        {/* RUN-7 (frontend 1.4.0): Cadangkan Data kapan pun + status
+            salinan database (pusat/salinan + riwayat failover/sinkron
+            balik) — permintaan pemilik dipenuhi dari halaman ini. */}
+        <BackupForm status={dbStatus} daftar={daftarBackup} />
     </AppShell>
   );
 }

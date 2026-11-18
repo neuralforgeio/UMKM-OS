@@ -1,268 +1,296 @@
 package main
 
 import (
-        "context"
-        "net/http"
-        "os"
-        "os/signal"
-        "syscall"
-        "time"
+	"context"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-        // Data zona waktu tertanam di dalam binary: TZ=Asia/Jakarta
-        // (dipasang docker-compose) tetap berfungsi di image runtime
-        // minimal yang tidak membawa paket tzdata. Karena itu pula
-        // "hari ini" di laporan mengikuti WIB, bukan UTC container.
-        _ "time/tzdata"
+	// Data zona waktu tertanam di dalam binary: TZ=Asia/Jakarta
+	// (dipasang docker-compose) tetap berfungsi di image runtime
+	// minimal yang tidak membawa paket tzdata. Karena itu pula
+	// "hari ini" di laporan mengikuti WIB, bukan UTC container.
+	_ "time/tzdata"
 
-        "github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5"
 
-        "github.com/neuralforgeio/internal/ai"
-        "github.com/neuralforgeio/internal/config"
-        "github.com/neuralforgeio/internal/db"
-        "github.com/neuralforgeio/internal/handler"
-        "github.com/neuralforgeio/internal/logger"
-        "github.com/neuralforgeio/internal/middleware"
+	"github.com/neuralforgeio/internal/ai"
+	"github.com/neuralforgeio/internal/backup"
+	"github.com/neuralforgeio/internal/config"
+	"github.com/neuralforgeio/internal/db"
+	"github.com/neuralforgeio/internal/handler"
+	"github.com/neuralforgeio/internal/logger"
+	"github.com/neuralforgeio/internal/middleware"
 )
 
 func main() {
-        logger.Success("=== UMKM-OS Backend API v%s ===", config.AppVersion)
-        logger.Info("Mode development lokal — log harian aktif")
+	logger.Success("=== UMKM-OS Backend API v%s ===", config.AppVersion)
+	logger.Info("Mode development lokal — log harian aktif")
 
-        db.Connect()
+	db.Connect()
 
-        // ERA GO MURNI: OSCAR (asisten AI), AI Developer, dan ramalan
-        // statistik kini hidup di proses ini — pengganti layanan Python
-        // yang dihapus. PasangAssistant membaca konfigurasi LLM (env +
-        // volume aidata), memasang batas laju + cache, dan menyiapkan
-        // store Mode Developer (PIN + laporan proaktif).
-        handler.PasangAssistant()
+	// ERA GO MURNI: OSCAR (asisten AI), AI Developer, dan ramalan
+	// statistik kini hidup di proses ini — pengganti layanan Python
+	// yang dihapus. PasangAssistant membaca konfigurasi LLM (env +
+	// volume aidata), memasang batas laju + cache, dan menyiapkan
+	// store Mode Developer (PIN + laporan proaktif).
+	handler.PasangAssistant()
 
-        // Pelaporan PROAKTIF AI Developer (loop latar belakang tiap
-        // interval; saklar darurat OSCAR_DEV_PROACTIVE=0).
-        devStop := make(chan struct{})
-        defer close(devStop)
-        go ai.Dev.ProactiveLoop(devStop)
+	// RUN-7 — CADANGAN DATA + SALINAN DATABASE. Semua loop latar
+	// belakang (pelaporan AI developer, backup otomatis, pemantauan
+	// failover) berbagi SATU saluran berhenti supaya Ctrl+C
+	// memulangkan semuanya sekaligus.
+	bersambung := make(chan struct{})
+	defer close(bersambung)
 
-        r := chi.NewRouter()
+	// Sinkron balik: db memanggil backup lewat fungsi suntikan ini
+	// (db tidak mengimpor backup — tidak ada dependensi melingkar).
+	db.PasangSinkron(func(dari, ke string) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		return backup.SinkronBalik(ctx, dari, ke)
+	})
 
-        // Middleware global.
-        // URUTAN PENTING: Logger paling luar supaya SEMUA request tercatat,
-        // termasuk yang panic, 404, atau ditolak auth.
-        r.Use(middleware.Logger)
-        r.Use(middleware.Recoverer)
-        r.Use(middleware.CORS)
-        r.Use(middleware.JSON)
+	// Pemantauan salinan (DATABASE_REPLICA_URL kosong = satu-node lama,
+	// tanpa loop) + backup otomatis (BACKUP_INTERVAL_SECONDS 0 = mati).
+	db.PasangSalinan(bersambung, config.DatabaseReplicaURL())
+	go backup.Loop(bersambung, config.BackupDir(), db.URLAktif(),
+		time.Duration(config.BackupIntervalSeconds())*time.Second, config.BackupKeep())
 
-        // Public (tanpa login)
-        r.Get("/health", handler.Health)
+	go ai.Dev.ProactiveLoop(bersambung)
 
-        r.Route("/api/v1", func(api chi.Router) {
-                api.Get("/version", handler.Version)
-                api.Post("/auth/login", handler.Login)
+	r := chi.NewRouter()
 
-                // ERA GO MURNI — pintu OSCAR + ramalan untuk gateway
-                // frontend Next.js (X-Internal-Key; kontrak JSON sama
-                // persis dengan era ml-service supaya lib/assistant.ts
-                // dan lib/forecast.ts tidak berubah bentuk panggilannya).
-                api.Group(func(gw chi.Router) {
-                        gw.Use(middleware.RequireInternalKey)
+	// Middleware global.
+	// URUTAN PENTING: Logger paling luar supaya SEMUA request tercatat,
+	// termasuk yang panic, 404, atau ditolak auth.
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.CORS)
+	r.Use(middleware.JSON)
 
-                        gw.Post("/assistant/chat", handler.AssistantChat)
-                        gw.Get("/assistant/history", handler.AssistantHistory)
-                        gw.Get("/assistant/llm-config", handler.GetLlmConfig)
-                        gw.Put("/assistant/llm-config", handler.PutLlmConfig)
-                        gw.Post("/assistant/llm-selftest", handler.LlmSelftest)
+	// Public (tanpa login)
+	r.Get("/health", handler.Health)
 
-                        gw.Get("/forecast/revenue", handler.ForecastRevenue)
-                        gw.Get("/forecast/products", handler.ForecastProducts)
-                })
+	r.Route("/api/v1", func(api chi.Router) {
+		api.Get("/version", handler.Version)
+		api.Post("/auth/login", handler.Login)
 
-                // Status asisten PUBLIK tanpa key (kejujuran status lebih
-                // berguna daripada menyembunyikannya) + laporan AI
-                // Developer ber-PIN — dibuka langsung dari browser
-                // developer, PIN adalah kuncinya.
-                api.Get("/assistant/status", handler.AssistantStatus)
-                api.Get("/assistant/oscar-developer-report", handler.OscarDeveloperReport)
-                api.Get("/assistant/oscar-developer-report/run", handler.OscarDeveloperReportRun)
+		// ERA GO MURNI — pintu OSCAR + ramalan untuk gateway
+		// frontend Next.js (X-Internal-Key; kontrak JSON sama
+		// persis dengan era ml-service supaya lib/assistant.ts
+		// dan lib/forecast.ts tidak berubah bentuk panggilannya).
+		api.Group(func(gw chi.Router) {
+			gw.Use(middleware.RequireInternalKey)
 
-                // Foto produk: publik — struk & POS memuatnya via tag <img>
-                // yang tidak bisa membawa header Authorization.
-                api.Get("/images/{id}", handler.ServeImage)
+			gw.Post("/assistant/chat", handler.AssistantChat)
+			gw.Get("/assistant/history", handler.AssistantHistory)
+			gw.Get("/assistant/llm-config", handler.GetLlmConfig)
+			gw.Put("/assistant/llm-config", handler.PutLlmConfig)
+			gw.Post("/assistant/llm-selftest", handler.LlmSelftest)
 
-                // Struk publik (v1.3.0): pembeli membuka QR dari HP TANPA login.
-                // Nomor struk = alamat baca; kode klaim 8 karakter = kunci
-                // interaksi (konfirmasi/bantah hanya lewat kode klaim).
-                api.Get("/public/receipt/{code}", handler.PublicReceipt)
-                api.Post("/public/receipt/{code}/confirm", handler.PublicConfirm)
-                api.Post("/public/receipt/{code}/dispute", handler.PublicDispute)
+			gw.Get("/forecast/revenue", handler.ForecastRevenue)
+			gw.Get("/forecast/products", handler.ForecastProducts)
+		})
 
-                // Logo outlet (v1.4.0): publik — halaman & struk memuatnya
-                // lewat tag <img> yang tidak bisa membawa Authorization.
-                api.Get("/outlets/{id}/logo", handler.ServeOutletLogo)
+		// Status asisten PUBLIK tanpa key (kejujuran status lebih
+		// berguna daripada menyembunyikannya) + laporan AI
+		// Developer ber-PIN — dibuka langsung dari browser
+		// developer, PIN adalah kuncinya.
+		api.Get("/assistant/status", handler.AssistantStatus)
+		api.Get("/assistant/oscar-developer-report", handler.OscarDeveloperReport)
+		api.Get("/assistant/oscar-developer-report/run", handler.OscarDeveloperReportRun)
 
-                // Butuh login (OWNER, CASHIER, DEVELOPER)
-                api.Group(func(priv chi.Router) {
-                        priv.Use(middleware.RequireAuth)
+		// Foto produk: publik — struk & POS memuatnya via tag <img>
+		// yang tidak bisa membawa header Authorization.
+		api.Get("/images/{id}", handler.ServeImage)
 
-                        priv.Get("/auth/me", handler.Me)
-                        priv.Post("/auth/change-password", handler.ChangePassword)
+		// Struk publik (v1.3.0): pembeli membuka QR dari HP TANPA login.
+		// Nomor struk = alamat baca; kode klaim 8 karakter = kunci
+		// interaksi (konfirmasi/bantah hanya lewat kode klaim).
+		api.Get("/public/receipt/{code}", handler.PublicReceipt)
+		api.Post("/public/receipt/{code}/confirm", handler.PublicConfirm)
+		api.Post("/public/receipt/{code}/dispute", handler.PublicDispute)
 
-                        // Profil mandiri (v1.7.0): semua peran mengelola
-                        // nama/email/foto akunnya SENDIRI. Terpisah dari
-                        // PUT /users/{id} konsol — pintu ini hanya bisa
-                        // menyentuh baris pemanggil, jadi developer pun
-                        // aman mengubah profilnya tanpa pintu eskalasi.
-                        priv.Put("/me", handler.UpdateMe)
-                        priv.Post("/me/photo", handler.UploadMyPhoto)
-                        priv.Delete("/me/photo", handler.DeleteMyPhoto)
+		// Logo outlet (v1.4.0): publik — halaman & struk memuatnya
+		// lewat tag <img> yang tidak bisa membawa Authorization.
+		api.Get("/outlets/{id}/logo", handler.ServeOutletLogo)
 
-                        // Foto profil PEMANGGIL (v1.7.0): butuh Bearer token
-                        // karena foto wajah staf bersifat pribadi — frontend
-                        // mem-proxynya lewat route /api/user/photo.
-                        priv.Get("/me/photo", handler.ServeMyPhoto)
+		// Butuh login (OWNER, CASHIER, DEVELOPER)
+		api.Group(func(priv chi.Router) {
+			priv.Use(middleware.RequireAuth)
 
-                        // Outlet konteks pemanggil (v1.5.0): satu pintu identitas
-                        // outlet untuk semua peran — frontend berhenti memakai fallback
-                        // prisma.findFirst era single-outlet.
-                        priv.Get("/my/outlet", handler.MyOutlet)
+			priv.Get("/auth/me", handler.Me)
+			priv.Post("/auth/change-password", handler.ChangePassword)
 
-                        priv.Get("/products", handler.ListProducts)
-                        priv.Get("/products/{id}", handler.GetProduct)
+			// Profil mandiri (v1.7.0): semua peran mengelola
+			// nama/email/foto akunnya SENDIRI. Terpisah dari
+			// PUT /users/{id} konsol — pintu ini hanya bisa
+			// menyentuh baris pemanggil, jadi developer pun
+			// aman mengubah profilnya tanpa pintu eskalasi.
+			priv.Put("/me", handler.UpdateMe)
+			priv.Post("/me/photo", handler.UploadMyPhoto)
+			priv.Delete("/me/photo", handler.DeleteMyPhoto)
 
-                        priv.Post("/transactions", handler.CreateTransaction)
-                        priv.Get("/transactions", handler.ListTransactions)
-                        priv.Get("/transactions/{id}", handler.GetTransaction)
+			// Foto profil PEMANGGIL (v1.7.0): butuh Bearer token
+			// karena foto wajah staf bersifat pribadi — frontend
+			// mem-proxynya lewat route /api/user/photo.
+			priv.Get("/me/photo", handler.ServeMyPhoto)
 
-                        // Serah terima (v1.3.0): antrean penyajian + aksi staf
-                        // (OWNER / CASHIER / DEVELOPER — semua peran yang jualan).
-                        priv.Get("/queue", handler.ServeQueue)
-                        priv.Post("/transactions/{id}/serve", handler.MarkServed)
-                        priv.Post("/transactions/{id}/confirm", handler.ConfirmHandover)
-                        priv.Post("/transactions/{id}/claim", handler.ClaimDelivered)
+			// Outlet konteks pemanggil (v1.5.0): satu pintu identitas
+			// outlet untuk semua peran — frontend berhenti memakai fallback
+			// prisma.findFirst era single-outlet.
+			priv.Get("/my/outlet", handler.MyOutlet)
 
-                        // Konsol verifikasi (v1.6.0): statistik hari ini +
-                        // pencarian struk outlet-wide — kasir boleh mencari
-                        // struk kasir lain di shiftnya (bukan hanya miliknya).
-                        priv.Get("/verify/today", handler.VerifyToday)
-                        priv.Get("/verify/lookup", handler.VerifyLookup)
+			priv.Get("/products", handler.ListProducts)
+			priv.Get("/products/{id}", handler.GetProduct)
 
-                        priv.Get("/reports/dashboard", handler.Dashboard)
-                })
+			priv.Post("/transactions", handler.CreateTransaction)
+			priv.Get("/transactions", handler.ListTransactions)
+			priv.Get("/transactions/{id}", handler.GetTransaction)
 
-                // Khusus OWNER & DEVELOPER (era pra-multi-outlet — 1.1.0
-                // akan memisahkan developer bersama konsep outlet).
-                api.Group(func(mgr chi.Router) {
-                        mgr.Use(middleware.RequireAuth)
-                        mgr.Use(middleware.RequireRoleIn("OWNER", "DEVELOPER"))
+			// Serah terima (v1.3.0): antrean penyajian + aksi staf
+			// (OWNER / CASHIER / DEVELOPER — semua peran yang jualan).
+			priv.Get("/queue", handler.ServeQueue)
+			priv.Post("/transactions/{id}/serve", handler.MarkServed)
+			priv.Post("/transactions/{id}/confirm", handler.ConfirmHandover)
+			priv.Post("/transactions/{id}/claim", handler.ClaimDelivered)
 
-                        mgr.Get("/users", handler.ListUsers)
-                        mgr.Post("/users", handler.CreateUser)
-                        mgr.Put("/users/{id}", handler.UpdateUser)
-                        mgr.Delete("/users/{id}", handler.DeleteUser)
+			// Konsol verifikasi (v1.6.0): statistik hari ini +
+			// pencarian struk outlet-wide — kasir boleh mencari
+			// struk kasir lain di shiftnya (bukan hanya miliknya).
+			priv.Get("/verify/today", handler.VerifyToday)
+			priv.Get("/verify/lookup", handler.VerifyLookup)
 
-                        // Outlet (v1.4.0): identitas warung milik Go — dibaca
-                        // konsol dev, form akun, dan pengaturan outlet.
-                        mgr.Get("/outlets", handler.ListOutlets)
-                        mgr.Get("/outlets/{id}", handler.GetOutlet)
-                        mgr.Put("/outlets/{id}", handler.UpdateOutlet)
-                        mgr.Post("/outlets/{id}/logo", handler.UploadOutletLogo)
-                        mgr.Delete("/outlets/{id}/logo", handler.DeleteOutletLogo)
+			priv.Get("/reports/dashboard", handler.Dashboard)
+		})
 
-                        mgr.Post("/products", handler.CreateProduct)
-                        mgr.Put("/products/{id}", handler.UpdateProduct)
-                        mgr.Delete("/products/{id}", handler.DeleteProduct)
-                        mgr.Put("/products/{id}/active", handler.SetProductActive)
-                        mgr.Post("/products/{id}/stock", handler.AdjustStock)
-                        mgr.Post("/products/{id}/images", handler.AddProductImage)
+		// Khusus OWNER & DEVELOPER (era pra-multi-outlet — 1.1.0
+		// akan memisahkan developer bersama konsep outlet).
+		api.Group(func(mgr chi.Router) {
+			mgr.Use(middleware.RequireAuth)
+			mgr.Use(middleware.RequireRoleIn("OWNER", "DEVELOPER"))
 
-                        mgr.Delete("/images/{id}", handler.DeleteImage)
-                        mgr.Put("/images/{id}/thumb", handler.SetImageThumb)
-                        mgr.Put("/images/{id}/move", handler.MoveImage)
+			mgr.Get("/users", handler.ListUsers)
+			mgr.Post("/users", handler.CreateUser)
+			mgr.Put("/users/{id}", handler.UpdateUser)
+			mgr.Delete("/users/{id}", handler.DeleteUser)
 
-                        mgr.Get("/stock-movements", handler.ListStockMovements)
+			// Outlet (v1.4.0): identitas warung milik Go — dibaca
+			// konsol dev, form akun, dan pengaturan outlet.
+			mgr.Get("/outlets", handler.ListOutlets)
+			mgr.Get("/outlets/{id}", handler.GetOutlet)
+			mgr.Put("/outlets/{id}", handler.UpdateOutlet)
+			mgr.Post("/outlets/{id}/logo", handler.UploadOutletLogo)
+			mgr.Delete("/outlets/{id}/logo", handler.DeleteOutletLogo)
 
-                        mgr.Get("/reports/sales", handler.SalesReport)
-                        mgr.Get("/reports/top-products", handler.TopProducts)
-                        mgr.Get("/reports/low-stock", handler.LowStock)
-                        mgr.Get("/reports/profit", handler.Profit)
+			mgr.Post("/products", handler.CreateProduct)
+			mgr.Put("/products/{id}", handler.UpdateProduct)
+			mgr.Delete("/products/{id}", handler.DeleteProduct)
+			mgr.Put("/products/{id}/active", handler.SetProductActive)
+			mgr.Post("/products/{id}/stock", handler.AdjustStock)
+			mgr.Post("/products/{id}/images", handler.AddProductImage)
 
-                        // Statistik lintas outlet (v1.5.0) untuk kartu konsol developer.
-                        mgr.Get("/reports/by-outlet", handler.ReportByOutlet)
+			mgr.Delete("/images/{id}", handler.DeleteImage)
+			mgr.Put("/images/{id}/thumb", handler.SetImageThumb)
+			mgr.Put("/images/{id}/move", handler.MoveImage)
 
-                        // Refund (v1.3.0): aksi paling sensitif — uang kembali +
-                        // stok naik; hanya OWNER / DEVELOPER, atomik, berjejak.
-                        mgr.Post("/transactions/{id}/refund", handler.RefundTransaction)
+			mgr.Get("/stock-movements", handler.ListStockMovements)
 
-                        // Log sistem (untuk dibaca di frontend nanti)
-                        mgr.Get("/logs", handler.ListLogFiles)
-                        mgr.Get("/logs/{date}", handler.ReadLogFile)
+			mgr.Get("/reports/sales", handler.SalesReport)
+			mgr.Get("/reports/top-products", handler.TopProducts)
+			mgr.Get("/reports/low-stock", handler.LowStock)
+			mgr.Get("/reports/profit", handler.Profit)
 
-                        // Jejak audit (v1.4.0 developer; v1.6.0 owner ikut
-                        // membaca — ter-scope paksa ke outletnya untuk export
-                        // spreadsheet dari Pengaturan).
-                        mgr.Get("/audit-logs", handler.ListAuditLogs)
-                })
+			// Statistik lintas outlet (v1.5.0) untuk kartu konsol developer.
+			mgr.Get("/reports/by-outlet", handler.ReportByOutlet)
 
-                // Khusus DEVELOPER (v1.4.0): membuat outlet dan jejak masuk/keluar
-                // mode maintenance. Query audit log pindah ke grup mgr sejak
-                // v1.6.0 (owner ikut membaca, ter-scope ke outletnya).
-                api.Group(func(dev chi.Router) {
-                        dev.Use(middleware.RequireAuth)
-                        dev.Use(middleware.RequireRoleIn("DEVELOPER"))
+			// Refund (v1.3.0): aksi paling sensitif — uang kembali +
+			// stok naik; hanya OWNER / DEVELOPER, atomik, berjejak.
+			mgr.Post("/transactions/{id}/refund", handler.RefundTransaction)
 
-                        dev.Post("/outlets", handler.CreateOutlet)
-                        dev.Post("/outlets/{id}/maintenance-session", handler.EnterMaintenanceSession)
-                        dev.Delete("/outlets/{id}/maintenance-session", handler.ExitMaintenanceSession)
-                })
-        })
+			// Log sistem (untuk dibaca di frontend nanti)
+			mgr.Get("/logs", handler.ListLogFiles)
+			mgr.Get("/logs/{date}", handler.ReadLogFile)
 
-        addr := ":" + config.Port()
-        srv := &http.Server{
-                Addr:              addr,
-                Handler:           r,
-                ReadHeaderTimeout: 10 * time.Second,
-        }
+			// Jejak audit (v1.4.0 developer; v1.6.0 owner ikut
+			// membaca — ter-scope paksa ke outletnya untuk export
+			// spreadsheet dari Pengaturan).
+			mgr.Get("/audit-logs", handler.ListAuditLogs)
 
-        // Server jalan di background supaya main() bisa mendengarkan sinyal berhenti.
-        errCh := make(chan error, 1)
-        go func() {
-                logger.Success("Server jalan di http://localhost%s", addr)
-                logger.Info("Log harian tersimpan otomatis di folder %s/ (file .log + .csv per hari)", logger.Dir())
-                if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-                        errCh <- err
-                }
-        }()
+			// RUN-7 — cadangan data + salinan database (owner &
+			// developer; bukan urusan shift kasir): status node,
+			// backup manual/daftar/pulihkan/unduh, pindah node.
+			mgr.Get("/admin/db-status", handler.DbStatus)
+			mgr.Post("/admin/backup/run", handler.BackupRun)
+			mgr.Get("/admin/backup", handler.BackupList)
+			mgr.Post("/admin/backup/{nama}/restore", handler.BackupRestore)
+			mgr.Get("/admin/backup/{nama}/download", handler.BackupDownload)
+			mgr.Post("/admin/db/failover", handler.DbFailover)
+		})
 
-        // Tunggu: Ctrl+C / sinyal berhenti, ATAU error fatal saat start.
-        quit := make(chan os.Signal, 1)
-        signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+		// Khusus DEVELOPER (v1.4.0): membuat outlet dan jejak masuk/keluar
+		// mode maintenance. Query audit log pindah ke grup mgr sejak
+		// v1.6.0 (owner ikut membaca, ter-scope ke outletnya).
+		api.Group(func(dev chi.Router) {
+			dev.Use(middleware.RequireAuth)
+			dev.Use(middleware.RequireRoleIn("DEVELOPER"))
 
-        select {
-        case err := <-errCh:
-                logger.Error("Server gagal jalan: %v", err)
-                logger.Close()
-                os.Exit(1)
-        case <-quit:
-        }
+			dev.Post("/outlets", handler.CreateOutlet)
+			dev.Post("/outlets/{id}/maintenance-session", handler.EnterMaintenanceSession)
+			dev.Delete("/outlets/{id}/maintenance-session", handler.ExitMaintenanceSession)
+		})
+	})
 
-        // ===== GRACEFUL SHUTDOWN =====
-        // Ctrl+C ditangkap di sini — server tidak lagi mati paksa,
-        // jadi tidak ada lagi "exit status 0xc000013a".
-        logger.Warn("Sinyal berhenti diterima — menutup server dengan rapi...")
+	addr := ":" + config.Port()
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 
-        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-        defer cancel()
-        if err := srv.Shutdown(ctx); err != nil {
-                logger.Error("Proses shutdown tidak sempurna: %v", err)
-        } else {
-                logger.Success("Semua koneksi HTTP sudah ditutup")
-        }
+	// Server jalan di background supaya main() bisa mendengarkan sinyal berhenti.
+	errCh := make(chan error, 1)
+	go func() {
+		logger.Success("Server jalan di http://localhost%s", addr)
+		logger.Info("Log harian tersimpan otomatis di folder %s/ (file .log + .csv per hari)", logger.Dir())
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errCh <- err
+		}
+	}()
 
-        if db.Pool != nil {
-                db.Pool.Close()
-                logger.Success("Koneksi database ditutup")
-        }
+	// Tunggu: Ctrl+C / sinyal berhenti, ATAU error fatal saat start.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-        logger.Success("Server berhenti dengan rapi (clean shutdown). Terima kasih, sampai jumpa!")
-        logger.Close()
+	select {
+	case err := <-errCh:
+		logger.Error("Server gagal jalan: %v", err)
+		logger.Close()
+		os.Exit(1)
+	case <-quit:
+	}
+
+	// ===== GRACEFUL SHUTDOWN =====
+	// Ctrl+C ditangkap di sini — server tidak lagi mati paksa,
+	// jadi tidak ada lagi "exit status 0xc000013a".
+	logger.Warn("Sinyal berhenti diterima — menutup server dengan rapi...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Error("Proses shutdown tidak sempurna: %v", err)
+	} else {
+		logger.Success("Semua koneksi HTTP sudah ditutup")
+	}
+
+	if db.Pool != nil {
+		db.Pool.Close()
+		logger.Success("Koneksi database ditutup")
+	}
+
+	logger.Success("Server berhenti dengan rapi (clean shutdown). Terima kasih, sampai jumpa!")
+	logger.Close()
 }

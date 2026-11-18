@@ -48,7 +48,9 @@ describe("OSCAR era Go murni — persona & otak (lintas-stack)", () => {
   it("handler Go: jam ramai + kecepatan laku + hari habis dari SQL", () => {
     const routes = bacaRepo("backend/internal/handler/assistant.go");
     expect(routes).toContain("func jamRamai");
-    expect(routes).toContain("JamRamai:            jamRamai(ctx, outletID, 3)");
+    // pola lentur (pelajaran run-4): lebar kolom gofmt berubah saat
+    // struct baru ditambahkan — asersi tidak boleh memaksa spasi eksak.
+    expect(routes).toMatch(/JamRamai:\s+jamRamai\(ctx, outletID, 3\)/);
     expect(routes).toContain("s.KecepatanHari = kecepatan");
     expect(routes).toContain("s.HariHabis = &hh");
   });
@@ -76,8 +78,9 @@ describe("OSCAR era Go murni — persona & otak (lintas-stack)", () => {
 
   it("NLU lama diperluas: obrolan + jam_ramai tetap teruji di Go", () => {
     const nlu = bacaRepo("backend/internal/ai/normalize_test.go");
-    expect(nlu).toContain('"wkwk lucu":                  "obrolan"');
-    expect(nlu).toContain('"jam paling ramai kapan":     "jam_ramai"');
+    // lebar kolom gofmt berbeda antar regenerasi: cocokkan pola lentur
+    expect(nlu).toMatch(/"wkwk lucu":\s+"obrolan"/);
+    expect(nlu).toMatch(/"jam paling ramai kapan":\s+"jam_ramai"/);
   });
 
   it("persona test lama diperbarui ke OSCAR", () => {

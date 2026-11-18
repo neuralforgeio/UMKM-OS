@@ -6,8 +6,8 @@ package ai
 
 // PenjualanBlok: omzet + jumlah transaksi satu jendela waktu.
 type PenjualanBlok struct {
-	Omzet      int64 `json:"omzet"`
-	Transaksi  int64 `json:"transaksi"`
+	Omzet     int64 `json:"omzet"`
+	Transaksi int64 `json:"transaksi"`
 }
 
 // ProdukTopItem: produk terlaris 7 hari.
@@ -19,12 +19,12 @@ type ProdukTopItem struct {
 
 // StokKritisItem: produk aktif di bawah stok minimum + saran restok.
 type StokKritisItem struct {
-	Nama        string   `json:"nama"`
-	Stok        int64    `json:"stok"`
-	MinStok     int64    `json:"min_stok"`
-	SaranRestok int64    `json:"saran_restok"`
-	KecepatanHari float64 `json:"kecepatan_hari"`
-	HariHabis   *float64 `json:"hari_habis"`
+	Nama          string   `json:"nama"`
+	Stok          int64    `json:"stok"`
+	MinStok       int64    `json:"min_stok"`
+	SaranRestok   int64    `json:"saran_restok"`
+	KecepatanHari float64  `json:"kecepatan_hari"`
+	HariHabis     *float64 `json:"hari_habis"`
 }
 
 // JamRamaiItem: jam belanja paling ramai 7 hari.
@@ -35,18 +35,18 @@ type JamRamaiItem struct {
 
 // PrediksiInfo: status model ramalan outlet.
 type PrediksiInfo struct {
-	Tersedia bool    `json:"tersedia"`
-	Engine   string  `json:"engine"`
+	Tersedia bool     `json:"tersedia"`
+	Engine   string   `json:"engine"`
 	Mape     *float64 `json:"mape"`
 }
 
 // MLProgress: kemajuan gerbang data model ramalan outlet.
 type MLProgress struct {
-	HariData         int64 `json:"hari_data"`
-	HariPendapatan   int64 `json:"hari_pendapatan"`
-	GerbangHari      int64 `json:"gerbang_hari"`
+	HariData          int64 `json:"hari_data"`
+	HariPendapatan    int64 `json:"hari_pendapatan"`
+	GerbangHari       int64 `json:"gerbang_hari"`
 	GerbangPendapatan int64 `json:"gerbang_pendapatan"`
-	GerbangTerpenuhi bool  `json:"gerbang_terpenuhi"`
+	GerbangTerpenuhi  bool  `json:"gerbang_terpenuhi"`
 }
 
 // DataContext: seluruh DATA bisnis warung yang menyertai satu
@@ -54,14 +54,14 @@ type MLProgress struct {
 // pemilik melihat OSCAR "membaca data terbaru" setiap saat tanpa
 // perlu dilatih ulang.
 type DataContext struct {
-	Outlet              string           `json:"outlet"`
-	Penjualan           map[string]PenjualanBlok `json:"penjualan"`
-	PerubahanMingguanPct *float64        `json:"perubahan_mingguan_pct"`
-	ProdukTop           []ProdukTopItem  `json:"produk_top"`
-	StokKritis          []StokKritisItem `json:"stok_kritis"`
-	JamRamai            []JamRamaiItem   `json:"jam_ramai"`
-	Prediksi            PrediksiInfo     `json:"prediksi"`
-	MLProgress          *MLProgress      `json:"ml_progress"`
+	Outlet               string                   `json:"outlet"`
+	Penjualan            map[string]PenjualanBlok `json:"penjualan"`
+	PerubahanMingguanPct *float64                 `json:"perubahan_mingguan_pct"`
+	ProdukTop            []ProdukTopItem          `json:"produk_top"`
+	StokKritis           []StokKritisItem         `json:"stok_kritis"`
+	JamRamai             []JamRamaiItem           `json:"jam_ramai"`
+	Prediksi             PrediksiInfo             `json:"prediksi"`
+	MLProgress           *MLProgress              `json:"ml_progress"`
 }
 
 // CollectAllowedNumbers: semua angka DATA yang boleh muncul di jawaban

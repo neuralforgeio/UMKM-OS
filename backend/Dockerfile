@@ -58,11 +58,20 @@ WORKDIR /app
 # curl      -> container healthcheck (GET /health)
 # ca-certificates -> TLS root store (panggilan HTTPS keluar: Groq,
 #                    geo lookup IP audit)
+#
+# RUN-8: postgresql-client/gzip DIHAPUS dari image runtime — cadangan
+# data kini MURNI GO (internal/backup: introspeksi katalog + DDL dari
+# internal/schema + compress/gzip stdlib + pemulihan pgx
+# simple-protocol). Alat eksternal pg_dump adalah akar kegagalan
+# mesin pemilik: klien Debian bookworm 15.20 menolak keras server
+# PostgreSQL 18.6 ("server version mismatch") — versi klien apt tidak
+# akan pernah bisa dijamin mengikuti versi server compose.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && apt-get install -y --no-install-recommends \
+        curl ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home appuser \
-    && mkdir -p /app/logs /app/aidata \
+    && mkdir -p /app/logs /app/aidata /app/backups \
     && chown -R appuser /app
 
 COPY --from=builder /out/umkm-os-backend /usr/local/bin/umkm-os-backend

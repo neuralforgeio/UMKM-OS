@@ -1,0 +1,3 @@
+timestamp,level,ip,user_id,user_name,method,path,status,duration_ms,message
+2026-11-18 03:59:58,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-18 03:59:59,OK,,,,,,,,[db] SINKRON BALIK SELESAI: pusat kembali aktif (1 transaksi dipulangkan)

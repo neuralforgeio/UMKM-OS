@@ -1,0 +1,27 @@
+timestamp,level,ip,user_id,user_name,method,path,status,duration_ms,message
+2026-11-17 06:15:09,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 06:15:09,ERROR,,,,,,,,[db] sinkron balik GAGAL (tetap di salinan): exit status 2
+2026-11-17 06:15:19,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 06:15:19,ERROR,,,,,,,,[db] sinkron balik GAGAL (tetap di salinan): exit status 2
+2026-11-17 06:15:31,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 06:15:31,ERROR,,,,,,,,"[db] sinkron balik: hitung salinan products gagal: ERROR: relation ""products"" does not exist (SQLSTATE 42P01)"
+2026-11-17 06:15:48,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 06:15:48,OK,,,,,,,,[db] SINKRON BALIK SELESAI: pusat kembali aktif (0 transaksi dipulangkan)
+2026-11-17 06:15:55,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 06:15:55,OK,,,,,,,,[db] SINKRON BALIK SELESAI: pusat kembali aktif (1 transaksi dipulangkan)
+2026-11-17 06:17:33,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 06:17:33,OK,,,,,,,,[db] SINKRON BALIK SELESAI: pusat kembali aktif (1 transaksi dipulangkan)
+2026-11-17 06:36:23,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 06:36:23,OK,,,,,,,,[db] SINKRON BALIK SELESAI: pusat kembali aktif (1 transaksi dipulangkan)
+2026-11-17 07:22:36,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 07:22:36,ERROR,,,,,,,,"[db] sinkron balik GAGAL (tetap di salinan): penerapan ke pusat gagal: pemulihan berhenti di tengah (transaksi implisit di-rollback): ERROR: null value in column ""email"" of relation ""users"" violates not-null constraint (SQLSTATE 23502)"
+2026-11-17 07:22:58,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 07:22:58,OK,,,,,,,,[db] SINKRON BALIK SELESAI: pusat kembali aktif (1 transaksi dipulangkan)
+2026-11-17 07:24:43,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 07:24:44,OK,,,,,,,,[db] SINKRON BALIK SELESAI: pusat kembali aktif (1 transaksi dipulangkan)
+2026-11-17 07:25:12,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 07:25:12,OK,,,,,,,,[db] SINKRON BALIK SELESAI: pusat kembali aktif (1 transaksi dipulangkan)
+2026-11-17 12:09:09,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 12:09:09,OK,,,,,,,,[db] SINKRON BALIK SELESAI: pusat kembali aktif (1 transaksi dipulangkan)
+2026-11-17 12:09:42,WARN,,,,,,,,[db] NODE AKTIF BERPINDAH: pusat -> salinan (dipindah manual)
+2026-11-17 12:09:42,OK,,,,,,,,[db] SINKRON BALIK SELESAI: pusat kembali aktif (1 transaksi dipulangkan)

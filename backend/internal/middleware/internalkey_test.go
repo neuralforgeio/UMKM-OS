@@ -25,10 +25,10 @@ func TestRequireInternalKey(t *testing.T) {
 	})
 
 	kasus := []struct {
-		nama    string
-		env     string
-		header  string
-		ingin   int
+		nama   string
+		env    string
+		header string
+		ingin  int
 	}{
 		{"kunci cocok", "rahasia-123", "rahasia-123", http.StatusOK},
 		{"kunci salah", "rahasia-123", "salah", http.StatusUnauthorized},

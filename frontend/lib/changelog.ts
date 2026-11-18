@@ -1,4 +1,4 @@
-// Riwayat perubahan UMKM OS (terbaru 1.3.1), murni data tanpa React
+// Riwayat perubahan UMKM OS (terbaru 1.4.3), murni data tanpa React
 // supaya bisa diuji vitest dan dipakai tombol Changelog di topbar.
 //
 // Satu sumber kebenaran untuk daftar versi yang tampil ke pengguna.
@@ -14,6 +14,50 @@ export type EntriChangelog = {
 };
 
 export const CHANGELOG: EntriChangelog[] = [
+  {
+    versi: "1.4.3",
+    tanggal: "2026-11-18",
+    judul: "Berkas cadangan kini menjaminkan kolomnya sendiri",
+    butir: [
+      "Di sebagian mesin, cadangan tetap gagal diterapkan walau tabelnya sudah bersih: berkas cadangan ikut membawa kolom warisan alat demo lama yang melekat pada tabel aplikasi (contoh nyata: kolom alamat IP dengan nama lama di tabel catatan aktivitas, padahal aplikasi kini memakai nama baru) - data dipindahkan dengan kolom apa adanya dari database sumber, sedangkan node tujuan tidak pernah membuat kolom warisan itu, sehingga proses pemulihan berhenti di tengah jalan.",
+      "Berkas cadangan kini menjaminkan sendiri setiap kolom yang dibawanya: setelah membuat struktur standar, berkas menambahkan perintah pembuatan kolom bila belum ada, dengan tipe yang dibaca langsung dari database sumber - bukan dari daftar yang ditulis tangan yang cepat usang.",
+      "Kolom warihan tetap utuh di database sumber (tidak dihapus, tidak diubah), dan uji ulang menyeluruh kini menanam dulu kolom warisan berisi data nyata - persis kondisi mesin pemilik - sebelum menyatakan lulus.",
+    ],
+  },
+  {
+    versi: "1.4.2",
+    tanggal: "2026-11-17",
+    judul: "Cadangan data kini mengabaikan tabel warisan alat lama",
+    butir: [
+      "Di beberapa mesin, cadangan gagal diterapkan ke salinan karena berkas cadangan ikut membawa tabel warisan alat demo lama (tabel catatan migrasi era sebelum aplikasi sekarang) yang tidak dibuat ulang oleh aplikasi - pesan galatnya: tabel itu tidak ada di tujuan. Berkas cadangan kini hanya membawa tabel dan penomoran milik aplikasi; tabel warisan dibiarkan tetap utuh di tempatnya, tidak ikut berpindah.",
+      "Daftar tabel yang sah kini diturunkan langsung dari sumber kebenaran struktur yang sama dengan migrasi saat aplikasi boot, sehingga tidak akan pernah basi bila struktur bertambah di masa depan.",
+      "Uji ulang menyeluruh kini mereproduksi kondisi nyata mesin pemilik (tabel warisan dan data warung ada di pusat) sebelum menyatakan lulus - pelajaran bahwa uji di lingkungan bersih saja tidak cukup.",
+    ],
+  },
+  {
+    versi: "1.4.1",
+    tanggal: "2026-11-17",
+    judul: "Perbaikan cadangan data yang gagal di beberapa mesin",
+    butir: [
+      "Cadangan data gagal dibuat di beberapa mesin dengan galat versi tidak cocok dari alat cadangan bawaan sistem operasi (alat klien versi 15 menolak server database versi 18). Seluruh proses cadangan kini dikerjakan kode aplikasi sendiri tanpa alat luar sama sekali, sehingga kecocokan versi tidak lagi menjadi syarat - cadangan berfungsi di mesin apa pun.",
+      "Struktur tabel kini ditulis ulang dari sumber yang sama dengan migrasi saat aplikasi boot, sehingga berkas cadangan selalu membawa struktur lengkap dan bisa diterapkan ulang ke database yang sudah terisi maupun yang masih kosong, berkali-kali tanpa konflik.",
+      "Urutan penyalinan data mengikuti hubungan antar tabel (tabel induk lebih dulu) sehingga pemulihan tidak pernah tersandung batasan foreign key; pemulihan juga kini bersifat satu-kesatuan - bila gagal di tengah, database tujuan kembali ke keadaan semula, tidak setengah terisi.",
+      "Penjaga salinan di sisi infrastruktur tidak lagi memanggil alat cadangan eksternal; ia mengisi salinan baru dari berkas cadangan terbaru yang dibuat aplikasi, dan seluruh keputusan failover serta sinkron balik tetap satu sumber di aplikasi.",
+    ],
+  },
+  {
+    versi: "1.4.0",
+    tanggal: "2026-11-17",
+    judul: "Cadangkan data kapan pun + salinan database siaga",
+    butir: [
+      "Tombol Cadangkan Data Sekarang di Pengaturan: salinan penuh database warung (SQL terkompresi .sql.gz yang bisa dibaca manusia) dibuat KAPAN PUN tanpa menunggu jadwal — plus cadangan otomatis tiap jam dan retensi 48 berkas terbaru supaya volume tidak pernah membengkak.",
+      "Berkas cadangan bisa dipulihkan kembali dari halaman yang sama (tabel dibuat ulang lalu diisi) dan tersimpan di volume Docker yang bertahan lintas rebuild container.",
+      "Database SALINAN (db-salinan): saat database pusat down, sistem otomatis pindah menulis ke salinan (failover) — kasir tetap jualan; saat pusat hidup kembali, seluruh transaksi zaman-salinan disinkronkan balik ke pusat (sinkron balik) lalu pusat mengambil alih lagi. Riwayat perpindahan node tampil di Pengaturan supaya pemilik tahu persis kapan itu terjadi.",
+      "Status salinan di Pengaturan menampilkan node yang sedang melayani (pusat/salinan), mode satu-database bila salinan belum diaktifkan, dan tombol pindah manual untuk keadaan darurat.",
+      "Bantuan diagnosis AI yang masih bermasalah: uji koneksi asisten kini mencetak isi balasan mentah penyedia (PROBERAW) sehingga dua wajah HTTP 403 bisa dibedakan — jaringan/IP diblokir di tepi penyedia vs kunci API mati — dari konsol, tanpa menebak.",
+    ],
+  },
+
   {
     versi: "1.3.1",
     tanggal: "2026-11-07",

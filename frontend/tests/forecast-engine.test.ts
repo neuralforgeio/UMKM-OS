@@ -110,14 +110,14 @@ describe("kontrak lintas-stack era Go murni tetap utuh", () => {
 
   it("handler ramalan Go memfilter transaksi lewat outlet_id milik migrasi Go", () => {
     const isi = bacaRepo("backend/internal/handler/forecast.go");
-    expect(isi).toContain('k.outlet("p.outlet_id", outletID)');
-    expect(isi).toContain('"engine":        "statistical"');
+    expect(isi).toMatch(/k\.outlet\("p\.outlet_id", outletID\)/);
+    expect(isi).toMatch(/"engine":\s+"statistical"/);
     expect(isi).toContain("RamalPendapatan");
     expect(isi).toContain("deretHarian(r.Context(), outletID, days)");
   });
 
   it("migrasi Go tetap memetakan transactions.outlet_id & products.outlet_id", () => {
-    const isi = bacaRepo("backend/internal/db/db.go");
+    const isi = bacaRepo("backend/internal/schema/schema.go");
     expect(isi).toContain("ALTER TABLE products ADD COLUMN IF NOT EXISTS outlet_id");
     expect(isi).toContain("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS outlet_id");
   });
