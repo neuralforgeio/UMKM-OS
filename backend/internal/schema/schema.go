@@ -275,6 +275,47 @@ var Pernyataan = []string{
         gagal INT NOT NULL DEFAULT 0,
         baris INT NOT NULL DEFAULT 0
     )`,
+
+	// ===== 16) Gerbang Developer (v2.2.0) =====
+	// Tiga tabel penyangga konsol developer yang jauh lebih kompleks:
+	// sessions = daftar sesi login AKTIF (bukan cuma klaim di dalam
+	// JWT yang tak bisa ditarik) - tiap login mendapat sid acak,
+	// token menggendong sid itu, dan RequireAuth memeriksa barisnya
+	// MASIH HIDUP di tabel: menendang sesi = mencabut token secara
+	// instan tanpa menunggu kadaluarsa 24 jam.
+	`CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_id TEXT NOT NULL DEFAULT '',
+        ip TEXT NOT NULL DEFAULT '',
+        user_agent TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_seen TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        revoked_at TIMESTAMPTZ,
+        expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '24 hours'
+    )`,
+	`CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_sessions_active ON sessions(expires_at) WHERE revoked_at IS NULL`,
+	// flags = saklar fitur RUNTIME: developer menyalakan/mematikan
+	// fitur tertentu tanpa restart container; nilai dibaca tiap
+	// permintaan sehingga efeknya instan dan bertahan di dump.
+	`CREATE TABLE IF NOT EXISTS flags (
+        key TEXT PRIMARY KEY,
+        value BOOLEAN NOT NULL DEFAULT FALSE,
+        updated_by BIGINT REFERENCES users(id),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
+	// settings = registri pengaturan TERDAFTAR (kunci yang dikenal
+	// aplikasi + tipe + nilai): env tetap fallback, tapi nilai DB
+	// menang sehingga developer bisa menyetel tanpa membangun ulang
+	// image. Berbeda dari flags: settings bernilai teks/angka dan
+	// tervalidasi tipe di handler.
+	`CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_by BIGINT REFERENCES users(id),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`,
 }
 
 // TabelSet: nama seluruh tabel APLIKASI yang dibuat Pernyataan di atas

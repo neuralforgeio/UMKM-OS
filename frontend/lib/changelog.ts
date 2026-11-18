@@ -1,4 +1,4 @@
-// Riwayat perubahan UMKM OS (terbaru 1.4.3), murni data tanpa React
+// Riwayat perubahan UMKM OS (terbaru 1.5.0), murni data tanpa React
 // supaya bisa diuji vitest dan dipakai tombol Changelog di topbar.
 //
 // Satu sumber kebenaran untuk daftar versi yang tampil ke pengguna.
@@ -14,6 +14,16 @@ export type EntriChangelog = {
 };
 
 export const CHANGELOG: EntriChangelog[] = [
+  {
+    versi: "1.5.0",
+    tanggal: "2026-11-18",
+    judul: "Gerbang Developer: enam alat operasional baru",
+    butir: [
+      "Menu developer sebelumnya hanya tiga halaman; kini ada seksi baru \"Gerbang Developer\" berisi enam alat: Pusat Kendali (potret kesehatan sistem: versi, lama proses hidup, memori, jumlah sesi aktif, node database yang sedang melayani, riwayat failover), Sesi Aktif (daftar semua sesi login lintas peran dalam 24 jam terakhir lengkap dengan alamat IP dan perangkat, plus tombol tendang yang mencabut token orang tersebut seketika tanpa menunggu token kedaluwarsa), Bendera Fitur (saklar nyalakan/matikan fitur tanpa restart container, tersimpan di database sehingga bertahan di cadangan), Registri Pengaturan (setel parameter terdaftar seperti jarak cadangan otomatis atau ambang stok menipis dengan validasi tipe; nilai database menang atas berkas lingkungan tanpa membangun ulang image), SQL Console (kueri hanya-baca langsung ke database warung: hanya SELECT satu pernyataan, LIMIT dipaksa maksimal 500 baris, setiap kueri tercatat di jejak audit), dan Metrik (omzet/produk/pengguna per outlet hari ini plus laju transaksi per jam digambarkan batang sederhana).",
+      "Sisi backend kini mencatat setiap login sebagai baris sesi sungguhan di database dengan pengenal acak yang ikut digendong token; ketika token diperiksa, baris sesinya harus masih hidup - itulah yang membuat tombol tendang bekerja seketika. Token lama tanpa pengenal sesi tetap sah sehingga pembaruhan berjalan mulus tanpa memaksa semua orang login ulang.",
+      "Kunci rahasia (kunci token login dsb.) sengaja tidak masuk registri pengaturan - hanya parameter operasional non-rahasia yang bisa disetel dari konsol; kunci tetap urusan berkas lingkungan.",
+    ],
+  },
   {
     versi: "1.4.3",
     tanggal: "2026-11-18",

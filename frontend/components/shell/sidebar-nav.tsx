@@ -9,15 +9,20 @@
 
 import Link from "next/link";
 import {
+  Activity,
   Boxes,
   Calculator,
+  Flag,
   Home,
+  MonitorCog,
   Package,
   Receipt,
   Settings,
+  Settings2,
   ShieldCheck,
   Sparkles,
   Terminal,
+  TerminalSquare,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -38,6 +43,11 @@ const IKON: Record<ShellIcon, LucideIcon> = {
   settings: Settings,
   calculator: Calculator,
   users: Users,
+  monitor: MonitorCog,
+  flag: Flag,
+  settings2: Settings2,
+  sql: TerminalSquare,
+  activity: Activity,
   terminal: Terminal,
 };
 

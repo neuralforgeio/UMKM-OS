@@ -17,7 +17,12 @@ export type ShellIcon =
   | "settings"
   | "calculator"
   | "users"
-  | "terminal";
+  | "terminal"
+  | "monitor"
+  | "flag"
+  | "settings2"
+  | "sql"
+  | "activity";
 
 export type ShellNavItem = {
   href: string;
@@ -79,6 +84,18 @@ const NAV_DEVELOPER: ShellNavSection[] = [
       { href: "/dev", label: "Ringkasan", icon: "home" },
       { href: "/dev/users", label: "Pengguna", icon: "users" },
       { href: "/dev/logs", label: "Log Aktivitas", icon: "terminal" },
+    ],
+  },
+  {
+    // v1.5.0 GERBANG DEVELOPER: alat operasional khusus developer.
+    title: "Gerbang Developer",
+    items: [
+      { href: "/dev/ops", label: "Pusat Kendali", icon: "monitor" },
+      { href: "/dev/sessions", label: "Sesi Aktif", icon: "users" },
+      { href: "/dev/flags", label: "Bendera Fitur", icon: "flag" },
+      { href: "/dev/settings", label: "Pengaturan", icon: "settings2" },
+      { href: "/dev/sql", label: "SQL Console", icon: "sql" },
+      { href: "/dev/metrics", label: "Metrik", icon: "activity" },
     ],
   },
 ];

@@ -10,6 +10,7 @@ import (
 
 	"github.com/neuralforgeio/internal/auth"
 	"github.com/neuralforgeio/internal/config"
+	"github.com/neuralforgeio/internal/db"
 	"github.com/neuralforgeio/internal/logger"
 )
 
@@ -154,6 +155,24 @@ func RequireAuth(next http.Handler) http.Handler {
 		if err != nil {
 			writeError(w, http.StatusUnauthorized, "Token tidak valid atau kedaluwarsa")
 			return
+		}
+		// v2.2.0 Gerbang Developer: token ber-sid harus memiliki baris
+		// sesi yang masih HIDUP (belum dicabut, belum kadaluarsa).
+		// Token era lama (tanpa sid, mis. dari uji unit) tetap sah —
+		// migrasi lembut: sesi baru saja yang bisa ditendang. Cek
+		// hanya SELECT satu baris ber-index — murah di jalur panas.
+		if claims.SessionID != "" && db.Pool != nil {
+			var hidup bool
+			err := db.Pool.QueryRow(r.Context(),
+				`SELECT (revoked_at IS NULL AND expires_at > NOW()) FROM sessions WHERE id = $1`,
+				claims.SessionID).Scan(&hidup)
+			if err != nil || !hidup {
+				writeError(w, http.StatusUnauthorized, "Sesi telah dicabut, silakan login ulang")
+				return
+			}
+			// sentuh last_seen (asinkron-senyap: gagal tidak memutus)
+			_, _ = db.Pool.Exec(r.Context(),
+				`UPDATE sessions SET last_seen = NOW() WHERE id = $1`, claims.SessionID)
 		}
 		// Catat identitas ke meta supaya baris log request ini tahu siapa pelakunya.
 		if m, ok := r.Context().Value(metaKey).(*logMeta); ok {

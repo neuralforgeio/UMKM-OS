@@ -3,10 +3,12 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/neuralforgeio/internal/auth"
+	"github.com/neuralforgeio/internal/config"
 	"github.com/neuralforgeio/internal/db"
 	"github.com/neuralforgeio/internal/logger"
 	"github.com/neuralforgeio/internal/middleware"
@@ -59,12 +61,25 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := auth.GenerateToken(id, name, email, role)
+	// v2.2.0 Gerbang Developer: tiap login membuat SESI tercatat di
+	// tabel sessions (sid acak); token menggendong sid itu sehingga
+	// RequireAuth bisa memeriksa sesi masih hidup — menendang sesi
+	// dari konsol developer mencabut token ini secara instan.
+	sid := auth.SidBaru()
+	token, err := auth.GenerateTokenSession(id, name, email, role, sid)
 	if err != nil {
 		logger.Error("Gagal membuat token untuk user #%d: %v", id, err)
 		Err(w, http.StatusInternalServerError, "Gagal membuat token")
 		return
 	}
+	ua := r.UserAgent()
+	if len(ua) > 300 { // ringkas, kolom user_agent tidak menampung novel
+		ua = ua[:300]
+	}
+	_, _ = db.Pool.Exec(r.Context(),
+		`INSERT INTO sessions (id, user_id, token_id, ip, user_agent, expires_at)
+		 VALUES ($1, $2, $3, $4, $5, NOW() + ($6 || ' hours')::INTERVAL)`,
+		sid, id, token[:16], ip, ua, strconv.Itoa(config.JWTExpiresHours()))
 
 	LogAudit(r, id, "LOGIN", "user", id, "")
 

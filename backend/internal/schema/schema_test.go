@@ -13,6 +13,8 @@ func TestTabelSetBerisiSeluruhTabelAplikasi(t *testing.T) {
 		"users", "products", "transactions", "transaction_items",
 		"stock_movements", "audit_logs", "product_images",
 		"handover_events", "outlets", "chat_history", "dbheartbeat",
+		// v2.2.0 Gerbang Developer: tiga tabel penyangga konsol.
+		"sessions", "flags", "settings",
 	}
 	for _, n := range mau {
 		if !set[n] {

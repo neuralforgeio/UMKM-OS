@@ -52,14 +52,21 @@ describe("navSectionsForRole, menu sidebar per peran", () => {
     expect(item.map((i) => i.href)).toEqual(["/", "/cashier"]);
   });
 
-  it("DEVELOPER melihat konsolnya, bukan menu owner", () => {
+  it("DEVELOPER melihat konsol + gerbangnya, bukan menu owner", () => {
     const bagian = navSectionsForRole("DEVELOPER");
-    expect(bagian).toHaveLength(1);
+    expect(bagian).toHaveLength(2);
     expect(bagian[0].title).toBe("Konsol Developer");
-    const href = bagian[0].items.map((i) => i.href);
+    expect(bagian[1].title).toBe("Gerbang Developer");
+    const href = bagian.flatMap((b) => b.items.map((i) => i.href));
     expect(href).toContain("/dev");
     expect(href).toContain("/dev/users");
     expect(href).toContain("/dev/logs");
+    expect(href).toContain("/dev/ops");
+    expect(href).toContain("/dev/sessions");
+    expect(href).toContain("/dev/flags");
+    expect(href).toContain("/dev/settings");
+    expect(href).toContain("/dev/sql");
+    expect(href).toContain("/dev/metrics");
     expect(href).not.toContain("/owner");
   });
 

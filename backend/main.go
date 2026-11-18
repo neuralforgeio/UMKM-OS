@@ -26,6 +26,8 @@ import (
 )
 
 func main() {
+	// v2.2.0: waktu boot untuk /admin/health (uptime proses).
+	handler.MulaiServer = time.Now()
 	logger.Success("=== UMKM-OS Backend API v%s ===", config.AppVersion)
 	logger.Info("Mode development lokal — log harian aktif")
 
@@ -241,6 +243,20 @@ func main() {
 			dev.Post("/outlets", handler.CreateOutlet)
 			dev.Post("/outlets/{id}/maintenance-session", handler.EnterMaintenanceSession)
 			dev.Delete("/outlets/{id}/maintenance-session", handler.ExitMaintenanceSession)
+
+			// v2.2.0 GERBANG DEVELOPER — konsol jauh lebih kompleks:
+			// sesi aktif + tendang, bendera fitur runtime, registri
+			// pengaturan, SQL console hanya-baca, kesehatan sistem,
+			// dan metrik ringkas. Semua ter-audit.
+			dev.Get("/admin/sessions", handler.ListSessions)
+			dev.Delete("/admin/sessions/{sid}", handler.RevokeSession)
+			dev.Get("/admin/flags", handler.ListFlags)
+			dev.Put("/admin/flags", handler.PutFlag)
+			dev.Get("/admin/settings", handler.ListSettings)
+			dev.Put("/admin/settings", handler.PutSetting)
+			dev.Post("/admin/sql", handler.SqlConsole)
+			dev.Get("/admin/health", handler.SystemHealth)
+			dev.Get("/admin/metrics", handler.SystemMetrics)
 		})
 	})
 

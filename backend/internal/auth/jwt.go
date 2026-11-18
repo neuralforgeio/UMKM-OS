@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -15,17 +17,42 @@ type Claims struct {
 	Name   string `json:"name"`
 	Email  string `json:"email"`
 	Role   string `json:"role"`
+	// SessionID (v2.2.0 Gerbang Developer): pengenal acak sesi login
+	// yang barisnya hidup di tabel sessions. Token klasik tak bisa
+	// ditarik sebelum kadaluarsa; dengan sid, RequireAuth cukup
+	// memeriksa barisnya masih hidup - menendang sesi dari konsol
+	// developer mencabut token secara instan.
+	SessionID string `json:"sid,omitempty"`
 	jwt.RegisteredClaims
+}
+
+// SidBaru: 16 byte acak dienkodeks heksadesimal (32 karakter) —
+// cukup unik untuk sesi login, tidak bisa ditebak dari token lain.
+func SidBaru() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		// crypto/rand tidak boleh gagal di Linux; fallback waktu
+		// tetap memberi keunikan praktis untuk sesi.
+		return fmt.Sprintf("%x%d", time.Now().UnixNano(), time.Now().Unix())
+	}
+	return hex.EncodeToString(b)
 }
 
 // GenerateToken membuat token HS256 yang berisi identitas user.
 func GenerateToken(userID int64, name, email, role string) (string, error) {
+	return GenerateTokenSession(userID, name, email, role, "")
+}
+
+// GenerateTokenSession (v2.2.0): GenerateToken + sid sesi. Dipisah
+// agar pemanggil lama (uji unit tanpa DB) tetap sederhana.
+func GenerateTokenSession(userID int64, name, email, role, sid string) (string, error) {
 	now := time.Now()
 	claims := Claims{
-		UserID: userID,
-		Name:   name,
-		Email:  email,
-		Role:   role,
+		UserID:    userID,
+		Name:      name,
+		Email:     email,
+		Role:      role,
+		SessionID: sid,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   fmt.Sprintf("%d", userID),
 			Issuer:    "umkm-os-backend",
