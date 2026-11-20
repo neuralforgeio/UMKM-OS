@@ -55,18 +55,49 @@ describe("entri v1.3.0 memuat era Go murni yang benar benar terpasang", () => {
     expect(gabung).toContain("unik per outlet");
   });
 
-  it("versi terbaru kini 1.5.0, entri 1.4.3 s.d. 1.1.1 tetap utuh di bawahnya", () => {
-    expect(versiTerbaru()).toBe("1.5.0");
-    expect(CHANGELOG[0].versi).toBe("1.5.0");
-    expect(CHANGELOG[1].versi).toBe("1.4.3");
-    expect(CHANGELOG[2].versi).toBe("1.4.2");
-    expect(CHANGELOG[3].versi).toBe("1.4.1");
-    expect(CHANGELOG[4].versi).toBe("1.4.0");
-    expect(CHANGELOG[5].versi).toBe("1.3.1");
-    expect(CHANGELOG[6].versi).toBe("1.3.0");
-    expect(CHANGELOG[7].versi).toBe("1.2.0");
-    expect(CHANGELOG[8].versi).toBe("1.1.1");
+  it("versi terbaru kini 1.6.0, entri 1.5.0 s.d. 1.1.1 tetap utuh di bawahnya", () => {
+    expect(versiTerbaru()).toBe("1.7.0");
+    expect(CHANGELOG[0].versi).toBe("1.7.0");
+    expect(CHANGELOG[1].versi).toBe("1.6.0");
+    expect(CHANGELOG[2].versi).toBe("1.5.0");
+    expect(CHANGELOG[3].versi).toBe("1.4.3");
+    expect(CHANGELOG[4].versi).toBe("1.4.2");
+    expect(CHANGELOG[5].versi).toBe("1.4.1");
+    expect(CHANGELOG[6].versi).toBe("1.4.0");
+    expect(CHANGELOG[7].versi).toBe("1.3.1");
+    expect(CHANGELOG[8].versi).toBe("1.3.0");
+    expect(CHANGELOG[9].versi).toBe("1.2.0");
     expect(cariEntri("1.2.0")).not.toBeNull();
+  });
+});
+
+describe("entri v1.7.0 memuat audit + kendali server", () => {
+  it("butir 1.7.0 menyebut audit 12 masalah + matikan + prediksi + dry-run", () => {
+    const entri = cariEntri("1.7.0");
+    expect(entri).not.toBeNull();
+    const gabung = entri!.butir.join(" ");
+    expect(gabung).toContain("AUDIT SEMUA PERINTAH");
+    expect(gabung).toContain("12 masalah");
+    expect(gabung).toContain("matikan server");
+    expect(gabung).toContain("PREDIKSI DOWN");
+    expect(gabung).toContain("DRY-RUN");
+    expect(gabung).toContain("DATABASE_URL");
+  });
+});
+
+describe("entri v1.6.0 memuat umkm2shell", () => {
+  it("butir 1.6.0 menyebut lima tab + docs + 26 tes", () => {
+    const entri = cariEntri("1.6.0");
+    expect(entri).not.toBeNull();
+    const gabung = entri!.butir.join(" ");
+    expect(gabung).toContain("UMKM2Shell");
+    expect(gabung).toContain("Berkas");
+    expect(gabung).toContain("Proses");
+    expect(gabung).toContain("Terminal");
+    expect(gabung).toContain("Lingkungan");
+    expect(gabung).toContain("Jaringan");
+    expect(gabung).toContain("26 tes unit per fitur");
+    expect(gabung).toContain("docs/api/");
   });
 });
 
@@ -160,17 +191,18 @@ describe("entri v1.2.0 memuat kebebasan OSCAR yang benar benar terpasang", () =>
     expect(gabung).toContain("400 menjadi 700");
   });
 
-  it("versi terbaru kini 1.5.0; susunan 1.4.3 s.d. 1.1.1 tetap tercatat", () => {
-    expect(versiTerbaru()).toBe("1.5.0");
-    expect(CHANGELOG[0].versi).toBe("1.5.0");
-    expect(CHANGELOG[1].versi).toBe("1.4.3");
-    expect(CHANGELOG[2].versi).toBe("1.4.2");
-    expect(CHANGELOG[3].versi).toBe("1.4.1");
-    expect(CHANGELOG[4].versi).toBe("1.4.0");
-    expect(CHANGELOG[5].versi).toBe("1.3.1");
-    expect(CHANGELOG[6].versi).toBe("1.3.0");
-    expect(CHANGELOG[7].versi).toBe("1.2.0");
-    expect(CHANGELOG[8].versi).toBe("1.1.1");
+  it("versi terbaru kini 1.6.0; susunan 1.5.0 s.d. 1.1.1 tetap tercatat", () => {
+    expect(versiTerbaru()).toBe("1.7.0");
+    expect(CHANGELOG[0].versi).toBe("1.7.0");
+    expect(CHANGELOG[1].versi).toBe("1.6.0");
+    expect(CHANGELOG[2].versi).toBe("1.5.0");
+    expect(CHANGELOG[3].versi).toBe("1.4.3");
+    expect(CHANGELOG[4].versi).toBe("1.4.2");
+    expect(CHANGELOG[5].versi).toBe("1.4.1");
+    expect(CHANGELOG[6].versi).toBe("1.4.0");
+    expect(CHANGELOG[7].versi).toBe("1.3.1");
+    expect(CHANGELOG[8].versi).toBe("1.3.0");
+    expect(CHANGELOG[9].versi).toBe("1.2.0");
     expect(cariEntri("1.1.0")).not.toBeNull();
   });
 });

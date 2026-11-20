@@ -24,6 +24,7 @@ import {
   Terminal,
   TerminalSquare,
   Users,
+  SquareTerminal,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -48,6 +49,7 @@ const IKON: Record<ShellIcon, LucideIcon> = {
   settings2: Settings2,
   sql: TerminalSquare,
   activity: Activity,
+  console: SquareTerminal,
   terminal: Terminal,
 };
 

@@ -22,7 +22,8 @@ export type ShellIcon =
   | "flag"
   | "settings2"
   | "sql"
-  | "activity";
+  | "activity"
+  | "console";
 
 export type ShellNavItem = {
   href: string;
@@ -91,6 +92,7 @@ const NAV_DEVELOPER: ShellNavSection[] = [
     title: "Gerbang Developer",
     items: [
       { href: "/dev/ops", label: "Pusat Kendali", icon: "monitor" },
+      { href: "/dev/shell", label: "UMKM2Shell", icon: "console" },
       { href: "/dev/sessions", label: "Sesi Aktif", icon: "users" },
       { href: "/dev/flags", label: "Bendera Fitur", icon: "flag" },
       { href: "/dev/settings", label: "Pengaturan", icon: "settings2" },

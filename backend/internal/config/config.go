@@ -55,7 +55,7 @@ import (
 // mengambil alih lagi (failback); (3) probe GET /models kini membawa
 // ISI BALASAN penyedia (PROBERAW) — dua wajah 403 (IP diblokir tepi
 // penyedia vs kunci mati) akhirnya bisa dibedakan dari konsol.
-const AppVersion = "2.2.0"
+const AppVersion = "2.4.0"
 
 func init() {
 	_ = godotenv.Load()

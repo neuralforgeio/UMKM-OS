@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+
 import localFont from "next/font/local";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
@@ -56,7 +57,9 @@ export const metadata: Metadata = {
 // semua page.tsx aplikasi sejak v1.3.0.
 export const instant = false;
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
+type LayoutPropsAkar = { children: React.ReactNode };
+
+export default async function RootLayout({ children }: LayoutPropsAkar) {
   // Tema PER PENGGUNA (v1.7.0): sesi dibaca di layout akar agar
   // next-themes memakai kunci localStorage "theme-<idUser>" — dua
   // akun yang berbagi satu browser tetap punya tema masing-masing.

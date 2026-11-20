@@ -1,4 +1,4 @@
-// Riwayat perubahan UMKM OS (terbaru 1.5.0), murni data tanpa React
+// Riwayat perubahan UMKM OS (terbaru 1.7.0), murni data tanpa React
 // supaya bisa diuji vitest dan dipakai tombol Changelog di topbar.
 //
 // Satu sumber kebenaran untuk daftar versi yang tampil ke pengguna.
@@ -14,6 +14,26 @@ export type EntriChangelog = {
 };
 
 export const CHANGELOG: EntriChangelog[] = [
+  {
+    versi: "1.7.0",
+    tanggal: "2026-11-20",
+    judul: "UMKM2Shell: audit command + kendali server (matikan, kesehatan, prediksi down)",
+    butir: [
+      "AUDIT SEMUA PERINTAH (permintaan check semua command): 12 masalah nyata ditemukan dan diperbaiki - pelari perintah dulu tidak terikat penjara sama sekali (ls /etc, grep /proc/self/environ, find / semuanya lolos; kini semua argumen jalur dijail/rebase ke SHELL_JAIL_ROOT dan cwd eksekusi = penjara), node -e dan go run dihapus dari whitelist (eksekusi kode arbitrer), env dihapus (mencetak semua rahasia ke output sejarah - pakai tab Lingkungan yang sudah termask), find -delete/-exec diblok keras, ip link hanya show/list (tidak bisa mematikan ethernet), curl/wget hanya flag baca (-s -I --head), rahasia di output otomatis termask (gsk_…/Bearer/password=), DATABASE_URL dan REPLICA_URL kini dianggap rahasia dan termask, whitelist 29 biner read-only murni dengan ketersediaan dinamis (binari dicek PATH - netstat yang tak ada di kontainer disembunyikan).",
+      "TAB SERVER BARU (permintaan pemilik): matikan server secara graceful dari panel (sama seperti Ctrl+C - HTTP di-drain 5 detik, koneksi database ditutup, log di-flush; konfirmasi ketik MATIKAN; klik kedua ditolak supaya tidak dobel shutdown), kesehatan server sekarang dengan indikator nyata (database ping, rasio error 5xx dari log hari ini, latensi p95, memori, load, goroutine, verdict HIJAU/KUNING/MERAH beserta alasan - refresh otomatis tiap 15 detik), dan PREDIKSI DOWN (regresi linear atas ring sampel 5 detik dari memori, rasio error, latensi p95 - verdict SEHAT/WASPADA/KRITIS plus estimasi menit sampai ambang kritis).",
+      "Terminal kini memakai daftar perintah tersedia dinamis dan DRY-RUN validasi: saat mengetik, baris diperiksa parser backend tanpa eksekusi - tanda centang kalau lolos atau pesan galat persis sebelum tombol Jalankan ditekan. Backend 2.4.0: 48 tes unit per fitur di package shell (26 lama + 10 tes regresi audit yang mengunci setiap temuan + 12 tes server), 6 pintu baru (kesehatan, prediksi, matikan, status, validasi, tersedia), dokumentasi docs/api/shell-server.md.",
+    ],
+  },
+  {
+    versi: "1.6.0",
+    tanggal: "2026-11-18",
+    judul: "UMKM2Shell: kontrol penuh server dari panel developer",
+    butir: [
+      "Menu Gerbang Developer kini memuat UMKM2Shell - adaptasi konsep panel PHP2Shell/NodeJS2Shell (developer mengendalikan server lewat web) yang dibuat jauh lebih kompleks DAN berpagar pengaman: tab Berkas (penjelajah filesystem dalam penjara - ls, lihat/edit teks, unduh, tulis, hapus, ganti nama; jalur titik-titik ditolak sebelum menyentuh disk sehingga tidak ada jalan keluar ke direktori sistem), tab Proses (daftar proses dengan CPU/memori plus statistik sistem; kirim sinyal MATI SOPAN atau MATI PAKSA - proses server sendiri terlindungi dari tombolnya agar panel tidak membunuh warungnya sendiri), tab Terminal (jalankan perintah dari daftar putih 29 biner - df, ps, git status, curl dan kawan-kawan; tanpa shell perantara sehingga pipa/titik-koma/substitusi tidak bisa ditafsirkan; satu perintah jalan satu kali dengan batas 20 detik, bisa diinterupsi, sejarah 50 terakhir), tab Lingkungan (variabel env dengan nilai rahasia otomatis disamarkan; membuka satu kunci butuh konfirmasi dan tercatat di jejak audit), dan tab Jaringan (ping TCP plus HTTP HEAD - cocok memeriksa node Postgres pusat/salinan dari dalam server).",
+      "Backend 2.3.0: package shell dengan 26 tes unit per fitur (berkas 6, proses 5, perintah 7, lingkungan 3, jaringan 5) - setiap fitur diuji terpisah sesuai permintaan; 15 pintu HTTP /shell/* khusus DEVELOPER dan semuanya ter-audit.",
+      "Dokumentasi API lengkap docs/api/ (12 berkas markdown + README indeks): setiap endpoint kini punya berkas docs dengan metode, tabel parameter, contoh permintaan, contoh respons, daftar galat, dan catatan keamanan - permintaan wajib pemilik dipenuhi penuh.",
+    ],
+  },
   {
     versi: "1.5.0",
     tanggal: "2026-11-18",

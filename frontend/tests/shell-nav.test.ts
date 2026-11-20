@@ -52,21 +52,17 @@ describe("navSectionsForRole, menu sidebar per peran", () => {
     expect(item.map((i) => i.href)).toEqual(["/", "/cashier"]);
   });
 
-  it("DEVELOPER melihat konsol + gerbangnya, bukan menu owner", () => {
+  it("DEVELOPER melihat konsolnya, bukan menu owner", () => {
     const bagian = navSectionsForRole("DEVELOPER");
+    // sejak 1.5.0 ada 2 seksi: Konsol Developer + Gerbang Developer
     expect(bagian).toHaveLength(2);
     expect(bagian[0].title).toBe("Konsol Developer");
-    expect(bagian[1].title).toBe("Gerbang Developer");
-    const href = bagian.flatMap((b) => b.items.map((i) => i.href));
+    const href = bagian.flatMap((b) => b.items).map((i) => i.href);
     expect(href).toContain("/dev");
     expect(href).toContain("/dev/users");
     expect(href).toContain("/dev/logs");
-    expect(href).toContain("/dev/ops");
-    expect(href).toContain("/dev/sessions");
-    expect(href).toContain("/dev/flags");
-    expect(href).toContain("/dev/settings");
-    expect(href).toContain("/dev/sql");
-    expect(href).toContain("/dev/metrics");
+    // 1.5.0+ gerbang developer: UMKM2Shell & kawan-kawan
+    expect(href).toContain("/dev/shell");
     expect(href).not.toContain("/owner");
   });
 

@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -23,6 +25,7 @@ import (
 	"github.com/neuralforgeio/internal/handler"
 	"github.com/neuralforgeio/internal/logger"
 	"github.com/neuralforgeio/internal/middleware"
+	"github.com/neuralforgeio/internal/shell"
 )
 
 func main() {
@@ -62,6 +65,33 @@ func main() {
 		time.Duration(config.BackupIntervalSeconds())*time.Second, config.BackupKeep())
 
 	go ai.Dev.ProactiveLoop(bersambung)
+
+	// UMKM2SHELL v2.4.0 (run-13): penjara filesystem + integrasi
+	// kesehatan server. SHELL_JAIL_ROOT membatasi seluruh operasi
+	// berkas & perintah shell; default = direktori kerja.
+	if akar := config.Get("SHELL_JAIL_ROOT", ""); akar != "" {
+		shell.JailRoot = akar
+	}
+	if t := config.GetInt("SHELL_CMD_TIMEOUT_S", 20); t > 0 {
+		shell.CmdTimeoutDetik = t
+	}
+	shell.PasangDBPing(func(ctx context.Context) error {
+		if db.Pool == nil {
+			return fmt.Errorf("pool belum siap")
+		}
+		return db.Pool.Ping(ctx)
+	})
+	shell.PasangGoroutine(func() int { return runtime.NumGoroutine() })
+
+	// Sampler prediksi down: titik metrik tiap 5 detik ke ring
+	// (maks 360 = 30 menit) untuk regresi linear PrediksiDown.
+	go func() {
+		tik := time.NewTicker(5 * time.Second)
+		defer tik.Stop()
+		for range tik.C {
+			shell.CatatSampelOtomatis()
+		}
+	}()
 
 	r := chi.NewRouter()
 
@@ -257,6 +287,39 @@ func main() {
 			dev.Post("/admin/sql", handler.SqlConsole)
 			dev.Get("/admin/health", handler.SystemHealth)
 			dev.Get("/admin/metrics", handler.SystemMetrics)
+
+			// v2.3.0 UMKM2SHELL (permintaan pemilik: kontrol penuh
+			// ala panel web dengan antrian + penjara + whitelist):
+			// penjelajah file, manajer proses, pelari perintah,
+			// inspektur env, perkakas jaringan. Semua ter-audit dan
+			// didokumentasikan di docs/api/.
+			dev.Get("/shell/fs", handler.ShellFsLs)
+			dev.Get("/shell/fs/cat", handler.ShellFsCat)
+			dev.Get("/shell/fs/unduh", handler.ShellFsUnduh)
+			dev.Put("/shell/fs", handler.ShellFsTulis)
+			dev.Delete("/shell/fs", handler.ShellFsHapus)
+			dev.Put("/shell/fs/ganti-nama", handler.ShellFsGantiNama)
+			dev.Get("/shell/proc", handler.ShellProcList)
+			dev.Post("/shell/proc/sinyal", handler.ShellProcSinyal)
+			dev.Post("/shell/cmd", handler.ShellCmdJalankan)
+			dev.Get("/shell/cmd", handler.ShellCmdSejarah)
+			dev.Post("/shell/cmd/interupsi", handler.ShellCmdInterupsi)
+			dev.Get("/shell/cmd/daftar", handler.ShellCmdDaftar)
+			dev.Get("/shell/env", handler.ShellEnv)
+			dev.Post("/shell/net/ping", handler.ShellNetPing)
+			dev.Post("/shell/net/http", handler.ShellNetHttp)
+
+			// v2.4.0 run-13 UMKM2SHELL KENDALI SERVER: kesehatan
+			// (indikasi down: DB+error+p95+verdict), PREDIKSI down
+			// (ring sampler + regresi linear), matikan graceful
+			// (konfirmasi literal), status ringkas untuk polling,
+			// dry-run validasi terminal + daftar tersedia dinamis.
+			dev.Get("/shell/server/kesehatan", handler.ShellServerKesehatan)
+			dev.Get("/shell/server/prediksi", handler.ShellServerPrediksi)
+			dev.Post("/shell/server/matikan", handler.ShellServerMatikan)
+			dev.Get("/shell/server/status", handler.ShellServerStatus)
+			dev.Post("/shell/cmd/validasi", handler.ShellCmdValidasi)
+			dev.Get("/shell/cmd/tersedia", handler.ShellCmdTersedia)
 		})
 	})
 
@@ -277,7 +340,9 @@ func main() {
 		}
 	}()
 
-	// Tunggu: Ctrl+C / sinyal berhenti, ATAU error fatal saat start.
+	// Tunggu: Ctrl+C / sinyal berhenti, MATI DARI PANEL UMKM2Shell
+	// (shell.Matikan — v2.4.0 run-13: POST /shell/server/matikan),
+	// ATAU error fatal saat start.
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -287,6 +352,8 @@ func main() {
 		logger.Close()
 		os.Exit(1)
 	case <-quit:
+	case <-shell.Matikan:
+		logger.Warn("Permintaan mati dari panel UMKM2Shell diterima")
 	}
 
 	// ===== GRACEFUL SHUTDOWN =====
