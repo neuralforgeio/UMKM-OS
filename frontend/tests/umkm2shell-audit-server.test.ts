@@ -184,7 +184,7 @@ describe("frontend 1.7.0 — tab Server + terminal dry-run", () => {
     expect(t).toContain("/shell/server/prediksi");
     expect(t).toContain("/shell/server/matikan");
     expect(t).toContain("MATIKAN");
-    expect(t).toContain("prompt("); // dialog konfirmasi literal
+    expect(t).toContain("DialogTeks"); // v1.7.1: prompt bawaan diganti dialog
   });
 
   it("shell-tabs memuat 6 tab termasuk Server", () => {
@@ -243,10 +243,13 @@ describe("dokumentasi API shell-server.md", () => {
 
   it("versi backend 2.4.0", () => {
     expect(bacaRepo("backend/internal/config/config.go")).toContain(
-      'const AppVersion = "2.4.0"',
+      'const AppVersion = "2.5.0"',
     );
     expect(bacaRepo("backend/VERSIONS.csv")).toContain(
       "2.4.0,2026-11-20",
+    );
+    expect(bacaRepo("backend/VERSIONS.csv")).toContain(
+      "2.5.0,2026-11-20",
     );
   });
 });

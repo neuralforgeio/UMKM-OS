@@ -9,22 +9,22 @@
 
 import Link from "next/link";
 import {
-  Activity,
   Boxes,
   Calculator,
-  Flag,
   Home,
-  MonitorCog,
   Package,
   Receipt,
   Settings,
-  Settings2,
   ShieldCheck,
   Sparkles,
-  Terminal,
-  TerminalSquare,
-  Users,
+  Activity,
+  Database,
+  Flag,
+  Monitor,
+  Settings2,
   SquareTerminal,
+  Terminal,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -44,13 +44,13 @@ const IKON: Record<ShellIcon, LucideIcon> = {
   settings: Settings,
   calculator: Calculator,
   users: Users,
-  monitor: MonitorCog,
+  terminal: Terminal,
+  monitor: Monitor,
   flag: Flag,
   settings2: Settings2,
-  sql: TerminalSquare,
-  activity: Activity,
+  sql: Database,
   console: SquareTerminal,
-  terminal: Terminal,
+  activity: Activity,
 };
 
 export function SidebarNavSection({

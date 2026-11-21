@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogKonfirmasi } from "@/components/dialog";
 import { useCallback, useEffect, useState } from "react";
 import {
   ChevronRight,
@@ -28,6 +29,9 @@ export function TabBerkas({ goToken }: { goToken: string }) {
   const [path, setPath] = useState("");
   const [entri, setEntri] = useState<Entri[]>([]);
   const [pesan, setPesan] = useState<string | null>(null);
+  const [konfirmasiHapus, setKonfirmasiHapus] = useState<string | null>(
+    null,
+  );
   const [pratinjau, setPratinjau] = useState<{
     path: string;
     isi: string;
@@ -131,8 +135,14 @@ export function TabBerkas({ goToken }: { goToken: string }) {
     URL.revokeObjectURL(url);
   };
 
-  const hapus = async (p: string) => {
-    if (!confirm(`Hapus ${p}?`)) return;
+  const hapus = (p: string) => {
+    setKonfirmasiHapus(p);
+  };
+
+  const hapusBetul = async () => {
+    const p = konfirmasiHapus;
+    setKonfirmasiHapus(null);
+    if (!p) return;
     const res = await fetch(
       `${API}/api/v1/shell/fs?path=${encodeURIComponent(p)}`,
       { method: "DELETE", headers: { Authorization: `Bearer ${goToken}` } },
@@ -147,6 +157,17 @@ export function TabBerkas({ goToken }: { goToken: string }) {
 
   return (
     <div className="space-y-3">
+      <DialogKonfirmasi
+        judul="Hapus berkas"
+        pesan={`Hapus ${konfirmasiHapus ?? ""}? Aksi ini ter-audit dan tidak bisa dibatalkan.`}
+        teksTombol="Ya, hapus"
+        merah
+        buka={konfirmasiHapus !== null}
+        onClose={(h) => {
+          if (h.yakin) void hapusBetul();
+          else setKonfirmasiHapus(null);
+        }}
+      />
       {pesan && (
         <p className="rounded-lg border border-sky-400/40 bg-sky-400/10 p-3 text-sm">
           {pesan}

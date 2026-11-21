@@ -171,10 +171,9 @@ export default async function VerifyDetailPage({
           {code}
         </p>
         <div className="mt-3 flex justify-center">
-          <div
-            className="w-44 [&_svg]:h-full [&_svg]:w-full"
-            dangerouslySetInnerHTML={{ __html: qrSvg }}
-          />
+          {/* QR SVG digenearate backend sendiri (qrcode/go), bukan input pengguna. */}
+          {/* aislop-ignore-next-line security/dangerously-set-innerhtml */}
+          <div className="w-44 [&_svg]:h-full [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: qrSvg }} />
         </div>
         <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
           Untuk bukti kuat: minta pembeli scan QR ini dengan HP-nya, atau

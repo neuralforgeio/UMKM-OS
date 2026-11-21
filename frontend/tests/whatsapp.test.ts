@@ -223,7 +223,7 @@ describe("kontrak lintas-stack era Go murni tetap utuh", () => {
 
   it("backend naik ke 2.1.0 fitur cadangan + salinan (2.0.3 + 2.0.2 tetap tercatat)", () => {
     expect(bacaRepo("backend/internal/config/config.go")).toContain(
-      'const AppVersion = "2.4.0"',
+      'const AppVersion = "2.5.0"',
     );
     expect(bacaRepo("backend/VERSIONS.csv")).toContain(
       "2.3.0,2026-11-18,FITUR",

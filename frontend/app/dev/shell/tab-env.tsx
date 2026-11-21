@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogKonfirmasi } from "@/components/dialog";
 import { useCallback, useEffect, useState } from "react";
 import { EyeOff, KeyRound } from "lucide-react";
 
@@ -14,6 +15,7 @@ export function TabEnv({ goToken }: { goToken: string }) {
   const [saring, setSaring] = useState("");
   const [pesan, setPesan] = useState<string | null>(null);
   const [terbuka, setTerbuka] = useState<string | null>(null);
+  const [konfirmasiBuka, setKonfirmasiBuka] = useState<string | null>(null);
 
   const muat = useCallback(
     async (buka: string) => {
@@ -41,8 +43,10 @@ export function TabEnv({ goToken }: { goToken: string }) {
   }, [muat]);
 
   const bukaKunci = async (k: string) => {
-    if (!confirm(`Tampilkan nilai asli ${k}? Tindakan ini ter-audit.`))
-      return;
+    setKonfirmasiBuka(k);
+  };
+
+  const bukaBetul = async (k: string) => {
     await muat(k);
     setTerbuka(k);
   };
@@ -53,6 +57,17 @@ export function TabEnv({ goToken }: { goToken: string }) {
 
   return (
     <div className="space-y-3">
+      <DialogKonfirmasi
+        judul="Tampilkan nilai asli"
+        pesan={`Tampilkan nilai asli ${konfirmasiBuka ?? ""}? Tindakan ini ter-audit.`}
+        teksTombol="Tampilkan"
+        buka={konfirmasiBuka !== null}
+        onClose={(h) => {
+          const k = konfirmasiBuka;
+          setKonfirmasiBuka(null);
+          if (h.yakin && k) void bukaBetul(k);
+        }}
+      />
       {pesan && (
         <p className="rounded-lg border border-amber-400/50 bg-amber-400/10 p-3 text-sm">
           {pesan}

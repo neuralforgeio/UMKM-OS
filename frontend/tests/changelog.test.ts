@@ -56,18 +56,31 @@ describe("entri v1.3.0 memuat era Go murni yang benar benar terpasang", () => {
   });
 
   it("versi terbaru kini 1.6.0, entri 1.5.0 s.d. 1.1.1 tetap utuh di bawahnya", () => {
-    expect(versiTerbaru()).toBe("1.7.0");
-    expect(CHANGELOG[0].versi).toBe("1.7.0");
-    expect(CHANGELOG[1].versi).toBe("1.6.0");
-    expect(CHANGELOG[2].versi).toBe("1.5.0");
-    expect(CHANGELOG[3].versi).toBe("1.4.3");
-    expect(CHANGELOG[4].versi).toBe("1.4.2");
-    expect(CHANGELOG[5].versi).toBe("1.4.1");
-    expect(CHANGELOG[6].versi).toBe("1.4.0");
-    expect(CHANGELOG[7].versi).toBe("1.3.1");
-    expect(CHANGELOG[8].versi).toBe("1.3.0");
-    expect(CHANGELOG[9].versi).toBe("1.2.0");
+    expect(versiTerbaru()).toBe("1.8.0");
+    expect(CHANGELOG[0].versi).toBe("1.8.0");
+    expect(CHANGELOG[1].versi).toBe("1.7.0");
+    expect(CHANGELOG[2].versi).toBe("1.6.0");
+    expect(CHANGELOG[3].versi).toBe("1.5.0");
+    expect(CHANGELOG[4].versi).toBe("1.4.3");
+    expect(CHANGELOG[5].versi).toBe("1.4.2");
+    expect(CHANGELOG[6].versi).toBe("1.4.1");
+    expect(CHANGELOG[7].versi).toBe("1.4.0");
+    expect(CHANGELOG[8].versi).toBe("1.3.1");
+    expect(CHANGELOG[9].versi).toBe("1.3.0");
     expect(cariEntri("1.2.0")).not.toBeNull();
+  });
+});
+
+describe("entri v1.8.0 memuat bug produksi + toast + 60 fitur", () => {
+  it("butir 1.8.0 menyebut 400 periksa, UTF-8 rune, dialog custom, 60 fitur", () => {
+    const entri = cariEntri("1.8.0");
+    expect(entri).not.toBeNull();
+    const gabung = entri!.butir.join(" ");
+    expect(gabung).toContain("5433");
+    expect(gabung).toContain("rune");
+    expect(gabung).toContain("dialog");
+    expect(gabung).toContain("60 FITUR");
+    expect(gabung).toContain("template GitHub issues");
   });
 });
 
@@ -192,17 +205,17 @@ describe("entri v1.2.0 memuat kebebasan OSCAR yang benar benar terpasang", () =>
   });
 
   it("versi terbaru kini 1.6.0; susunan 1.5.0 s.d. 1.1.1 tetap tercatat", () => {
-    expect(versiTerbaru()).toBe("1.7.0");
-    expect(CHANGELOG[0].versi).toBe("1.7.0");
-    expect(CHANGELOG[1].versi).toBe("1.6.0");
-    expect(CHANGELOG[2].versi).toBe("1.5.0");
-    expect(CHANGELOG[3].versi).toBe("1.4.3");
-    expect(CHANGELOG[4].versi).toBe("1.4.2");
-    expect(CHANGELOG[5].versi).toBe("1.4.1");
-    expect(CHANGELOG[6].versi).toBe("1.4.0");
-    expect(CHANGELOG[7].versi).toBe("1.3.1");
-    expect(CHANGELOG[8].versi).toBe("1.3.0");
-    expect(CHANGELOG[9].versi).toBe("1.2.0");
+    expect(versiTerbaru()).toBe("1.8.0");
+    expect(CHANGELOG[0].versi).toBe("1.8.0");
+    expect(CHANGELOG[1].versi).toBe("1.7.0");
+    expect(CHANGELOG[2].versi).toBe("1.6.0");
+    expect(CHANGELOG[3].versi).toBe("1.5.0");
+    expect(CHANGELOG[4].versi).toBe("1.4.3");
+    expect(CHANGELOG[5].versi).toBe("1.4.2");
+    expect(CHANGELOG[6].versi).toBe("1.4.1");
+    expect(CHANGELOG[7].versi).toBe("1.4.0");
+    expect(CHANGELOG[8].versi).toBe("1.3.1");
+    expect(CHANGELOG[9].versi).toBe("1.3.0");
     expect(cariEntri("1.1.0")).not.toBeNull();
   });
 });

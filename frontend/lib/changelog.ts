@@ -15,6 +15,17 @@ export type EntriChangelog = {
 
 export const CHANGELOG: EntriChangelog[] = [
   {
+    versi: "1.8.0",
+    tanggal: "2026-11-20",
+    judul: "Perbaikan bug produksi + toast & dialog custom + 60 fitur logika baru",
+    butir: [
+      "BUG PRODUKSI: periksa jaringan selalu gagal 400 karena port default 5432 padahal Postgres dipetakan 5433 (pusat) dan 5434 (salinan) di docker compose. Default kini 5433 plus 4 tombol cepat (DB pusat, DB salinan, backend, db dalam Docker), port hanya angka, dan koneksi yang ditolak kini balasan 502 dengan pesan penunjuk arah (bukan 400 yang menyesatkan).",
+      "BUG PRODUKSI (laporan issues): alasan refund, catatan serah terima, dan nama pembeli terpotong per byte sehingga karakter beraksen atau em dash bisa terbelah dan ditolak Postgres (invalid byte sequence). Pemotongan kini per karakter (rune) di paket textutil, hasil selalu UTF-8 valid, sama dengan batas jumlah huruf di form; terbukti refund dengan alasan em dash dan emoji tersimpan mulus.",
+      "TOAST & DIALOG SENDIRI: alert, confirm, dan prompt bawaan browser (tampak jelek untuk produk nyata) seluruhnya diganti: konfirmasi hapus berkas, buka nilai asli env, matikan server (harus ketik MATIKAN), dan tandai sudah diantar kini memakai dialog aplikasi ber-tombol jelas; status memproses memakai dialog tunggu; pesan singkat tetap lewat toast kanan bawah.",
+      "60 FITUR LOGIKA BARU (backend 2.5.0, hasil riset Moka, Square, Majoo, Laravel): 20 perkakas developer murni (rate limiter, penangkap webhook, heartbeat cron, profiler query lambat, export CSV, ukuran tabel, rotasi kunci, maintenance, level log, statistik runtime, sweep sesi, pencarian audit, validator env, pembading skema, feature flags, estimasi backup, idempoten, healthcheck verdict, dan lainnya), 30 fitur owner (basket size, margin, sell-through, dead stock, reorder, rekonsiliasi kas laci, opname, FEFO batch, poin loyalty, target, jam ramai, terlaris, transfer outlet, dan lainnya), 10 fitur kasir (parkir transaksi, split bill, diskon manual tervalidasi, pembayaran campuran, struk digital, quick keys, barcode, void/refund ber-alasan); template GitHub issues baru menyertai (bisa unggah foto dan video).",
+    ],
+  },
+  {
     versi: "1.7.0",
     tanggal: "2026-11-20",
     judul: "UMKM2Shell: audit command + kendali server (matikan, kesehatan, prediksi down)",

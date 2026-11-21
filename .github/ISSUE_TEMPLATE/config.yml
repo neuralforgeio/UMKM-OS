@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Diskusi tanya jawab
+    url: https://github.com/umkm-os/umkm-os/discussions
+    about: Tanya sebelum buka issue (cara pakai, konfigurasi Docker, dsb.).

@@ -10,6 +10,7 @@ import (
 
 	"github.com/neuralforgeio/internal/db"
 	"github.com/neuralforgeio/internal/middleware"
+	"github.com/neuralforgeio/internal/textutil"
 )
 
 type RefundPayload struct {
@@ -43,9 +44,10 @@ func RefundTransaction(w http.ResponseWriter, r *http.Request) {
 		_ = Decode(r, &req) // body tanpa alasan diperlakukan kosong
 	}
 	reason := strings.TrimSpace(req.Reason)
-	if len(reason) > 120 {
-		reason = reason[:120]
-	}
+	// v2.4.1 (bug UTF-8 produksi): potong per RUNE, bukan byte —
+	// potongan byte bisa membelah karakter non-ASCII sehingga INSERT
+	// Postgres gagal (invalid byte sequence for encoding UTF8).
+	reason = textutil.PotongRune(reason, 120)
 
 	ctx := r.Context()
 

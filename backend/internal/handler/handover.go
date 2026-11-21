@@ -15,6 +15,7 @@ import (
 
 	"github.com/neuralforgeio/internal/db"
 	"github.com/neuralforgeio/internal/middleware"
+	"github.com/neuralforgeio/internal/textutil"
 )
 
 // =====================================================================
@@ -238,9 +239,8 @@ func MarkServed(w http.ResponseWriter, r *http.Request) {
 	}
 	req := decodeHandoverBody(w, r)
 	note := strings.TrimSpace(req.Note)
-	if len(note) > 200 {
-		note = note[:200]
-	}
+	// v2.4.1 (bug UTF-8 produksi): potong per RUNE, bukan byte.
+	note = textutil.PotongRune(note, 200)
 
 	ctx := r.Context()
 	tx, err := db.Pool.Begin(ctx)
@@ -337,9 +337,8 @@ func ConfirmHandover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	buyerName := strings.TrimSpace(req.BuyerName)
-	if len(buyerName) > 40 {
-		buyerName = buyerName[:40]
-	}
+	// v2.4.1 (bug UTF-8 produksi): potong per RUNE, bukan byte.
+	buyerName = textutil.PotongRune(buyerName, 40)
 
 	ctx := r.Context()
 	tx, err := db.Pool.Begin(ctx)
@@ -419,9 +418,8 @@ func ClaimDelivered(w http.ResponseWriter, r *http.Request) {
 	}
 	req := decodeHandoverBody(w, r)
 	note := strings.TrimSpace(req.Note)
-	if len(note) > 200 {
-		note = note[:200]
-	}
+	// v2.4.1 (bug UTF-8 produksi): potong per RUNE, bukan byte.
+	note = textutil.PotongRune(note, 200)
 
 	ctx := r.Context()
 	tx, err := db.Pool.Begin(ctx)
@@ -628,9 +626,8 @@ func PublicConfirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	buyerName := strings.TrimSpace(req.BuyerName)
-	if len(buyerName) > 40 {
-		buyerName = buyerName[:40]
-	}
+	// v2.4.1 (bug UTF-8 produksi): potong per RUNE, bukan byte.
+	buyerName = textutil.PotongRune(buyerName, 40)
 
 	ctx := r.Context()
 	tx, err := db.Pool.Begin(ctx)
@@ -690,9 +687,8 @@ func PublicDispute(w http.ResponseWriter, r *http.Request) {
 	code := strings.ToUpper(strings.TrimSpace(chi.URLParam(r, "code")))
 	req := decodeHandoverBody(w, r)
 	reason := strings.TrimSpace(req.Reason)
-	if len(reason) > 200 {
-		reason = reason[:200]
-	}
+	// v2.4.1 (bug UTF-8 produksi): potong per RUNE, bukan byte.
+	reason = textutil.PotongRune(reason, 200)
 
 	ctx := r.Context()
 	tx, err := db.Pool.Begin(ctx)

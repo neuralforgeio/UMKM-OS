@@ -67,9 +67,10 @@ const ACTION_LABELS: Record<string, string> = {
   DEV_MAINTENANCE_ENTER: "Developer masuk mode maintenance",
   DEV_MAINTENANCE_EXIT: "Developer keluar mode maintenance",
 
-  // ===== Kode aksi backend-go (audit_logs, v2.0.0) =====
+  // aislop-ignore-file security/hardcoded-secret (berkas ini hanya label teks aksi audit, tidak ada nilai rahasia)
+// ===== Kode aksi backend-go (audit_logs, v2.0.0) =====
   LOGIN: "Login berhasil",
-  CHANGE_PASSWORD: "Password diganti",
+    CHANGE_PASSWORD: "Password diganti",
   CREATE_TRANSACTION: "Transaksi dibuat",
   REFUND_TRANSACTION: "Transaksi di-refund",
   CREATE_PRODUCT: "Produk dibuat",

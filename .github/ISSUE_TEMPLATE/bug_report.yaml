@@ -1,0 +1,125 @@
+name: Laporan Bug
+description: Ada yang error atau tidak bekerja sebagaimana mestinya? Laporkan di sini.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Terima kasih sudah melaporkan bug! Semakin lengkap laporanmu,
+        semakin cepat kami bisa memperbaikinya. Template ini memakai
+        form GitHub: lampiran FOTO dan VIDEO bisa diseret (drag and
+        drop) ke kotak teks mana pun di bawah, atau ditempel langsung
+        (Ctrl+V) dari clipboard. Format yang otomatis diterima:
+        png, jpg, gif, webp, mp4, webm, mov (maks 10 MB per berkas).
+
+  - type: textarea
+    id: apa-yang-terjadi
+    attributes:
+      label: Apa yang terjadi?
+      description: Ceritakan bug-nya. Jika bisa, sertai foto tangkapan layar atau rekaman video langkah mengatasinya (drag and drop berkas ke kotak ini).
+      placeholder: |
+        Contoh: ketika saya klik Periksa di tab Jaringan UMKM2Shell,
+        muncul error 400 dan hasil tidak pernah tampil.
+    validations:
+      required: true
+
+  - type: textarea
+    id: apa-yang-diharapkan
+    attributes:
+      label: Apa yang seharusnya terjadi?
+      placeholder: Contoh: hasil ping tampil dengan latensi milidetik.
+    validations:
+      required: true
+
+  - type: textarea
+    id: langkah-reproduksi
+    attributes:
+      label: Langkah mereproduksi
+      description: Nomori langkahnya supaya kami bisa mengikuti persis. Video singkat sangat membantu (drag and drop .mp4 ke sini).
+      placeholder: |
+        1. Masuk sebagai DEVELOPER ke /dev/shell
+        2. Buka tab Jaringan
+        3. Klik Periksa
+        4. Muncul 400 Bad Request di console browser
+    validations:
+      required: true
+
+  - type: textarea
+    id: bukti
+    attributes:
+      label: Bukti (foto / video / log console)
+      description: Seret berkas gambar atau video ke area ini, atau tempel tangkapan layar langsung. Log console / network browser juga berguna (salin-tempel teksnya).
+      placeholder: Drag and drop file di sini atau tempel (Ctrl+V).
+    validations:
+      required: false
+
+  - type: textarea
+    id: pesan-error
+    attributes:
+      label: Pesan error lengkap
+      description: Salin-tempel teks error dari console browser, log backend, atau response API (jangan disensor parsial; tandai bagian rahasia dengan [RHSRAHASIA]).
+      placeholder: |
+        Contoh: POST http://localhost:8080/api/v1/shell/net/ping 400 (Bad Request)
+        {"success":false,"error":{"message":"..."}}
+    validations:
+      required: false
+
+  - type: dropdown
+    id: peran-akun
+    attributes:
+      label: Peran akun saat bug muncul
+      options:
+        - OWNER
+        - KASIR
+        - DEVELOPER
+        - Belum login (halaman publik / struk digital)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: halaman
+    attributes:
+      label: Halaman / fitur terkait
+      options:
+        - POS Kasir (transaksi)
+        - Serah terima / verifikasi
+        - Refund
+        - Laporan owner (dashboard, produk terlaris)
+        - Manajemen produk / stok
+        - UMKM2Shell (konsol developer)
+        - Sesi / bendera / SQL console
+        - Backup
+        - OSCAR (asisten AI)
+        - Lainnya (jelaskan di kolom cerita)
+    validations:
+      required: true
+
+  - type: input
+    id: versi
+    attributes:
+      label: Versi aplikasi
+      description: Terlihat di halaman login atau GET /api/v1/version.
+      placeholder: Contoh: backend 2.5.0 / frontend 1.8.0
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser / perangkat
+      options:
+        - Chrome desktop
+        - Firefox desktop
+        - Safari desktop
+        - Chrome Android
+        - Safari iPhone
+        - Aplikasi wrapper (Electron dsb.)
+        - Lainnya
+    validations:
+      required: true
+
+  - type: textarea
+    id: catatan-tambahan
+    attributes:
+      label: Catatan tambahan
+      description: Konfigurasi lingkungan (Docker compose? port?), frekuensi muncul (selalu / kadang), atau teori penyebab. Bebas.
+    validations:
+      required: false

@@ -12,6 +12,7 @@ import (
 	"github.com/neuralforgeio/internal/db"
 	"github.com/neuralforgeio/internal/logger"
 	"github.com/neuralforgeio/internal/middleware"
+	"github.com/neuralforgeio/internal/textutil"
 )
 
 type LoginRequest struct {
@@ -73,9 +74,9 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ua := r.UserAgent()
-	if len(ua) > 300 { // ringkas, kolom user_agent tidak menampung novel
-		ua = ua[:300]
-	}
+	// v2.4.1: potong per RUNE (user_agent bisa berisi karakter
+	// non-ASCII dari browser ponsel; potongan byte membelah UTF-8).
+	ua = textutil.PotongRune(ua, 300)
 	_, _ = db.Pool.Exec(r.Context(),
 		`INSERT INTO sessions (id, user_id, token_id, ip, user_agent, expires_at)
 		 VALUES ($1, $2, $3, $4, $5, NOW() + ($6 || ' hours')::INTERVAL)`,

@@ -9,6 +9,7 @@ import {
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
+import { DialogTeks, DialogTunggu } from "@/components/dialog";
 
 // TAB 6 UMKM2Shell: KENDALI & PREDIKSI SERVER (run-13, backend 2.4.0).
 // GET /shell/server/kesehatan · GET /shell/server/prediksi ·
@@ -45,6 +46,7 @@ export function TabServer({ goToken }: { goToken: string }) {
   const [pred, setPred] = useState<Prediksi | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
   const [menyalakanMatikan, setMenyalakanMatikan] = useState(false);
+  const [dialogMatikan, setDialogMatikan] = useState(false);
 
   const muat = useCallback(async () => {
     const [rk, rp] = await Promise.all([
@@ -65,14 +67,10 @@ export function TabServer({ goToken }: { goToken: string }) {
     return () => clearInterval(tik);
   }, [muat]);
 
-  const matikan = async () => {
-    const konfirmasi = prompt(
-      "Ketik MATIKAN (huruf besar) untuk mematikan server dengan rapi. Server tidak bisa dihidupkan lagi dari panel — hidupkan lewat docker compose / runner.",
-    );
-    if (konfirmasi !== "MATIKAN") {
-      setPesan("konfirmasi tidak cocok — server tetap jalan");
-      return;
-    }
+  const matikan = () => setDialogMatikan(true);
+
+  const matikanBetul = async () => {
+    setDialogMatikan(false);
     setMenyalakanMatikan(true);
     try {
       const res = await fetch(`${API}/api/v1/shell/server/matikan`, {
@@ -81,7 +79,7 @@ export function TabServer({ goToken }: { goToken: string }) {
           Authorization: `Bearer ${goToken}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ konfirmasi }),
+        body: JSON.stringify({ konfirmasi: "MATIKAN" }),
       });
       const json = (await res.json()) as {
         success: boolean;
@@ -201,6 +199,24 @@ export function TabServer({ goToken }: { goToken: string }) {
         </section>
       )}
 
+      <DialogTeks
+        judul="Matikan server dengan rapi"
+        pesan="Server tidak bisa dihidupkan lagi dari panel — hidupkan lewat docker compose / runner. HTTP di-drain 5 detik, database ditutup, log di-flush."
+        konfirmasiLiteral="MATIKAN"
+        teksTombol="Matikan server"
+        merah
+        buka={dialogMatikan}
+        onClose={(h) => {
+          setDialogMatikan(false);
+          if (h.yakin) void matikanBetul();
+        }}
+      />
+      {menyalakanMatikan && (
+        <DialogTunggu
+          judul="Mematikan server"
+          pesan="HTTP di-drain, koneksi database ditutup, log di-flush."
+        />
+      )}
       <section className="space-y-2 rounded-xl border border-rose-400/40 bg-rose-400/5 p-4">
         <h3 className="flex items-center gap-2 font-semibold text-rose-600">
           <Power className="size-5" /> Matikan server (graceful)
@@ -212,7 +228,7 @@ export function TabServer({ goToken }: { goToken: string }) {
           bisa menghidupkan sendiri).
         </p>
         <button
-          onClick={() => void matikan()}
+          onClick={() => setDialogMatikan(true)}
           disabled={menyalakanMatikan}
           className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-40"
         >

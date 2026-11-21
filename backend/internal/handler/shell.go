@@ -217,23 +217,57 @@ func ShellEnv(w http.ResponseWriter, r *http.Request) {
 
 // ---- Jaringan --------------------------------------------------------------
 
-// POST /api/v1/shell/net/ping (DEVELOPER) body {"host","port"}
+// POST /api/v1/shell/net/ping (DEVELOPER) body {"host","port"}.
+// v2.4.1 (bug produksi): "periksa" selalu gagal 400 karena (1) UI lama
+// default port 5432 padahal compose memetakan PG ke 5433/5434, dan
+// (2) koneksi DITOLAK dikirim sebagai 400 Bad Request padahal request
+// valid. Kini: port divalidasi digit, koneksi gagal = 502 dengan pesan
+// yang menjelaskan, dan hanya body rusak yang 400.
 func ShellNetPing(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Host string `json:"host"`
 		Port string `json:"port"`
 	}
 	if err := Decode(r, &req); err != nil || req.Host == "" || req.Port == "" {
-		Err(w, http.StatusBadRequest, "Body request tidak valid")
+		Err(w, http.StatusBadRequest, "Host dan port wajib diisi")
+		return
+	}
+	pesanPort := ValidasiPortTCP(req.Port)
+	if pesanPort != "" {
+		Err(w, http.StatusBadRequest, pesanPort)
 		return
 	}
 	hidup, ms, err := shell.PingTCP(req.Host, req.Port)
 	if err != nil {
-		Err(w, http.StatusBadRequest, err.Error())
+		// Request valid tapi sasaran tak terjangkau: 502 (bukan 400)
+		shelAudit(r, "SHELL_NET_PING_GAGAL", req.Host+":"+req.Port)
+		Err(w, http.StatusBadGateway, "Tidak bisa menyambung ke "+req.Host+":"+req.Port+
+			" (5 detik). Di Docker, Postgres pusat = host 5433, salinan = 5434; dari dalam kontainer = db:5432. "+err.Error())
 		return
 	}
 	shelAudit(r, "SHELL_NET_PING", req.Host+":"+req.Port)
 	OK(w, map[string]interface{}{"hidup": hidup, "latensi_ms": ms})
+}
+
+// ValidasiPortTCP: murni (diuji unit). Port harus 1-65535 digit saja.
+// String kosong, negatif, lebih besar 65535, atau bukan digit -> pesan.
+func ValidasiPortTCP(port string) string {
+	if port == "" {
+		return "Port wajib diisi"
+	}
+	for _, c := range port {
+		if c < '0' || c > '9' {
+			return "Port hanya boleh angka: " + port
+		}
+	}
+	n, err := strconv.Atoi(port)
+	if err != nil {
+		return "Port tidak terbaca: " + port
+	}
+	if n < 1 || n > 65535 {
+		return "Port harus 1 sampai 65535: " + port
+	}
+	return ""
 }
 
 // POST /api/v1/shell/net/http (DEVELOPER) body {"url"}

@@ -1,0 +1,69 @@
+name: Usulan Fitur
+description: Punya ide fitur untuk kasir, owner, atau developer? Usulkan di sini.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Usulan fitur sangat diterima! Jelaskan masalah yang ingin
+        diselesaikan lebih dulu, baru bentuk solusinya. Mockup atau
+        video demo bisa diseret (drag and drop) ke kotak teks mana
+        pun di bawah (png, jpg, gif, mp4, webm, maks 10 MB).
+
+  - type: textarea
+    id: masalah
+    attributes:
+      label: Masalah apa yang ingin diselesaikan?
+      description: Ceritakan situasinya. Contoh: serah terima sering gagal karena alasan melebihi 120 huruf beraksen.
+      placeholder: Sebagai (owner/kasir/developer), saya kesulitan saat...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solusi
+    attributes:
+      label: Bagaimana solusi yang kamu bayangkan?
+      description: Jika ada referensi aplikasi lain yang sudah melakukannya (Moka, Square, dsb.), sebutkan. Mockup gambar atau video dapat di-attach di sini.
+      placeholder: Seharusnya sistem...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: peran-penerima
+    attributes:
+      label: Fitur ini utamanya untuk siapa?
+      options:
+        - KASIR (mempercepat transaksi)
+        - OWNER (laporan, stok, keuangan)
+        - DEVELOPER (alat operasional)
+        - Semua peran
+    validations:
+      required: true
+
+  - type: dropdown
+    id: prioritas
+    attributes:
+      label: Seberapa penting bagi operasional harian?
+      options:
+        - Kritis (menghalangi jualan / menyebabkan kerugian)
+        - Tinggi (menghemat waktu signifikan tiap hari)
+        - Sedang (nyaman tapi ada cara manual)
+        - Rendah (ide jangka panjang)
+    validations:
+      required: true
+
+  - type: textarea
+    id: bukti
+    attributes:
+      label: Mockup / referensi (foto atau video)
+      description: Drag and drop berkas gambar/video, atau tempel (Ctrl+V) tangkapan layar aplikasi pembanding.
+    validations:
+      required: false
+
+  - type: textarea
+    id: catatan-tambahan
+    attributes:
+      label: Catatan tambahan
+      description: Detail teknis, data pendukung, atau angka operasional (mis. jumlah transaksi per hari).
+    validations:
+      required: false
